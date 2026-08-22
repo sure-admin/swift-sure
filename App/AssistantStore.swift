@@ -25,7 +25,7 @@ final class AssistantStore {
 
     let connection = SureConnection.shared
     guard connection.isConfigured else {
-      messages.append(AssistantMessage(role: .assistant, content: localResponse(for: prompt)))
+      errorMessage = "Connect your Sure API key in Connection Settings before sending a message."
       isResponding = false
       return
     }
@@ -47,14 +47,4 @@ final class AssistantStore {
     isResponding = false
   }
 
-  private func localResponse(for prompt: String) -> String {
-    let lowered = prompt.lowercased()
-    if lowered.contains("spend") || lowered.contains("budget") {
-      return "You’ve spent $4,982 this month—12% less than July. Dining is at 82% of its budget, while shopping is $36 over plan."
-    }
-    if lowered.contains("save") {
-      return "Your current savings rate is 41%. Keeping that pace would add about $41,700 over the next 12 months before investment returns."
-    }
-    return "Connect your Sure API key to get an answer grounded in your live demo finances. For now, the sample dashboard shows net worth of $143,047 and $3,478 left in this month’s budget."
-  }
 }

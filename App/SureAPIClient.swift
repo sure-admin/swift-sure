@@ -38,23 +38,58 @@ struct SureAPIClient {
       body: ["title": "Sure for Apple"]
     )
     guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-          let identifier = findString(keys: ["id", "uuid"], in: object) else {
+          let identifier = object["id"] as? String else {
       throw SureAPIError.invalidResponse
     }
     return identifier
   }
 
   func sendMessage(_ content: String, chatID: String) async throws -> String {
-    let data = try await request(
+    let existingReplies = try await fetchAssistantReplies(chatID: chatID)
+    let existingReplyIDs = Set(existingReplies.map(\.id))
+
+    let submissionData = try await request(
       path: "/api/v1/chats/\(chatID)/messages",
       method: "POST",
       body: ["content": content]
     )
-    let object = try JSONSerialization.jsonObject(with: data)
-    guard let response = findAssistantContent(in: object) else {
+    if let submission = try JSONSerialization.jsonObject(with: submissionData) as? [String: Any],
+       submission["ai_response_status"] as? String == "failed" {
+      let message = submission["ai_response_message"] as? String ?? "Sure could not generate a response."
+      throw SureAPIError.backend(message)
+    }
+
+    for attempt in 0..<45 {
+      if attempt > 0 {
+        try await Task.sleep(for: .seconds(1))
+      }
+      let replies = try await fetchAssistantReplies(chatID: chatID)
+      if let reply = replies.last(where: { reply in
+        !existingReplyIDs.contains(reply.id) && !reply.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      }) {
+        return reply.content
+      }
+    }
+    throw SureAPIError.responseTimeout
+  }
+
+  private func fetchAssistantReplies(chatID: String) async throws -> [RemoteAssistantReply] {
+    let data = try await request(path: "/api/v1/chats/\(chatID)", method: "GET")
+    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw SureAPIError.invalidResponse
     }
-    return response
+    if let backendError = object["error"] as? String, !backendError.isEmpty {
+      throw SureAPIError.backend(backendError)
+    }
+    guard let messages = object["messages"] as? [[String: Any]] else {
+      throw SureAPIError.invalidResponse
+    }
+    return messages.compactMap { message in
+      guard message["role"] as? String == "assistant",
+            let id = message["id"] as? String,
+            let content = message["content"] as? String else { return nil }
+      return RemoteAssistantReply(id: id, content: content)
+    }
   }
 
   func fetchAccounts() async throws -> [FinanceAccount] {
@@ -158,26 +193,6 @@ struct SureAPIClient {
     return nil
   }
 
-  private func findAssistantContent(in object: Any) -> String? {
-    if let dictionary = object as? [String: Any] {
-      if let role = dictionary["role"] as? String,
-         role == "assistant",
-         let content = dictionary["content"] as? String {
-        return content
-      }
-      if let content = dictionary["content"] as? String { return content }
-      if let message = dictionary["message"] as? String { return message }
-      for value in dictionary.values {
-        if let match = findAssistantContent(in: value) { return match }
-      }
-    } else if let array = object as? [Any] {
-      for value in array.reversed() {
-        if let match = findAssistantContent(in: value) { return match }
-      }
-    }
-    return nil
-  }
-
   private func findDictionaries(named key: String, in object: Any) -> [[String: Any]] {
     if let dictionary = object as? [String: Any] {
       if let matches = dictionary[key] as? [[String: Any]] { return matches }
@@ -252,6 +267,8 @@ enum SureAPIError: LocalizedError {
   case invalidResponse
   case unauthorized
   case server(Int)
+  case backend(String)
+  case responseTimeout
 
   var errorDescription: String? {
     switch self {
@@ -259,6 +276,13 @@ enum SureAPIError: LocalizedError {
     case .invalidResponse: "Sure returned an unexpected response."
     case .unauthorized: "The API key is invalid or lacks access."
     case .server(let code): "Sure returned server error \(code)."
+    case .backend(let message): message
+    case .responseTimeout: "Sure is still working on that response. Try again in a moment."
     }
   }
+}
+
+private struct RemoteAssistantReply {
+  var id: String
+  var content: String
 }
