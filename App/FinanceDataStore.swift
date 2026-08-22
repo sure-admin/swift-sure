@@ -16,20 +16,29 @@ final class FinanceDataStore {
     accounts.reduce(0) { $0 + $1.balance }
   }
 
-  var monthIncome: Double {
-    currentMonthTransactions
+  var periodIncome: Double {
+    reportingPeriodTransactions
       .filter { $0.kind == .income }
       .reduce(0) { $0 + abs($1.amount) }
   }
 
-  var monthSpending: Double {
-    currentMonthTransactions
+  var periodSpending: Double {
+    reportingPeriodTransactions
       .filter { $0.kind == .expense }
       .reduce(0) { $0 + abs($1.amount) }
   }
 
-  var currentMonthTransactions: [FinanceTransaction] {
-    transactions.filter { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
+  var reportingPeriodTransactions: [FinanceTransaction] {
+    guard let reportingDate else { return [] }
+    return transactions.filter { Calendar.current.isDate($0.date, equalTo: reportingDate, toGranularity: .month) }
+  }
+
+  var reportingDate: Date? {
+    transactions.first?.date
+  }
+
+  var reportingPeriodLabel: String {
+    reportingDate?.formatted(.dateTime.month(.wide).year()) ?? "Latest period"
   }
 
   private init() { }

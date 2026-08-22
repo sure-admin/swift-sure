@@ -117,7 +117,7 @@ struct OverviewView: View {
       }
 
       if !data.accounts.isEmpty {
-        Chart(data.accounts) { account in
+        Chart(topAccounts) { account in
           BarMark(
             x: .value("Balance", abs(account.balance)),
             y: .value("Account", account.name)
@@ -128,6 +128,11 @@ struct OverviewView: View {
         .chartXAxis(.hidden)
         .frame(minHeight: 150)
         .accessibilityLabel("Account balances contributing to net worth")
+        if data.accounts.count > topAccounts.count {
+          Text("Showing the \(topAccounts.count) largest of \(data.accounts.count) accounts")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
     }
     .sureCard()
@@ -135,18 +140,18 @@ struct OverviewView: View {
 
   private var spendingCard: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text("This month")
+      Text(data.reportingPeriodLabel)
         .font(.title3.bold())
       HStack(spacing: 18) {
-        metric(title: "Income", value: data.monthIncome, color: .green)
-        metric(title: "Spent", value: data.monthSpending, color: .orange)
+        metric(title: "Income", value: data.periodIncome, color: .green)
+        metric(title: "Spent", value: data.periodSpending, color: .orange)
       }
-      if data.monthIncome > 0 {
+      if data.periodIncome > 0 {
         Divider()
         HStack {
           Label("Savings rate", systemImage: "leaf.fill")
           Spacer()
-          Text(max(0, (data.monthIncome - data.monthSpending) / data.monthIncome), format: .percent.precision(.fractionLength(0)))
+          Text(max(0, (data.periodIncome - data.periodSpending) / data.periodIncome), format: .percent.precision(.fractionLength(0)))
             .fontWeight(.bold)
         }
       }
@@ -182,5 +187,9 @@ struct OverviewView: View {
       Capsule().fill(color).frame(width: 36, height: 4)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var topAccounts: [FinanceAccount] {
+    Array(data.accounts.sorted { abs($0.balance) > abs($1.balance) }.prefix(5))
   }
 }

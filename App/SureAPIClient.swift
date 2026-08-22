@@ -73,7 +73,9 @@ struct SureAPIClient {
       else if classification.contains("credit") || classification.contains("liabil") { kind = .credit }
       else if classification.contains("property") || classification.contains("real_estate") { kind = .property }
       else { kind = .cash }
-      let institution = string(keys: ["institution_name", "institution", "provider_name"], in: account) ?? kind.rawValue
+      let institution = string(keys: ["institution_name", "provider_name"], in: account)
+        ?? nestedString(parent: "institution", keys: ["name"], in: account)
+        ?? kind.rawValue
       let colors = ["blue", "teal", "purple", "orange"]
       return FinanceAccount(
         id: identifier,
@@ -98,7 +100,9 @@ struct SureAPIClient {
       let identifier = string(keys: ["id", "uuid"], in: transaction) ?? UUID().uuidString
       let classification = string(keys: ["classification", "nature", "kind"], in: transaction)?.lowercased() ?? "expense"
       let kind: TransactionKind = classification.contains("income") ? .income : .expense
-      let category = string(keys: ["category_name", "category"], in: transaction) ?? "Uncategorized"
+      let category = string(keys: ["category_name"], in: transaction)
+        ?? nestedString(parent: "category", keys: ["name"], in: transaction)
+        ?? "Uncategorized"
       let date = dateValue(keys: ["date", "transacted_at", "created_at"], in: transaction) ?? .now
       return FinanceTransaction(
         id: identifier,
@@ -114,8 +118,7 @@ struct SureAPIClient {
   }
 
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
-    let month = Date.now.formatted(.iso8601.year().month().day())
-    let data = try await request(path: "/api/v1/budgets?start_date=\(month)", method: "GET")
+    let data = try await request(path: "/api/v1/budgets", method: "GET")
     let object = try JSONSerialization.jsonObject(with: data)
     let budgetObjects = findDictionaries(named: "budgets", in: object)
     guard let budget = budgetObjects.first,
@@ -218,6 +221,11 @@ struct SureAPIClient {
       }
     }
     return nil
+  }
+
+  private func nestedString(parent: String, keys: [String], in object: Any) -> String? {
+    guard let dictionary = object as? [String: Any], let nested = dictionary[parent] else { return nil }
+    return string(keys: keys, in: nested)
   }
 
   private func dateValue(keys: [String], in object: Any) -> Date? {

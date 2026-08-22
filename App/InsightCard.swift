@@ -64,7 +64,8 @@ struct InsightCard: View {
 
   private var topCategory: (name: String, total: Double)? {
     let expenses = transactions.filter { $0.kind == .expense }
-    let totals = Dictionary(grouping: expenses, by: \.category)
+    let categorized = expenses.filter { $0.category.localizedCaseInsensitiveCompare("Uncategorized") != .orderedSame }
+    let totals = Dictionary(grouping: categorized, by: \.category)
       .mapValues { $0.reduce(0) { $0 + $1.amount } }
     return totals.max { $0.value < $1.value }.map { ($0.key, $0.value) }
   }
