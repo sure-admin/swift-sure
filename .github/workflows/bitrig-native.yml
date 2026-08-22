@@ -1,0 +1,66 @@
+name: Bitrig Native
+
+on:
+  pull_request:
+    paths:
+      - "bitrig/**"
+      - ".github/workflows/bitrig-native.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "bitrig/**"
+      - ".github/workflows/bitrig-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bitrig-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iPhone and iPad
+            scheme: Sure
+            destination: generic/platform=iOS Simulator
+          - name: Mac
+            scheme: Sure
+            destination: platform=macOS
+          - name: Apple TV
+            scheme: Sure
+            destination: generic/platform=tvOS Simulator
+          - name: Apple Watch
+            scheme: Sure Watch
+            destination: generic/platform=watchOS Simulator
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: bitrig
+        run: xcodegen generate --spec Project.json
+
+      - name: Build
+        working-directory: bitrig
+        run: >-
+          xcodebuild
+          -project Sure.xcodeproj
+          -scheme "${{ matrix.scheme }}"
+          -configuration Debug
+          -destination "${{ matrix.destination }}"
+          -derivedDataPath "${{ runner.temp }}/DerivedData-${{ strategy.job-index }}"
+          CODE_SIGNING_ALLOWED=NO
+          build
