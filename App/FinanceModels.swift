@@ -19,7 +19,7 @@ enum AccountKind: String, CaseIterable, Identifiable {
 }
 
 struct FinanceAccount: Identifiable {
-  var id = UUID()
+  var id = UUID().uuidString
   var name: String
   var institution: String
   var kind: AccountKind
@@ -34,7 +34,7 @@ enum TransactionKind {
 }
 
 struct FinanceTransaction: Identifiable {
-  var id = UUID()
+  var id = UUID().uuidString
   var merchant: String
   var category: String
   var symbol: String
@@ -44,7 +44,7 @@ struct FinanceTransaction: Identifiable {
 }
 
 struct BudgetCategory: Identifiable {
-  var id = UUID()
+  var id = UUID().uuidString
   var name: String
   var symbol: String
   var spent: Double

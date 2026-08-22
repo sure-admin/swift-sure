@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct InsightCard: View {
+  var transactions: [FinanceTransaction]
   @AppStorage("insightNotificationsEnabled") private var notificationsEnabled = false
   @State private var showingNotificationFailure = false
 
@@ -18,19 +19,23 @@ struct InsightCard: View {
           .foregroundStyle(SureTheme.ink)
       }
 
-      insight(
-        symbol: "creditcard.trianglebadge.exclamationmark",
-        title: "A recurring charge increased",
-        detail: "Your Acme Internet bill is $10 higher than its six-month average.",
-        tint: .orange
-      )
-      Divider()
-      insight(
-        symbol: "fork.knife",
-        title: "Dining is close to its limit",
-        detail: "You have $72 left for dining through the end of August.",
-        tint: .purple
-      )
+      if let topCategory {
+        insight(
+          symbol: "chart.bar.fill",
+          title: "Your top spending category is \(topCategory.name)",
+          detail: "You’ve spent \(topCategory.total.formatted(FinanceFormatters.currency)) there in the loaded period.",
+          tint: .orange
+        )
+      }
+      if let largestExpense {
+        Divider()
+        insight(
+          symbol: "creditcard.trianglebadge.exclamationmark",
+          title: "Largest recent expense",
+          detail: "\(largestExpense.merchant) was \(largestExpense.amount.formatted(FinanceFormatters.currency)).",
+          tint: .purple
+        )
+      }
 
       Toggle("Notify me about new insights", isOn: $notificationsEnabled)
         .onChange(of: notificationsEnabled) { _, enabled in
@@ -51,6 +56,17 @@ struct InsightCard: View {
     } message: {
       Text("You can allow notifications for Sure in System Settings.")
     }
+  }
+
+  private var largestExpense: FinanceTransaction? {
+    transactions.filter { $0.kind == .expense }.max { $0.amount < $1.amount }
+  }
+
+  private var topCategory: (name: String, total: Double)? {
+    let expenses = transactions.filter { $0.kind == .expense }
+    let totals = Dictionary(grouping: expenses, by: \.category)
+      .mapValues { $0.reduce(0) { $0 + $1.amount } }
+    return totals.max { $0.value < $1.value }.map { ($0.key, $0.value) }
   }
 
   private func insight(symbol: String, title: String, detail: String, tint: Color) -> some View {

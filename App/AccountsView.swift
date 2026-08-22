@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @State private var data = FinanceDataStore.shared
+
   var body: some View {
     NavigationStack {
       ScrollView {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-          ForEach(SampleFinanceData.accounts) { account in
+          ForEach(data.accounts) { account in
             accountCard(account)
           }
           addAccountCard
@@ -16,6 +18,16 @@ struct AccountsView: View {
       }
       .background(SureTheme.canvas.opacity(0.65))
       .navigationTitle("Accounts")
+      .overlay {
+        if data.state == .loading {
+          ProgressView("Loading accounts…")
+        } else if data.state == .loaded && data.accounts.isEmpty {
+          ContentUnavailableView("No accounts", systemImage: "building.columns")
+        }
+      }
+      .task {
+        if data.state == .idle { await data.refresh() }
+      }
     }
   }
 
@@ -41,13 +53,9 @@ struct AccountsView: View {
         Text(account.balance, format: FinanceFormatters.currency)
           .font(.title2.bold())
         Spacer()
-        Label {
-          Text("\(account.change.formatted(.number.precision(.fractionLength(1))))%")
-        } icon: {
-          Image(systemName: account.change >= 0 ? "arrow.up.right" : "arrow.down.right")
-        }
+        Text(account.kind.rawValue)
           .font(.caption.bold())
-          .foregroundStyle(account.change >= 0 ? .green : .orange)
+          .foregroundStyle(.secondary)
       }
     }
     .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)

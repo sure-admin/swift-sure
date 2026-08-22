@@ -1,20 +1,34 @@
 import SwiftUI
 
 struct BudgetView: View {
-  private var spent: Double { SampleFinanceData.budgets.reduce(0) { $0 + $1.spent } }
-  private var limit: Double { SampleFinanceData.budgets.reduce(0) { $0 + $1.limit } }
+  @State private var data = FinanceDataStore.shared
+
+  private var spent: Double { data.budgets.reduce(0) { $0 + $1.spent } }
+  private var limit: Double { data.budgets.reduce(0) { $0 + $1.limit } }
 
   var body: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 18) {
-          budgetHero
-          VStack(spacing: 18) {
-            ForEach(SampleFinanceData.budgets) { category in
-              categoryRow(category)
+          if data.state == .loading {
+            ProgressView("Loading budget…")
+              .frame(maxWidth: .infinity, minHeight: 260)
+          } else if data.budgets.isEmpty {
+            ContentUnavailableView(
+              "No current budget",
+              systemImage: "chart.pie",
+              description: Text("Create a budget in Sure to track it here.")
+            )
+            .frame(minHeight: 260)
+          } else {
+            budgetHero
+            VStack(spacing: 18) {
+              ForEach(data.budgets) { category in
+                categoryRow(category)
+              }
             }
+            .sureCard()
           }
-          .sureCard()
         }
         .frame(maxWidth: 760)
         .frame(maxWidth: .infinity)
@@ -27,6 +41,9 @@ struct BudgetView: View {
           Button("Edit budget", systemImage: "slider.horizontal.3") { }
         }
       }
+      .task {
+        if data.state == .idle { await data.refresh() }
+      }
     }
   }
 
@@ -36,10 +53,10 @@ struct BudgetView: View {
         Circle()
           .stroke(.quaternary, lineWidth: 14)
         Circle()
-          .trim(from: 0, to: spent / limit)
+          .trim(from: 0, to: limit > 0 ? min(spent / limit, 1) : 0)
           .stroke(SureTheme.accent, style: StrokeStyle(lineWidth: 14, lineCap: .round))
           .rotationEffect(.degrees(-90))
-        Text(spent / limit, format: .percent.precision(.fractionLength(0)))
+        Text(limit > 0 ? spent / limit : 0, format: .percent.precision(.fractionLength(0)))
           .font(.title2.bold())
       }
       .frame(width: 112, height: 112)

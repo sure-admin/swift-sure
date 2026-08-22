@@ -2,28 +2,14 @@ import Charts
 import SwiftUI
 
 struct OverviewView: View {
-  private var netWorth: Double {
-    SampleFinanceData.accounts.reduce(0) { $0 + $1.balance }
-  }
+  @State private var data = FinanceDataStore.shared
 
   var body: some View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
           welcomeHeader
-          InsightCard()
-          netWorthCard
-
-          ViewThatFits {
-            HStack(alignment: .top, spacing: 18) {
-              spendingCard
-              recentCard
-            }
-            VStack(spacing: 18) {
-              spendingCard
-              recentCard
-            }
-          }
+          content
         }
         .frame(maxWidth: 1100, alignment: .leading)
         .frame(maxWidth: .infinity)
@@ -33,21 +19,79 @@ struct OverviewView: View {
       .navigationTitle("Overview")
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
-          Button("Search", systemImage: "magnifyingglass") { }
-            .accessibilityHint("Search your finances")
+          Button("Refresh", systemImage: "arrow.clockwise") {
+            Task { await data.refresh() }
+          }
+          .disabled(data.state == .loading)
           Button("Add", systemImage: "plus") { }
             .accessibilityHint("Add an account or transaction")
+        }
+      }
+      .task {
+        if data.state == .idle || data.state == .needsConnection {
+          await data.refresh()
+        }
+      }
+      .refreshable { await data.refresh() }
+    }
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    switch data.state {
+    case .idle, .loading:
+      loadingView
+    case .needsConnection:
+      ContentUnavailableView(
+        "Connect your Sure account",
+        systemImage: "link.badge.plus",
+        description: Text("Open Assistant connection settings to add your API key.")
+      )
+    case .failed(let message):
+      ContentUnavailableView(
+        "Couldn’t load Sure",
+        systemImage: "exclamationmark.triangle",
+        description: Text(message)
+      )
+    case .loaded:
+      InsightCard(transactions: data.transactions)
+      netWorthCard
+      ViewThatFits {
+        HStack(alignment: .top, spacing: 18) {
+          spendingCard
+          recentCard
+        }
+        VStack(spacing: 18) {
+          spendingCard
+          recentCard
         }
       }
     }
   }
 
-  private var welcomeHeader: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text("Good afternoon")
-        .font(.title.bold())
-      Text("Here’s your complete financial picture.")
+  private var loadingView: some View {
+    VStack(spacing: 12) {
+      ProgressView()
+      Text("Loading your Sure finances…")
         .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity, minHeight: 320)
+  }
+
+  private var welcomeHeader: some View {
+    HStack(alignment: .bottom) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Good afternoon")
+          .font(.title.bold())
+        Text("Here’s your complete financial picture.")
+          .foregroundStyle(.secondary)
+      }
+      Spacer()
+      if let lastUpdated = data.lastUpdated {
+        Text("Updated \(lastUpdated, format: .relative(presentation: .named))")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
     .accessibilityElement(children: .combine)
   }
@@ -59,12 +103,9 @@ struct OverviewView: View {
           Text("Net worth")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
-          Text(netWorth, format: FinanceFormatters.currency)
+          Text(data.netWorth, format: FinanceFormatters.currency)
             .font(.system(.largeTitle, design: .rounded, weight: .bold))
             .contentTransition(.numericText())
-          Label("$7,420 this month", systemImage: "arrow.up.right")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.green)
         }
         Spacer()
         Text("LIVE")
@@ -75,31 +116,19 @@ struct OverviewView: View {
           .foregroundStyle(SureTheme.ink)
       }
 
-      Chart(SampleFinanceData.balanceHistory) { point in
-        AreaMark(
-          x: .value("Month", point.month),
-          y: .value("Balance", point.value)
-        )
-        .foregroundStyle(
-          .linearGradient(colors: [SureTheme.accent.opacity(0.55), SureTheme.accent.opacity(0.03)], startPoint: .top, endPoint: .bottom)
-        )
-        LineMark(
-          x: .value("Month", point.month),
-          y: .value("Balance", point.value)
-        )
-        .foregroundStyle(SureTheme.ink)
-        .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
-        .symbol(Circle())
-      }
-      .chartYAxis(.hidden)
-      .chartXAxis {
-        AxisMarks { _ in
-          AxisValueLabel()
-          AxisGridLine().foregroundStyle(.clear)
+      if !data.accounts.isEmpty {
+        Chart(data.accounts) { account in
+          BarMark(
+            x: .value("Balance", abs(account.balance)),
+            y: .value("Account", account.name)
+          )
+          .foregroundStyle(SureTheme.accountColor(account.tintName))
+          .cornerRadius(5)
         }
+        .chartXAxis(.hidden)
+        .frame(minHeight: 150)
+        .accessibilityLabel("Account balances contributing to net worth")
       }
-      .frame(height: 190)
-      .accessibilityLabel("Net worth increased from 126,200 dollars in March to 143,047 dollars in August")
     }
     .sureCard()
   }
@@ -109,15 +138,17 @@ struct OverviewView: View {
       Text("This month")
         .font(.title3.bold())
       HStack(spacing: 18) {
-        metric(title: "Income", value: 8_460, color: .green)
-        metric(title: "Spent", value: 4_982, color: .orange)
+        metric(title: "Income", value: data.monthIncome, color: .green)
+        metric(title: "Spent", value: data.monthSpending, color: .orange)
       }
-      Divider()
-      HStack {
-        Label("Savings rate", systemImage: "leaf.fill")
-        Spacer()
-        Text("41%")
-          .fontWeight(.bold)
+      if data.monthIncome > 0 {
+        Divider()
+        HStack {
+          Label("Savings rate", systemImage: "leaf.fill")
+          Spacer()
+          Text(max(0, (data.monthIncome - data.monthSpending) / data.monthIncome), format: .percent.precision(.fractionLength(0)))
+            .fontWeight(.bold)
+        }
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,14 +157,15 @@ struct OverviewView: View {
 
   private var recentCard: some View {
     VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        Text("Recent activity")
-          .font(.title3.bold())
-        Spacer()
-        Button("See all") { }
-      }
-      ForEach(SampleFinanceData.transactions.prefix(3)) { transaction in
-        TransactionRow(transaction: transaction)
+      Text("Recent activity")
+        .font(.title3.bold())
+      if data.transactions.isEmpty {
+        Text("No recent transactions")
+          .foregroundStyle(.secondary)
+      } else {
+        ForEach(data.transactions.prefix(3)) { transaction in
+          TransactionRow(transaction: transaction)
+        }
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -147,9 +179,7 @@ struct OverviewView: View {
         .foregroundStyle(.secondary)
       Text(value, format: FinanceFormatters.compactCurrency)
         .font(.title2.bold())
-      Capsule()
-        .fill(color)
-        .frame(width: 36, height: 4)
+      Capsule().fill(color).frame(width: 36, height: 4)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }

@@ -63,6 +63,7 @@ struct ConnectionSettingsView: View {
     case .connected:
       Label("Connected to Sure", systemImage: "checkmark.circle.fill")
         .foregroundStyle(.green)
+        .task { await FinanceDataStore.shared.refresh() }
     case .failed(let message):
       Label(message, systemImage: "exclamationmark.triangle.fill")
         .foregroundStyle(.red)
