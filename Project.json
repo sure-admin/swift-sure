@@ -3,8 +3,14 @@
     "Debug": "debug",
     "Release": "release"
   },
-  "name": "Project",
+  "name": "Sure",
   "options": {
+    "deploymentTarget": {
+      "iOS": "18.0",
+      "macOS": "15.0",
+      "tvOS": "18.0",
+      "watchOS": "11.0"
+    },
     "groupSortPosition": "bottom",
     "transitivelyLinkDependencies": false
   },
@@ -12,21 +18,15 @@
     "CODE_SIGN_IDENTITY": "-"
   },
   "targets": {
-    "New Project": {
-      "dependencies": [
-        {
-          "embed": true,
-          "target": "New Project Watch"
-        }
-      ],
-      "deploymentTarget": "26.0",
+    "Sure": {
       "info": {
         "path": "App\/Info.plist",
         "properties": {
-          "CFBundleDisplayName": "New Project",
+          "CFBundleDisplayName": "Sure",
           "CFBundleShortVersionString": "1.0",
           "CFBundleVersion": "1",
           "ITSAppUsesNonExemptEncryption": false,
+          "LSApplicationCategoryType": "public.app-category.finance",
           "UILaunchScreen": {},
           "UISupportedInterfaceOrientations": [
             "UIInterfaceOrientationPortrait",
@@ -59,17 +59,16 @@
       ],
       "type": "application"
     },
-    "New Project Watch": {
-      "deploymentTarget": "26.0",
+    "Sure Watch": {
       "info": {
         "path": "Watch\/Info.plist",
         "properties": {
-          "CFBundleDisplayName": "New Project",
+          "CFBundleDisplayName": "Sure",
           "CFBundleShortVersionString": "1.0",
           "CFBundleVersion": "1",
           "ITSAppUsesNonExemptEncryption": false,
           "WKApplication": true,
-          "WKCompanionAppBundleIdentifier": "app.bitrig.new.00ff7dff-6a8e-432c-867c-df7909595dfb"
+          "WKWatchOnly": true
         }
       },
       "platform": "watchOS",
