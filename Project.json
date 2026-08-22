@@ -1,34 +1,36 @@
 {
-  "configs": {
-    "Debug": "debug",
-    "Release": "release"
+  "configs" : {
+    "Debug" : "debug",
+    "Release" : "release"
   },
-  "name": "Sure",
-  "options": {
-    "deploymentTarget": {
-      "iOS": "18.0",
-      "macOS": "15.0",
-      "tvOS": "18.0",
-      "watchOS": "11.0"
+  "name" : "Sure",
+  "options" : {
+    "deploymentTarget" : {
+      "iOS" : "18.0",
+      "macOS" : "15.0",
+      "tvOS" : "18.0",
+      "watchOS" : "11.0"
     },
-    "groupSortPosition": "bottom",
-    "transitivelyLinkDependencies": false
+    "groupSortPosition" : "bottom",
+    "transitivelyLinkDependencies" : false
   },
-  "settings": {
-    "CODE_SIGN_IDENTITY": "-"
+  "settings" : {
+    "CODE_SIGN_IDENTITY" : "-"
   },
-  "targets": {
-    "Sure": {
-      "info": {
-        "path": "App\/Info.plist",
-        "properties": {
-          "CFBundleDisplayName": "Sure",
-          "CFBundleShortVersionString": "1.0",
-          "CFBundleVersion": "1",
-          "ITSAppUsesNonExemptEncryption": false,
-          "LSApplicationCategoryType": "public.app-category.finance",
-          "UILaunchScreen": {},
-          "UISupportedInterfaceOrientations": [
+  "targets" : {
+    "Sure" : {
+      "info" : {
+        "path" : "App\/Info.plist",
+        "properties" : {
+          "CFBundleDisplayName" : "Sure",
+          "CFBundleShortVersionString" : "1.0",
+          "CFBundleVersion" : "1",
+          "ITSAppUsesNonExemptEncryption" : false,
+          "LSApplicationCategoryType" : "public.app-category.finance",
+          "UILaunchScreen" : {
+
+          },
+          "UISupportedInterfaceOrientations" : [
             "UIInterfaceOrientationPortrait",
             "UIInterfaceOrientationPortraitUpsideDown",
             "UIInterfaceOrientationLandscapeLeft",
@@ -36,60 +38,60 @@
           ]
         }
       },
-      "platform": "auto",
-      "settings": {
-        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
-        "CURRENT_PROJECT_VERSION": "1",
-        "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "app.bitrig.new.00ff7dff-6a8e-432c-867c-df7909595dfb",
-        "PRODUCT_NAME": "$(TARGET_NAME)",
-        "SWIFT_VERSION": "5.0",
-        "TARGETED_DEVICE_FAMILY": "1,2,3"
+      "platform" : "auto",
+      "settings" : {
+        "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME" : "AccentColor",
+        "CURRENT_PROJECT_VERSION" : "1",
+        "MARKETING_VERSION" : "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER" : "app.bitrig.new.00ff7dff-6a8e-432c-867c-df7909595dfb",
+        "PRODUCT_NAME" : "$(TARGET_NAME)",
+        "SWIFT_VERSION" : "5.0",
+        "TARGETED_DEVICE_FAMILY" : "1,2,3"
       },
-      "sources": [
+      "sources" : [
         {
-          "path": "App"
+          "path" : "App"
         }
       ],
-      "supportedDestinations": [
+      "supportedDestinations" : [
         "iOS",
         "tvOS",
         "macOS"
       ],
-      "type": "application"
+      "type" : "application"
     },
-    "Sure Watch": {
-      "info": {
-        "path": "Watch\/Info.plist",
-        "properties": {
-          "CFBundleDisplayName": "Sure",
-          "CFBundleShortVersionString": "1.0",
-          "CFBundleVersion": "1",
-          "ITSAppUsesNonExemptEncryption": false,
-          "WKApplication": true,
-          "WKWatchOnly": true
+    "Sure Watch" : {
+      "info" : {
+        "path" : "Watch\/Info.plist",
+        "properties" : {
+          "CFBundleDisplayName" : "Sure",
+          "CFBundleShortVersionString" : "1.0",
+          "CFBundleVersion" : "1",
+          "ITSAppUsesNonExemptEncryption" : false,
+          "WKApplication" : true,
+          "WKWatchOnly" : true
         }
       },
-      "platform": "watchOS",
-      "settings": {
-        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
-        "CURRENT_PROJECT_VERSION": "1",
-        "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "app.bitrig.new.00ff7dff-6a8e-432c-867c-df7909595dfb.watchkitapp",
-        "PRODUCT_NAME": "$(TARGET_NAME)",
-        "SWIFT_VERSION": "5.0"
+      "platform" : "watchOS",
+      "settings" : {
+        "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME" : "AccentColor",
+        "CURRENT_PROJECT_VERSION" : "1",
+        "MARKETING_VERSION" : "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER" : "app.bitrig.new.00ff7dff-6a8e-432c-867c-df7909595dfb.watchkitapp",
+        "PRODUCT_NAME" : "$(TARGET_NAME)",
+        "SWIFT_VERSION" : "5.0"
       },
-      "sources": [
+      "sources" : [
         {
-          "path": "Watch"
+          "path" : "Watch"
         },
         {
-          "path": "App\/Assets.xcassets"
+          "path" : "App\/Assets.xcassets"
         }
       ],
-      "type": "application"
+      "type" : "application"
     }
   }
 }
