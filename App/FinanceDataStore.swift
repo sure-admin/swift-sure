@@ -9,6 +9,9 @@ final class FinanceDataStore {
   var accounts: [FinanceAccount] = []
   var transactions: [FinanceTransaction] = []
   var budgets: [BudgetCategory] = []
+  var insights: [BackendInsight] = []
+  var isLoadingInsights = false
+  var insightError: String?
   var state: FinanceDataState = .idle
   var lastUpdated: Date?
 
@@ -59,9 +62,22 @@ final class FinanceDataStore {
       budgets = (try? await client.fetchBudgetCategories()) ?? []
       lastUpdated = .now
       state = .loaded
+      await refreshInsights(using: client)
     } catch {
       state = .failed(error.localizedDescription)
     }
+  }
+
+  private func refreshInsights(using client: SureAPIClient) async {
+    isLoadingInsights = true
+    insightError = nil
+    do {
+      insights = try await client.fetchInsights()
+    } catch {
+      insights = []
+      insightError = error.localizedDescription
+    }
+    isLoadingInsights = false
   }
 }
 

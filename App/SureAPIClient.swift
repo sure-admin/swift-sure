@@ -176,6 +176,72 @@ struct SureAPIClient {
     }
   }
 
+  func fetchInsights() async throws -> [BackendInsight] {
+    let chatID = try await createChat(title: "Native insight sync")
+    do {
+      let response = try await sendMessage(
+        "Use get_insights exactly once with include_acknowledged false and limit 3. Return only the tool result JSON object unchanged, without markdown or commentary.",
+        chatID: chatID
+      )
+      try? await deleteChat(chatID)
+      return try decodeInsights(from: response)
+    } catch {
+      try? await deleteChat(chatID)
+      throw error
+    }
+  }
+
+  private func createChat(title: String) async throws -> String {
+    let data = try await request(
+      path: "/api/v1/chats",
+      method: "POST",
+      body: ["title": title]
+    )
+    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let identifier = object["id"] as? String else {
+      throw SureAPIError.invalidResponse
+    }
+    return identifier
+  }
+
+  private func deleteChat(_ chatID: String) async throws {
+    _ = try await request(path: "/api/v1/chats/\(chatID)", method: "DELETE")
+  }
+
+  private func decodeInsights(from response: String) throws -> [BackendInsight] {
+    guard let openingBrace = response.firstIndex(of: "{"),
+          let closingBrace = response.lastIndex(of: "}") else {
+      throw SureAPIError.invalidInsightResponse
+    }
+    let json = String(response[openingBrace...closingBrace])
+    guard let data = json.data(using: .utf8),
+          let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let records = object["insights"] as? [[String: Any]] else {
+      throw SureAPIError.invalidInsightResponse
+    }
+    return records.compactMap { record in
+      guard let id = record["id"] as? String,
+            let type = record["type"] as? String,
+            let title = record["title"] as? String,
+            let body = record["body"] as? String else { return nil }
+      return BackendInsight(
+        id: id,
+        type: type,
+        title: title,
+        body: body,
+        priority: record["priority"] as? String ?? "medium",
+        status: record["status"] as? String ?? "active",
+        periodStart: parseISODate(record["period_start"] as? String),
+        generatedAt: parseISODate(record["generated_at"] as? String)
+      )
+    }
+  }
+
+  private func parseISODate(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    return dateFromServer(value)
+  }
+
   private func findString(keys: [String], in object: Any) -> String? {
     if let dictionary = object as? [String: Any] {
       for key in keys {
@@ -245,8 +311,17 @@ struct SureAPIClient {
 
   private func dateValue(keys: [String], in object: Any) -> Date? {
     guard let text = string(keys: keys, in: object) else { return nil }
-    if let date = ISO8601DateFormatter().date(from: text) { return date }
-    return try? Date(text, strategy: .dateTime.year().month().day())
+    return dateFromServer(text)
+  }
+
+  private func dateFromServer(_ value: String) -> Date? {
+    if let date = ISO8601DateFormatter().date(from: value) { return date }
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.date(from: value)
   }
 
   private func symbol(for category: String, kind: TransactionKind) -> String {
@@ -269,6 +344,7 @@ enum SureAPIError: LocalizedError {
   case server(Int)
   case backend(String)
   case responseTimeout
+  case invalidInsightResponse
 
   var errorDescription: String? {
     switch self {
@@ -278,6 +354,7 @@ enum SureAPIError: LocalizedError {
     case .server(let code): "Sure returned server error \(code)."
     case .backend(let message): message
     case .responseTimeout: "Sure is still working on that response. Try again in a moment."
+    case .invalidInsightResponse: "Sure returned an insight format the app could not read."
     }
   }
 }

@@ -54,7 +54,11 @@ struct OverviewView: View {
         description: Text(message)
       )
     case .loaded:
-      InsightCard(transactions: data.transactions)
+      InsightCard(
+        insights: data.insights,
+        isLoading: data.isLoadingInsights,
+        errorMessage: data.insightError
+      )
       netWorthCard
       ViewThatFits {
         HStack(alignment: .top, spacing: 18) {
