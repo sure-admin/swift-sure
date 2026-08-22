@@ -9,8 +9,8 @@ struct ContentView: View {
         OverviewView()
       }
 
-      Tab("Transactions", systemImage: "arrow.left.arrow.right", value: .transactions) {
-        TransactionsView()
+      Tab("Assistant", systemImage: "sparkles", value: .assistant) {
+        AssistantView()
       }
 
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
@@ -29,7 +29,7 @@ struct ContentView: View {
 
 private enum AppSection: Hashable {
   case overview
-  case transactions
+  case assistant
   case accounts
   case budget
 }

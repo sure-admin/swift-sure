@@ -11,6 +11,7 @@ struct OverviewView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
           welcomeHeader
+          InsightCard()
           netWorthCard
 
           ViewThatFits {
