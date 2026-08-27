@@ -19,7 +19,7 @@ struct InsightCard: View {
             .font(.caption2.bold())
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(SureTheme.accent, in: Capsule())
+            .background(SureTheme.highlight, in: Capsule())
             .foregroundStyle(SureTheme.ink)
         }
       }
