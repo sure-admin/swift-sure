@@ -60,11 +60,12 @@ struct AssistantView: View {
 
   private var suggestionStrip: some View {
     ScrollView(.horizontal) {
-      HStack {
-        suggestion("Where did my money go?")
-        suggestion("Can I afford a trip?")
-        suggestion("Find recurring costs")
+      HStack(alignment: .center, spacing: 8) {
+        suggestion("💸 Where did my money go?")
+        suggestion("✈️ Can I afford a trip?")
+        suggestion("🔁 Find recurring costs")
       }
+      .fixedSize(horizontal: true, vertical: false)
     }
     .scrollIndicators(.hidden)
   }
@@ -75,6 +76,7 @@ struct AssistantView: View {
       submit()
     }
     .buttonStyle(.bordered)
+    .fixedSize(horizontal: true, vertical: false)
   }
 
   private func messageBubble(_ message: AssistantMessage) -> some View {
