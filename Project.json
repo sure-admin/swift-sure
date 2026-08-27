@@ -76,7 +76,7 @@
           "CFBundleVersion" : "1",
           "ITSAppUsesNonExemptEncryption" : false,
           "WKApplication" : true,
-          "WKWatchOnly" : true
+          "WKCompanionAppBundleIdentifier" : "am.sure.insights"
         }
       },
       "platform" : "watchOS",
