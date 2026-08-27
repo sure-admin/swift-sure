@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BudgetView: View {
+  @Environment(\.showConnectionSettings) private var showConnectionSettings
   @State private var data = FinanceDataStore.shared
 
   private var spent: Double { data.budgets.reduce(0) { $0 + $1.spent } }
@@ -13,6 +14,18 @@ struct BudgetView: View {
           if data.state == .loading {
             ProgressView("Loading budget…")
               .frame(maxWidth: .infinity, minHeight: 260)
+          } else if data.state == .needsConnection {
+            ContentUnavailableView {
+              Label("Connect your Sure account", systemImage: "link.badge.plus")
+            } description: {
+              Text("Add your API key to see your budget.")
+            } actions: {
+              Button("Connect to Sure", systemImage: "link") {
+                showConnectionSettings()
+              }
+              .buttonStyle(.borderedProminent)
+            }
+            .frame(minHeight: 260)
           } else if data.budgets.isEmpty {
             ContentUnavailableView(
               "No current budget",

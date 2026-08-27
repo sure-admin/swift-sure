@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 
 struct OverviewView: View {
+  @Environment(\.showConnectionSettings) private var showConnectionSettings
   @State private var data = FinanceDataStore.shared
 
   var body: some View {
@@ -23,7 +24,9 @@ struct OverviewView: View {
             Task { await data.refresh() }
           }
           .disabled(data.state == .loading)
-          Button("Add", systemImage: "plus") { }
+          Button("Add", systemImage: "plus") {
+            showConnectionSettings()
+          }
             .accessibilityHint("Add an account or transaction")
         }
       }
@@ -42,17 +45,27 @@ struct OverviewView: View {
     case .idle, .loading:
       loadingView
     case .needsConnection:
-      ContentUnavailableView(
-        "Connect your Sure account",
-        systemImage: "link.badge.plus",
-        description: Text("Open Assistant connection settings to add your API key.")
-      )
+      ContentUnavailableView {
+        Label("Connect your Sure account", systemImage: "link.badge.plus")
+      } description: {
+        Text("Add your API key to load your finances.")
+      } actions: {
+        Button("Connect to Sure", systemImage: "link") {
+          showConnectionSettings()
+        }
+        .buttonStyle(.borderedProminent)
+      }
     case .failed(let message):
-      ContentUnavailableView(
-        "Couldn’t load Sure",
-        systemImage: "exclamationmark.triangle",
-        description: Text(message)
-      )
+      ContentUnavailableView {
+        Label("Couldn’t load Sure", systemImage: "exclamationmark.triangle")
+      } description: {
+        Text(message)
+      } actions: {
+        Button("Connection settings", systemImage: "gearshape") {
+          showConnectionSettings()
+        }
+        .buttonStyle(.bordered)
+      }
     case .loaded:
       InsightCard(
         insights: data.insights,

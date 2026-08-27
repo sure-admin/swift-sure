@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @Environment(\.showConnectionSettings) private var showConnectionSettings
   @State private var data = FinanceDataStore.shared
 
   var body: some View {
@@ -21,6 +22,17 @@ struct AccountsView: View {
       .overlay {
         if data.state == .loading {
           ProgressView("Loading accounts…")
+        } else if data.state == .needsConnection {
+          ContentUnavailableView {
+            Label("Connect your Sure account", systemImage: "link.badge.plus")
+          } description: {
+            Text("Add your API key to see your accounts.")
+          } actions: {
+            Button("Connect to Sure", systemImage: "link") {
+              showConnectionSettings()
+            }
+            .buttonStyle(.borderedProminent)
+          }
         } else if data.state == .loaded && data.accounts.isEmpty {
           ContentUnavailableView("No accounts", systemImage: "building.columns")
         }
@@ -65,6 +77,7 @@ struct AccountsView: View {
 
   private var addAccountCard: some View {
     Button {
+      showConnectionSettings()
     } label: {
       VStack(spacing: 12) {
         Image(systemName: "plus")

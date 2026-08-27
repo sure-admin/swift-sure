@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
   @State private var selection: AppSection = .overview
+  @State private var showingConnectionSettings = false
 
   var body: some View {
     TabView(selection: $selection) {
@@ -24,6 +25,12 @@ struct ContentView: View {
     #if !os(tvOS)
     .tabViewStyle(.sidebarAdaptable)
     #endif
+    .environment(\.showConnectionSettings) {
+      showingConnectionSettings = true
+    }
+    .sheet(isPresented: $showingConnectionSettings) {
+      ConnectionSettingsView()
+    }
   }
 }
 

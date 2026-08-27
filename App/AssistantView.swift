@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct AssistantView: View {
+  @Environment(\.showConnectionSettings) private var showConnectionSettings
   @State private var store = AssistantStore()
-  @State private var showingConnection = false
 
   var body: some View {
     NavigationStack {
@@ -47,12 +47,9 @@ struct AssistantView: View {
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
           Button("Connection settings", systemImage: "gearshape") {
-            showingConnection = true
+            showConnectionSettings()
           }
         }
-      }
-      .sheet(isPresented: $showingConnection) {
-        ConnectionSettingsView()
       }
     }
   }
@@ -71,7 +68,7 @@ struct AssistantView: View {
   private func suggestion(_ text: String) -> some View {
     Button(text) {
       store.draft = text
-      Task { await store.send() }
+      submit()
     }
     .buttonStyle(.bordered)
   }
@@ -101,9 +98,9 @@ struct AssistantView: View {
         .textFieldStyle(.plain)
         .padding(12)
         .background(.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .onSubmit { Task { await store.send() } }
+        .onSubmit { submit() }
       Button("Send", systemImage: "arrow.up") {
-        Task { await store.send() }
+        submit()
       }
       .labelStyle(.iconOnly)
       .font(.headline)
@@ -114,5 +111,13 @@ struct AssistantView: View {
     }
     .padding()
     .background(.bar)
+  }
+
+  private func submit() {
+    guard SureConnection.shared.isConfigured else {
+      showConnectionSettings()
+      return
+    }
+    Task { await store.send() }
   }
 }
