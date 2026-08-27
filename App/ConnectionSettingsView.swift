@@ -10,7 +10,7 @@ struct ConnectionSettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
           Label("Connect to your Sure instance", systemImage: "lock.shield.fill")
             .font(.title2.bold())
-          Text("Create a read/write API key in Sure under Settings → API Key. It is stored only in this device’s Keychain.")
+          Text("Create a read/write API key in Sure under Settings → API Key. With iCloud Keychain enabled, Sure can pre-fill it on your other Apple devices.")
             .foregroundStyle(.secondary)
 
           VStack(alignment: .leading, spacing: 8) {
@@ -25,7 +25,7 @@ struct ConnectionSettingsView: View {
               .textContentType(.password)
               .textFieldStyle(.roundedBorder)
             if connection.isAPIKeyStored {
-              Label("Saved in this device’s Keychain", systemImage: "key.fill")
+              Label("Saved in iCloud Keychain", systemImage: "key.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             } else if !connection.apiKey.isEmpty {

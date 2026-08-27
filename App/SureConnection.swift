@@ -9,7 +9,9 @@ final class SureConnection {
     didSet { UserDefaults.standard.set(serverURL, forKey: "sureServerURL") }
   }
   var apiKey: String {
-    didSet { isAPIKeyStored = KeychainStore.save(apiKey, account: "apiKey") }
+    didSet {
+      isAPIKeyStored = KeychainStore.save(apiKey, account: "apiKey", scope: .iCloud)
+    }
   }
   private(set) var isAPIKeyStored = false
   var status: ConnectionStatus = .notConnected
@@ -19,10 +21,10 @@ final class SureConnection {
   }
 
   private init() {
-    let savedAPIKey = KeychainStore.read(account: "apiKey") ?? ""
+    let savedAPIKey = KeychainStore.read(account: "apiKey", scope: .iCloud) ?? ""
     serverURL = UserDefaults.standard.string(forKey: "sureServerURL") ?? "https://demo.sure.am"
     apiKey = savedAPIKey
-    isAPIKeyStored = !savedAPIKey.isEmpty
+    isAPIKeyStored = KeychainStore.contains(account: "apiKey", scope: .iCloud)
   }
 
   func test() async {
