@@ -13,15 +13,14 @@
     "groupSortPosition" : "bottom",
     "transitivelyLinkDependencies" : false
   },
-  "settings" : {
-    "CODE_SIGN_IDENTITY" : "-"
-  },
   "targets" : {
     "Sure" : {
       "entitlements" : {
         "path" : "App\/App.entitlements",
         "properties" : {
-          "aps-environment" : "development"
+          "aps-environment" : "development",
+          "com.apple.security.app-sandbox" : true,
+          "com.apple.security.network.client" : true
         }
       },
       "info" : {
