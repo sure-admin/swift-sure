@@ -21,7 +21,7 @@ struct ContentView: View {
           Label("$3,478 left", systemImage: "chart.pie.fill")
             .font(.headline)
           ProgressView(value: 0.67)
-            .tint(Color(red: 0.071, green: 0.718, blue: 0.416))
+            .tint(Color(red: 0.376, green: 0.663, blue: 0.267))
 
           Divider()
 
