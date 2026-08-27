@@ -77,6 +77,9 @@ final class FinanceDataStore {
       insights = []
       insightError = error.localizedDescription
     }
+    #if os(iOS)
+    WatchInsightsSync.shared.send(insights)
+    #endif
     isLoadingInsights = false
   }
 }

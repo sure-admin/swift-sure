@@ -56,6 +56,9 @@
       "sources" : [
         {
           "path" : "App"
+        },
+        {
+          "path" : "Shared"
         }
       ],
       "supportedDestinations" : [
@@ -89,6 +92,9 @@
       "sources" : [
         {
           "path" : "Watch"
+        },
+        {
+          "path" : "Shared"
         },
         {
           "path" : "App\/Assets.xcassets"

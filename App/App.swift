@@ -10,6 +10,12 @@ struct AppDefinition: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   #endif
 
+  init() {
+    #if os(iOS)
+    WatchInsightsSync.shared.activate()
+    #endif
+  }
+
   var body: some Scene {
     WindowGroup {
       ContentView()
