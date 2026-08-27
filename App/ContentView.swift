@@ -22,9 +22,7 @@ struct ContentView: View {
         BudgetView()
       }
     }
-    #if !os(tvOS)
     .tabViewStyle(.sidebarAdaptable)
-    #endif
     .environment(\.showConnectionSettings) {
       showingConnectionSettings = true
     }

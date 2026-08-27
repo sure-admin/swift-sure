@@ -1,6 +1,6 @@
 # Sure for Apple platforms
 
-This repository contains the SwiftUI-native Sure client created with Bitrig. It targets iPhone, iPad, Mac, Apple Watch, and Apple TV from the shared `Project.json` specification.
+This repository contains the SwiftUI-native Sure client created with Bitrig. It targets iPhone, iPad, Mac, and Apple Watch from the shared `Project.json` specification.
 
 ## Run locally
 

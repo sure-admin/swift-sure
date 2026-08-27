@@ -39,9 +39,6 @@ jobs:
           - name: Mac
             scheme: Sure
             destination: platform=macOS
-          - name: Apple TV
-            scheme: Sure
-            destination: generic/platform=tvOS Simulator
           - name: Apple Watch
             scheme: Sure Watch
             destination: generic/platform=watchOS Simulator
