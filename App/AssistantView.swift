@@ -8,36 +8,23 @@ struct AssistantView: View {
   var body: some View {
     NavigationStack {
       VStack(spacing: 0) {
-        ScrollViewReader { proxy in
-          ScrollView {
-            LazyVStack(spacing: 14) {
-              suggestionStack
-              ForEach(store.messages) { message in
-                messageBubble(message)
-                  .id(message.id)
+        GeometryReader { geometry in
+          ScrollViewReader { proxy in
+            ScrollView {
+              VStack(spacing: 14) {
+                suggestionCard
+                Spacer(minLength: 32)
+                conversation
               }
-              if store.isResponding {
-                HStack {
-                  ProgressView()
-                  Text("Thinking…")
-                    .foregroundStyle(.secondary)
-                  Spacer()
-                }
-              }
-              if let errorMessage = store.errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                  .font(.footnote)
-                  .foregroundStyle(.red)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-              }
+              .frame(maxWidth: 760)
+              .frame(maxWidth: .infinity)
+              .frame(minHeight: max(0, geometry.size.height - 32))
+              .padding()
             }
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
-            .padding()
-          }
-          .onChange(of: store.messages.count) {
-            if let last = store.messages.last {
-              withAnimation(.smooth) { proxy.scrollTo(last.id, anchor: .bottom) }
+            .onChange(of: store.messages.count) {
+              if let last = store.messages.last {
+                withAnimation(.smooth) { proxy.scrollTo(last.id, anchor: .bottom) }
+              }
             }
           }
         }
@@ -58,13 +45,40 @@ struct AssistantView: View {
     }
   }
 
-  private var suggestionStack: some View {
-    VStack(alignment: .leading, spacing: 8) {
+  private var suggestionCard: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Label("Try asking", systemImage: "sparkles")
+        .font(.headline)
       suggestion("💸 Where did my money go?")
       suggestion("✈️ Can I afford a trip?")
       suggestion("🔁 Find recurring costs")
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+    .sureCard()
+  }
+
+  private var conversation: some View {
+    LazyVStack(spacing: 14) {
+      ForEach(store.messages) { message in
+        messageBubble(message)
+          .id(message.id)
+      }
+      if store.isResponding {
+        HStack {
+          ProgressView()
+          Text("Thinking…")
+            .foregroundStyle(.secondary)
+          Spacer()
+        }
+      }
+      if let errorMessage = store.errorMessage {
+        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+          .font(.footnote)
+          .foregroundStyle(.red)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .frame(maxWidth: .infinity)
   }
 
   private func suggestion(_ text: String) -> some View {
