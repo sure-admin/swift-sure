@@ -9,8 +9,9 @@ final class SureConnection {
     didSet { UserDefaults.standard.set(serverURL, forKey: "sureServerURL") }
   }
   var apiKey: String {
-    didSet { KeychainStore.save(apiKey, account: "apiKey") }
+    didSet { isAPIKeyStored = KeychainStore.save(apiKey, account: "apiKey") }
   }
+  private(set) var isAPIKeyStored = false
   var status: ConnectionStatus = .notConnected
 
   var isConfigured: Bool {
@@ -18,8 +19,10 @@ final class SureConnection {
   }
 
   private init() {
+    let savedAPIKey = KeychainStore.read(account: "apiKey") ?? ""
     serverURL = UserDefaults.standard.string(forKey: "sureServerURL") ?? "https://demo.sure.am"
-    apiKey = KeychainStore.read(account: "apiKey") ?? ""
+    apiKey = savedAPIKey
+    isAPIKeyStored = !savedAPIKey.isEmpty
   }
 
   func test() async {

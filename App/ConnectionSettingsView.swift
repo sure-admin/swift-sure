@@ -24,6 +24,15 @@ struct ConnectionSettingsView: View {
             SecureField("Paste your Sure API key", text: $connection.apiKey)
               .textContentType(.password)
               .textFieldStyle(.roundedBorder)
+            if connection.isAPIKeyStored {
+              Label("Saved in this device’s Keychain", systemImage: "key.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else if !connection.apiKey.isEmpty {
+              Label("This key couldn’t be saved", systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.red)
+            }
           }
 
           Button {
@@ -31,7 +40,7 @@ struct ConnectionSettingsView: View {
           } label: {
             HStack {
               if connection.status == .connecting { ProgressView() }
-              Text("Test connection")
+              Text(connection.isAPIKeyStored ? "Reconnect" : "Save and connect")
               Spacer()
               Image(systemName: "arrow.right")
             }
