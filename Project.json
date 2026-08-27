@@ -19,6 +19,12 @@
   },
   "targets" : {
     "Sure" : {
+      "entitlements" : {
+        "path" : "App\/App.entitlements",
+        "properties" : {
+          "aps-environment" : "development"
+        }
+      },
       "info" : {
         "path" : "App\/Info.plist",
         "properties" : {

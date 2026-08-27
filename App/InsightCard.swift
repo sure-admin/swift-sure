@@ -47,10 +47,14 @@ struct InsightCard: View {
         }
       }
 
+      #if os(iOS)
       Toggle("Notify me about new insights", isOn: $notificationsEnabled)
         .onChange(of: notificationsEnabled) { _, enabled in
-          guard enabled else { return }
           Task {
+            guard enabled else {
+              await NotificationManager.shared.disableInsightNotifications()
+              return
+            }
             let granted = await NotificationManager.shared.enableInsightNotifications()
             if !granted {
               notificationsEnabled = false
@@ -58,14 +62,17 @@ struct InsightCard: View {
             }
           }
         }
+      #endif
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .sureCard()
+    #if os(iOS)
     .alert("Notifications are off", isPresented: $showingNotificationFailure) {
       Button("OK", role: .cancel) { }
     } message: {
       Text("You can allow notifications for Sure in System Settings.")
     }
+    #endif
   }
 
   private func insightRow(_ insight: BackendInsight) -> some View {

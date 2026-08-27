@@ -31,6 +31,27 @@ struct SureAPIClient {
     return data
   }
 
+  func registerPushSubscription(token: String, environment: APNsEnvironment) async throws -> String {
+    let data = try await request(
+      path: "/api/v1/push_subscriptions",
+      method: "POST",
+      body: [
+        "token": token,
+        "environment": environment.rawValue,
+        "platform": "ios"
+      ]
+    )
+    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let identifier = object["id"] as? String else {
+      throw SureAPIError.invalidResponse
+    }
+    return identifier
+  }
+
+  func unregisterPushSubscription(id: String) async throws {
+    _ = try await request(path: "/api/v1/push_subscriptions/\(id)", method: "DELETE")
+  }
+
   func createChat() async throws -> String {
     let data = try await request(
       path: "/api/v1/chats",

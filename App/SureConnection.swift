@@ -43,6 +43,9 @@ final class SureConnection {
       _ = try await SureAPIClient(connection: self).request(path: "/api/v1/accounts", method: "GET")
       status = .connected
       setAPIKeyVerified(true)
+      #if os(iOS)
+      await NotificationManager.shared.registerStoredDeviceTokenIfNeeded()
+      #endif
     } catch {
       status = .failed(error.localizedDescription)
     }

@@ -10,17 +10,75 @@ final class NotificationManager {
   static let shared = NotificationManager()
 
   func enableInsightNotifications() async -> Bool {
+    #if os(iOS)
     do {
-      let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-      if granted {
-        #if os(iOS)
-        UIApplication.shared.registerForRemoteNotifications()
-        #endif
+      let center = UNUserNotificationCenter.current()
+      let settings = await center.notificationSettings()
+      let authorized: Bool
+      switch settings.authorizationStatus {
+      case .authorized, .provisional, .ephemeral:
+        authorized = true
+      case .notDetermined:
+        authorized = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+      case .denied:
+        authorized = false
+      @unknown default:
+        authorized = false
       }
-      return granted
+      guard authorized else { return false }
+      UIApplication.shared.registerForRemoteNotifications()
+      await registerStoredDeviceTokenIfNeeded()
+      return true
     } catch {
+      record(error)
       return false
     }
+    #else
+    return false
+    #endif
+  }
+
+  func disableInsightNotifications() async {
+    guard let subscriptionID = KeychainStore.read(account: StorageKey.subscriptionID),
+          SureConnection.shared.isConfigured else { return }
+    do {
+      try await SureAPIClient(connection: SureConnection.shared)
+        .unregisterPushSubscription(id: subscriptionID)
+      KeychainStore.save("", account: StorageKey.subscriptionID)
+      UserDefaults.standard.removeObject(forKey: StorageKey.registrationError)
+    } catch {
+      record(error)
+    }
+  }
+
+  func receiveDeviceToken(_ token: String) async {
+    KeychainStore.save(token, account: StorageKey.deviceToken)
+    await registerStoredDeviceTokenIfNeeded()
+  }
+
+  func registerStoredDeviceTokenIfNeeded() async {
+    guard UserDefaults.standard.bool(forKey: StorageKey.insightsEnabled),
+          SureConnection.shared.isConfigured,
+          let token = KeychainStore.read(account: StorageKey.deviceToken) else { return }
+    do {
+      let subscriptionID = try await SureAPIClient(connection: SureConnection.shared)
+        .registerPushSubscription(token: token, environment: .current)
+      KeychainStore.save(subscriptionID, account: StorageKey.subscriptionID)
+      UserDefaults.standard.removeObject(forKey: StorageKey.registrationError)
+    } catch {
+      record(error)
+    }
+  }
+
+  private func record(_ error: Error) {
+    UserDefaults.standard.set(error.localizedDescription, forKey: StorageKey.registrationError)
+  }
+
+  private enum StorageKey {
+    static let deviceToken = "apnsDeviceToken"
+    static let subscriptionID = "pushSubscriptionID"
+    static let insightsEnabled = "insightNotificationsEnabled"
+    static let registrationError = "pushRegistrationError"
   }
 }
 
@@ -33,7 +91,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     UNUserNotificationCenter.current().delegate = self
     Task {
       let settings = await UNUserNotificationCenter.current().notificationSettings()
-      if settings.authorizationStatus == .authorized {
+      if [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus) {
         application.registerForRemoteNotifications()
       }
     }
@@ -42,7 +100,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
     let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-    KeychainStore.save(token, account: "apnsDeviceToken")
+    Task { await NotificationManager.shared.receiveDeviceToken(token) }
   }
 
   func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -54,6 +112,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     willPresent notification: UNNotification
   ) async -> UNNotificationPresentationOptions {
     [.banner, .sound, .badge]
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse
+  ) async {
+    if let insightID = response.notification.request.content.userInfo["insight_id"] as? String {
+      UserDefaults.standard.set(insightID, forKey: "pendingInsightID")
+    }
+    try? await center.setBadgeCount(0)
   }
 }
 #endif
