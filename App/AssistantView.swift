@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AssistantView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
+  @State private var connection = SureConnection.shared
   @State private var store = AssistantStore()
 
   var body: some View {
@@ -50,6 +51,9 @@ struct AssistantView: View {
             showConnectionSettings()
           }
         }
+      }
+      .onChange(of: connection.hasVerifiedAPIKey, initial: true) { _, hasVerifiedAPIKey in
+        store.updateConnectionPrompts(hasVerifiedAPIKey: hasVerifiedAPIKey)
       }
     }
   }
@@ -114,7 +118,7 @@ struct AssistantView: View {
   }
 
   private func submit() {
-    guard SureConnection.shared.isConfigured else {
+    guard connection.isConfigured else {
       showConnectionSettings()
       return
     }

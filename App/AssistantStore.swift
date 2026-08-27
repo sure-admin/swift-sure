@@ -4,16 +4,28 @@ import Observation
 @MainActor
 @Observable
 final class AssistantStore {
-  var messages = [
-    AssistantMessage(
-      role: .assistant,
-      content: "Ask me anything about your money. I can explain spending, compare accounts, find recurring costs, and help you plan."
-    )
-  ]
+  var messages: [AssistantMessage]
   var draft = ""
   var isResponding = false
   var errorMessage: String?
   private var chatID: String?
+
+  init() {
+    messages = [
+      AssistantMessage(role: .assistant, content: Self.introduction)
+    ]
+    updateConnectionPrompts(hasVerifiedAPIKey: SureConnection.shared.hasVerifiedAPIKey)
+  }
+
+  func updateConnectionPrompts(hasVerifiedAPIKey: Bool) {
+    messages.removeAll { $0.content == Self.appleCardPrompt }
+    if hasVerifiedAPIKey {
+      messages.insert(
+        AssistantMessage(role: .assistant, content: Self.appleCardPrompt),
+        at: min(1, messages.endIndex)
+      )
+    }
+  }
 
   func send() async {
     let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,4 +59,6 @@ final class AssistantStore {
     isResponding = false
   }
 
+  private static let introduction = "Here you will be able to ask me anything about your money. I can explain spending, compare accounts, find recurring costs, and help you plan."
+  private static let appleCardPrompt = "Want to sync your Apple Card spending with Sure?"
 }
