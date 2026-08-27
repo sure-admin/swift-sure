@@ -11,7 +11,7 @@ struct AssistantView: View {
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(spacing: 14) {
-              suggestionStrip
+              suggestionStack
               ForEach(store.messages) { message in
                 messageBubble(message)
                   .id(message.id)
@@ -58,16 +58,13 @@ struct AssistantView: View {
     }
   }
 
-  private var suggestionStrip: some View {
-    ScrollView(.horizontal) {
-      HStack(alignment: .center, spacing: 8) {
-        suggestion("💸 Where did my money go?")
-        suggestion("✈️ Can I afford a trip?")
-        suggestion("🔁 Find recurring costs")
-      }
-      .fixedSize(horizontal: true, vertical: false)
+  private var suggestionStack: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      suggestion("💸 Where did my money go?")
+      suggestion("✈️ Can I afford a trip?")
+      suggestion("🔁 Find recurring costs")
     }
-    .scrollIndicators(.hidden)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   private func suggestion(_ text: String) -> some View {
