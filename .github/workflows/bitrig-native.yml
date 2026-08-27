@@ -3,13 +3,17 @@ name: Bitrig Native
 on:
   pull_request:
     paths:
-      - "bitrig/**"
+      - "App/**"
+      - "Watch/**"
+      - "Project.json"
       - ".github/workflows/bitrig-native.yml"
   push:
     branches:
       - main
     paths:
-      - "bitrig/**"
+      - "App/**"
+      - "Watch/**"
+      - "Project.json"
       - ".github/workflows/bitrig-native.yml"
   workflow_dispatch:
 
@@ -50,11 +54,9 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: bitrig
         run: xcodegen generate --spec Project.json
 
       - name: Build
-        working-directory: bitrig
         run: >-
           xcodebuild
           -project Sure.xcodeproj
