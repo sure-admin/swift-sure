@@ -117,9 +117,8 @@ struct OverviewView: View {
     VStack(alignment: .leading, spacing: 16) {
       HStack(alignment: .top) {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Net worth")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+          Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
+            .font(.title3.bold())
           Text(data.netWorth, format: FinanceFormatters.currency)
             .font(.system(.largeTitle, design: .rounded, weight: .bold))
             .contentTransition(.numericText())
