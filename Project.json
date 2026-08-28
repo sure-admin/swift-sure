@@ -44,6 +44,15 @@
         }
       },
       "platform" : "auto",
+      "scheme" : {
+        "coverageTargets" : [
+          "Sure"
+        ],
+        "gatherCoverageData" : true,
+        "testTargets" : [
+          "SureTests"
+        ]
+      },
       "settings" : {
         "base" : {
           "APS_ENVIRONMENT" : "development",
@@ -77,6 +86,25 @@
         "macOS"
       ],
       "type" : "application"
+    },
+    "SureTests" : {
+      "dependencies" : [
+        {
+          "target" : "Sure"
+        }
+      ],
+      "platform" : "iOS",
+      "settings" : {
+        "base" : {
+          "SWIFT_VERSION" : "5.0"
+        }
+      },
+      "sources" : [
+        {
+          "path" : "Tests\/SureTests"
+        }
+      ],
+      "type" : "bundle.unit-test"
     },
     "Sure Watch" : {
       "info" : {

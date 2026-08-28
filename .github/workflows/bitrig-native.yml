@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "App/**"
+      - "Shared/**"
+      - "Tests/**"
       - "Watch/**"
       - "Project.json"
       - ".github/workflows/bitrig-native.yml"
@@ -12,6 +14,8 @@ on:
       - main
     paths:
       - "App/**"
+      - "Shared/**"
+      - "Tests/**"
       - "Watch/**"
       - "Project.json"
       - ".github/workflows/bitrig-native.yml"
@@ -25,6 +29,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Unit tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec Project.json
+
+      - name: Test
+        run: |
+          simulator_id="$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[]] | first | .udid')"
+          test -n "$simulator_id"
+          xcodebuild \
+            -project Sure.xcodeproj \
+            -scheme Sure \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$simulator_id" \
+            -derivedDataPath "${{ runner.temp }}/DerivedData-tests" \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
   build:
     name: Build ${{ matrix.name }}
     runs-on: macos-15
