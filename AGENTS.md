@@ -29,13 +29,27 @@ idiomatic Swift and SwiftUI architecture.
   [AI architecture guide](https://github.com/we-promise/sure/blob/main/docs/hosting/ai.md),
   and [upstream repository guidance](https://github.com/we-promise/sure/blob/main/AGENTS.md)
   provide domain and feature context.
-- Upstream `main` may be newer than deployed self-hosted instances. When a
-  change depends on a newly documented endpoint or field, identify the minimum
-  supported Sure version or implement a capability-based fallback. Never infer
-  compatibility from the demo server alone.
+- During the developer/TestFlight phase, the supported upstream revision is
+  pinned in `Docs/SureContractBaseline.md`. Target that revision rather than
+  carrying speculative compatibility for older self-hosted instances. Update
+  the pin, fixtures, and affected contract tests together when adopting a newer
+  `main`. Never infer compatibility from the demo server alone.
 - Sure is the system of record for financial data. The client may derive
   presentation summaries, but it must not invent server data or reimplement a
   server-owned workflow when a documented API exists.
+
+## Current product scope
+
+- Financial data is read-only. Do not add transaction, account, budget, or
+  valuation mutations without an explicit product decision. Authentication,
+  token lifecycle, and push-subscription writes are infrastructure exceptions.
+- Tapping an account should open that account's transactions from the rolling
+  last 31 days.
+- Tapping Overview's Recent activity should open transactions from the rolling
+  last 7 days across accounts.
+- Preserve the current visual design during foundational work. Navigation and
+  state changes required for the transaction flows are the only current visual
+  exception.
 
 ## Project layout
 
