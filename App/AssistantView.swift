@@ -4,6 +4,8 @@ struct AssistantView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   @State private var connection = SureConnection.shared
   @State private var store = AssistantStore()
+  @State private var sureSendHaptic = 0
+  @State private var didLongPressSend = false
 
   var body: some View {
     NavigationStack {
@@ -84,7 +86,7 @@ struct AssistantView: View {
   private func suggestion(_ text: String) -> some View {
     Button(text) {
       store.draft = text
-      submit()
+      submit(to: .localModel)
     }
     .buttonStyle(.bordered)
     .fixedSize(horizontal: true, vertical: false)
@@ -115,26 +117,43 @@ struct AssistantView: View {
         .textFieldStyle(.plain)
         .padding(12)
         .background(.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .onSubmit { submit() }
-      Button("Send", systemImage: "arrow.up") {
-        submit()
+        .onSubmit { submit(to: .localModel) }
+      Button {
+        guard !didLongPressSend else {
+          didLongPressSend = false
+          return
+        }
+        submit(to: .localModel)
+      } label: {
+        Label("Send", systemImage: "arrow.up")
+          .labelStyle(.iconOnly)
+          .font(.headline)
+          .frame(width: 44, height: 44)
+          .background(SureTheme.accent, in: Circle())
+          .foregroundStyle(SureTheme.ink)
       }
-      .labelStyle(.iconOnly)
-      .font(.headline)
-      .frame(width: 44, height: 44)
-      .background(SureTheme.accent, in: Circle())
-      .foregroundStyle(SureTheme.ink)
+      .buttonStyle(.plain)
+      .simultaneousGesture(
+        LongPressGesture(minimumDuration: 0.6)
+          .onEnded { _ in
+            didLongPressSend = true
+            sureSendHaptic += 1
+            submit(to: .sureServer)
+          }
+      )
       .disabled(store.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isResponding)
+      .sensoryFeedback(.impact(weight: .heavy), trigger: sureSendHaptic)
+      .accessibilityHint("Tap for an on-device answer. Touch and hold to send to Sure.")
     }
     .padding()
     .background(.bar)
   }
 
-  private func submit() {
-    guard connection.isConfigured else {
+  private func submit(to destination: AssistantDestination) {
+    if destination == .sureServer && !connection.isConfigured {
       showConnectionSettings()
       return
     }
-    Task { await store.send() }
+    Task { await store.send(to: destination) }
   }
 }
