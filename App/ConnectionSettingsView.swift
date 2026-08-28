@@ -16,10 +16,12 @@ struct ConnectionSettingsView: View {
           VStack(alignment: .leading, spacing: 8) {
             Text("Server URL").font(.caption.bold())
             TextField("https://demo.sure.am", text: $connection.serverURL)
+              .textFieldStyle(.roundedBorder)
+              #if os(iOS)
               .textContentType(.URL)
               .textInputAutocapitalization(.never)
               .autocorrectionDisabled()
-              .textFieldStyle(.roundedBorder)
+              #endif
           }
 
           Button {
@@ -52,8 +54,10 @@ struct ConnectionSettingsView: View {
               .foregroundStyle(.secondary)
             Text("API key").font(.caption.bold())
             SecureField("Paste your Sure API key", text: $connection.apiKey)
-              .textContentType(.password)
               .textFieldStyle(.roundedBorder)
+              #if os(iOS)
+              .textContentType(.password)
+              #endif
             if connection.isAPIKeyStored {
               Label("Saved in iCloud Keychain", systemImage: "key.fill")
                 .font(.caption)
