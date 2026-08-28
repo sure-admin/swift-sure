@@ -95,7 +95,7 @@ struct AssistantView: View {
   private func messageBubble(_ message: AssistantMessage) -> some View {
     HStack {
       if message.role == .user { Spacer(minLength: 40) }
-      Text(message.content)
+      messageContent(message)
         .textSelection(.enabled)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -107,7 +107,21 @@ struct AssistantView: View {
       if message.role == .assistant { Spacer(minLength: 40) }
     }
     .accessibilityElement(children: .combine)
-    .accessibilityLabel(message.role == .user ? "You" : "Sure Assistant")
+    .accessibilityLabel("\(message.role == .user ? "You" : "Sure Assistant"): \(accessibleContent(message.content))")
+  }
+
+  @ViewBuilder
+  private func messageContent(_ message: AssistantMessage) -> some View {
+    if message.role == .assistant {
+      MarkdownText(source: message.content)
+    } else {
+      Text(message.content)
+    }
+  }
+
+  private func accessibleContent(_ markdown: String) -> String {
+    guard let attributedContent = try? AttributedString(markdown: markdown) else { return markdown }
+    return String(attributedContent.characters)
   }
 
   private var composer: some View {
