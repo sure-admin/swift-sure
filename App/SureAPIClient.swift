@@ -13,7 +13,11 @@ struct SureAPIClient {
     request.timeoutInterval = 60
     request.setValue("application/json", forHTTPHeaderField: "Accept")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue(connection.apiKey, forHTTPHeaderField: "X-Api-Key")
+    if connection.isPasskeyConnected {
+      request.setValue("Bearer \(connection.accessToken)", forHTTPHeaderField: "Authorization")
+    } else {
+      request.setValue(connection.apiKey, forHTTPHeaderField: "X-Api-Key")
+    }
     if let body {
       request.httpBody = try JSONSerialization.data(withJSONObject: body)
     }

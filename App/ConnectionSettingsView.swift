@@ -10,7 +10,7 @@ struct ConnectionSettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
           Label("Connect to your Sure instance", systemImage: "lock.shield.fill")
             .font(.title2.bold())
-          Text("Create a read/write API key in Sure under Settings → API Key. With iCloud Keychain enabled, Sure can pre-fill it on your other Apple devices.")
+          Text("Use a passkey for passwordless sign-in. Face ID or Touch ID confirms it’s you, and your passkey stays in iCloud Keychain.")
             .foregroundStyle(.secondary)
 
           VStack(alignment: .leading, spacing: 8) {
@@ -20,6 +20,36 @@ struct ConnectionSettingsView: View {
               .textInputAutocapitalization(.never)
               .autocorrectionDisabled()
               .textFieldStyle(.roundedBorder)
+          }
+
+          Button {
+            Task { await connection.signInWithPasskey() }
+          } label: {
+            HStack {
+              if connection.status == .connecting { ProgressView() }
+              Text(connection.isPasskeyConnected ? "Reconnect with Passkey" : "Continue with Passkey")
+              Spacer()
+              Image(systemName: "person.badge.key.fill")
+            }
+            .padding()
+            .background(SureTheme.accent, in: RoundedRectangle(cornerRadius: 14))
+            .foregroundStyle(SureTheme.ink)
+          }
+          .buttonStyle(.plain)
+          .disabled(URL(string: connection.serverURL) == nil || connection.status == .connecting)
+
+          HStack {
+            Rectangle().frame(height: 1).foregroundStyle(.quaternary)
+            Text("OR USE AN API KEY")
+              .font(.caption2.bold())
+              .foregroundStyle(.secondary)
+            Rectangle().frame(height: 1).foregroundStyle(.quaternary)
+          }
+
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Create a read/write API key in Sure under Settings → API Key.")
+              .font(.caption)
+              .foregroundStyle(.secondary)
             Text("API key").font(.caption.bold())
             SecureField("Paste your Sure API key", text: $connection.apiKey)
               .textContentType(.password)
@@ -36,7 +66,7 @@ struct ConnectionSettingsView: View {
           }
 
           Button {
-            Task { await connection.test() }
+            Task { await connection.connectWithAPIKey() }
           } label: {
             HStack {
               if connection.status == .connecting { ProgressView() }
@@ -70,7 +100,10 @@ struct ConnectionSettingsView: View {
   private var statusView: some View {
     switch connection.status {
     case .connected:
-      Label("Connected to Sure", systemImage: "checkmark.circle.fill")
+      Label(
+        connection.isPasskeyConnected ? "Connected securely with Passkey" : "Connected to Sure",
+        systemImage: "checkmark.circle.fill"
+      )
         .foregroundStyle(.green)
         .task { await FinanceDataStore.shared.refresh() }
     case .failed(let message):

@@ -8,7 +8,7 @@ This repository contains the SwiftUI-native Sure client created with Bitrig. It 
 2. From the repository root, run `xcodegen generate --spec Project.json`.
 3. Open `Sure.xcodeproj` and choose the `Sure` or `Sure Watch` scheme.
 
-The app connects to `https://demo.sure.am` by default. Create a read/write API key under Sure’s **Settings → API Key**, then enter it in **Assistant → Connection Settings**. Credentials are stored in the Apple Keychain and are never committed.
+The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, and stores the resulting bearer token in the device Keychain. A read/write API key remains available as a fallback and can sync through iCloud Keychain.
 
 ## AI Insight push notifications
 
