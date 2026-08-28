@@ -68,6 +68,20 @@ final class FinanceDataStore {
     }
   }
 
+  func disconnect() {
+    accounts = []
+    transactions = []
+    budgets = []
+    insights = []
+    isLoadingInsights = false
+    insightError = nil
+    lastUpdated = nil
+    state = .needsConnection
+    #if os(iOS)
+    WatchInsightsSync.shared.send([])
+    #endif
+  }
+
   private func refreshInsights(using client: SureAPIClient) async {
     isLoadingInsights = true
     insightError = nil

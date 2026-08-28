@@ -80,6 +80,23 @@ final class PasskeyOAuthService: NSObject, ASWebAuthenticationPresentationContex
     )
   }
 
+  func revoke(token: String, serverURL: String) async {
+    guard !token.isEmpty,
+          let baseURL = normalizedBaseURL(serverURL),
+          let clientID = UserDefaults.standard.string(forKey: clientIDCacheKey(baseURL: baseURL)) else { return }
+    let url = baseURL.appending(path: "oauth/revoke")
+    var components = URLComponents()
+    components.queryItems = [
+      URLQueryItem(name: "token", value: token),
+      URLQueryItem(name: "client_id", value: clientID)
+    ]
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
+    _ = try? await URLSession.shared.data(for: request)
+  }
+
   func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
     #if os(iOS)
     return UIApplication.shared.connectedScenes
@@ -94,7 +111,7 @@ final class PasskeyOAuthService: NSObject, ASWebAuthenticationPresentationContex
   }
 
   private func clientID(baseURL: URL, redirectURL: URL) async throws -> String {
-    let cacheKey = "sureOAuthClientID.\(baseURL.absoluteString)"
+    let cacheKey = clientIDCacheKey(baseURL: baseURL)
     if let saved = UserDefaults.standard.string(forKey: cacheKey) {
       return saved
     }
@@ -113,6 +130,10 @@ final class PasskeyOAuthService: NSObject, ASWebAuthenticationPresentationContex
     let registration = try JSONDecoder().decode(RegistrationResponse.self, from: data)
     UserDefaults.standard.set(registration.clientID, forKey: cacheKey)
     return registration.clientID
+  }
+
+  private func clientIDCacheKey(baseURL: URL) -> String {
+    "sureOAuthClientID.\(baseURL.absoluteString)"
   }
 
   private func exchangeCode(

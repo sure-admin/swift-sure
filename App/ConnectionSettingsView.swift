@@ -79,9 +79,18 @@ struct ConnectionSettingsView: View {
             .foregroundStyle(SureTheme.ink)
           }
           .buttonStyle(.plain)
-          .disabled(!connection.isConfigured || connection.status == .connecting)
+          .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
           statusView
+
+          if connection.canLogOut {
+            Button("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+              Task { await connection.logOut() }
+            }
+            .buttonStyle(.bordered)
+            .disabled(connection.status == .connecting)
+            .frame(maxWidth: .infinity, alignment: .center)
+          }
         }
         .frame(maxWidth: 560, alignment: .leading)
         .frame(maxWidth: .infinity)

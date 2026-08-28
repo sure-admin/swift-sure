@@ -19,14 +19,27 @@ final class SureConnection {
   private(set) var accessToken: String
   private(set) var isAPIKeyStored = false
   private(set) var hasVerifiedAPIKey = false
+  private(set) var isSignedOut = false
   var status: ConnectionStatus = .notConnected
 
   var isConfigured: Bool {
-    URL(string: serverURL) != nil && (!accessToken.isEmpty || !apiKey.isEmpty)
+    !isSignedOut && hasUsableCredential
   }
 
   var isPasskeyConnected: Bool {
     !accessToken.isEmpty
+  }
+
+  var canConnectWithAPIKey: Bool {
+    URL(string: serverURL) != nil && !apiKey.isEmpty
+  }
+
+  var canLogOut: Bool {
+    !isSignedOut && hasUsableCredential
+  }
+
+  private var hasUsableCredential: Bool {
+    URL(string: serverURL) != nil && (!accessToken.isEmpty || !apiKey.isEmpty)
   }
 
   private init() {
@@ -34,19 +47,21 @@ final class SureConnection {
     serverURL = UserDefaults.standard.string(forKey: "sureServerURL") ?? "https://demo.sure.am"
     apiKey = savedAPIKey
     accessToken = KeychainStore.read(account: "oauthAccessToken") ?? ""
+    isSignedOut = UserDefaults.standard.bool(forKey: "sureExplicitlySignedOut")
     isAPIKeyStored = KeychainStore.contains(account: "apiKey", scope: .iCloud)
     hasVerifiedAPIKey = !savedAPIKey.isEmpty
       && KeychainStore.read(account: "verifiedAPIKey", scope: .iCloud) == "true"
   }
 
   func test() async {
-    guard isConfigured else {
+    guard hasUsableCredential else {
       status = .failed("Sign in with a passkey or enter an API key first.")
       return
     }
     status = .connecting
     do {
       _ = try await SureAPIClient(connection: self).request(path: "/api/v1/accounts", method: "GET")
+      markSignedIn()
       status = .connected
       setAPIKeyVerified(true)
       #if os(iOS)
@@ -71,6 +86,7 @@ final class SureConnection {
       if let refreshToken = tokens.refreshToken {
         KeychainStore.save(refreshToken, account: "oauthRefreshToken")
       }
+      markSignedIn()
       status = .connected
       #if os(iOS)
       await NotificationManager.shared.registerStoredDeviceTokenIfNeeded()
@@ -85,6 +101,7 @@ final class SureConnection {
   @MainActor
   func connectWithAPIKey() async {
     let previousAccessToken = accessToken
+    let wasSignedOut = isSignedOut
     accessToken = ""
     await test()
     if status == .connected {
@@ -92,7 +109,28 @@ final class SureConnection {
       KeychainStore.save("", account: "oauthRefreshToken")
     } else {
       accessToken = previousAccessToken
+      isSignedOut = wasSignedOut
     }
+  }
+
+  @MainActor
+  func logOut() async {
+    #if os(iOS)
+    await NotificationManager.shared.disableInsightNotifications()
+    #endif
+    let oauthService = PasskeyOAuthService()
+    await oauthService.revoke(token: accessToken, serverURL: serverURL)
+    if let refreshToken = KeychainStore.read(account: "oauthRefreshToken") {
+      await oauthService.revoke(token: refreshToken, serverURL: serverURL)
+    }
+    accessToken = ""
+    KeychainStore.save("", account: "oauthAccessToken")
+    KeychainStore.save("", account: "oauthRefreshToken")
+    isSignedOut = true
+    UserDefaults.standard.set(true, forKey: "sureExplicitlySignedOut")
+    UserDefaults.standard.set(false, forKey: "insightNotificationsEnabled")
+    status = .notConnected
+    FinanceDataStore.shared.disconnect()
   }
 
   private func verifyCurrentCredentials() async throws {
@@ -106,6 +144,11 @@ final class SureConnection {
       account: "verifiedAPIKey",
       scope: .iCloud
     )
+  }
+
+  private func markSignedIn() {
+    isSignedOut = false
+    UserDefaults.standard.set(false, forKey: "sureExplicitlySignedOut")
   }
 }
 
