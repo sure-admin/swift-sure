@@ -77,7 +77,6 @@
         "configs" : {
           "Release" : {
             "APS_ENVIRONMENT" : "production",
-            "CODE_SIGN_IDENTITY" : "Apple Distribution",
             "CODE_SIGN_STYLE" : "Automatic"
           }
         }
@@ -153,7 +152,6 @@
         },
         "configs" : {
           "Release" : {
-            "CODE_SIGN_IDENTITY" : "Apple Distribution",
             "CODE_SIGN_STYLE" : "Automatic"
           }
         }
