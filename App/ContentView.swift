@@ -5,6 +5,7 @@ struct ContentView: View {
   var financeData: FinanceDataStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
+  var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   @State private var selection: AppSection = .overview
   @State private var showingConnectionSettings = false
@@ -12,7 +13,11 @@ struct ContentView: View {
   var body: some View {
     TabView(selection: $selection) {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
-        OverviewView(data: financeData, notificationManager: notificationManager)
+        OverviewView(
+          data: financeData,
+          notificationManager: notificationManager,
+          transactionHistoryStoreFactory: transactionHistoryStoreFactory
+        )
       }
 
       Tab("Assistant", systemImage: "sparkles", value: .assistant) {
@@ -24,7 +29,10 @@ struct ContentView: View {
       }
 
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
-        AccountsView(data: financeData)
+        AccountsView(
+          data: financeData,
+          transactionHistoryStoreFactory: transactionHistoryStoreFactory
+        )
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {

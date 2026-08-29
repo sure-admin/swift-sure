@@ -1,6 +1,6 @@
 import Foundation
 
-struct LocalDate: Codable, Equatable, Hashable, Sendable {
+struct LocalDate: Codable, Comparable, Hashable, Sendable {
   let year: Int
   let month: Int
   let day: Int
@@ -22,6 +22,18 @@ struct LocalDate: Codable, Equatable, Hashable, Sendable {
     self.year = year
     self.month = month
     self.day = day
+  }
+
+  init(_ date: Date, in calendar: Calendar) throws {
+    var gregorianCalendar = Self.calendar
+    gregorianCalendar.timeZone = calendar.timeZone
+    let components = gregorianCalendar.dateComponents([.year, .month, .day], from: date)
+    guard let year = components.year,
+          let month = components.month,
+          let day = components.day else {
+      throw LocalDateError.invalidDate
+    }
+    try self.init(year: year, month: month, day: day)
   }
 
   init(from decoder: Decoder) throws {
@@ -57,6 +69,12 @@ struct LocalDate: Codable, Equatable, Hashable, Sendable {
 
   var iso8601String: String {
     String(format: "%04d-%02d-%02d", year, month, day)
+  }
+
+  static func < (lhs: LocalDate, rhs: LocalDate) -> Bool {
+    if lhs.year != rhs.year { return lhs.year < rhs.year }
+    if lhs.month != rhs.month { return lhs.month < rhs.month }
+    return lhs.day < rhs.day
   }
 
   // The legacy UI still requires an absolute Date. Constructing noon in its

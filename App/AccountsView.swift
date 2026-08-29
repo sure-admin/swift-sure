@@ -3,43 +3,98 @@ import SwiftUI
 struct AccountsView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
     NavigationStack {
       ScrollView {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-          ForEach(data.accounts) { account in
-            accountCard(account)
-          }
-          addAccountCard
-        }
+        content
         .frame(maxWidth: 1000)
         .frame(maxWidth: .infinity)
         .padding()
       }
       .background(SureTheme.canvas.opacity(0.65))
       .navigationTitle("Accounts")
-      .overlay {
-        if data.state == .loading {
-          ProgressView("Loading accounts…")
-        } else if data.state == .needsConnection {
-          ContentUnavailableView {
-            Label("Connect your Sure account", systemImage: "link.badge.plus")
-          } description: {
-            Text("Add your API key to see your accounts.")
-          } actions: {
-            Button("Connect to Sure", systemImage: "link") {
-              showConnectionSettings()
-            }
-            .buttonStyle(.borderedProminent)
-          }
-        } else if data.state == .loaded && data.accounts.isEmpty {
-          ContentUnavailableView("No accounts", systemImage: "building.columns")
-        }
-      }
       .task {
         if data.state == .idle { await data.refresh() }
       }
+    }
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    switch data.state {
+    case .idle, .loading:
+      ProgressView("Loading accounts…")
+        .frame(minHeight: 420)
+    case .needsConnection:
+      ContentUnavailableView {
+        Label("Connect your Sure account", systemImage: "link.badge.plus")
+      } description: {
+        Text("Add your API key to see your accounts.")
+      } actions: {
+        Button("Connect to Sure", systemImage: "link") {
+          showConnectionSettings()
+        }
+        .buttonStyle(.borderedProminent)
+      }
+      .frame(minHeight: 420)
+    case .failed(let message):
+      ContentUnavailableView {
+        Label("Couldn’t load accounts", systemImage: "exclamationmark.triangle")
+      } description: {
+        Text(message)
+      } actions: {
+        Button("Try again", systemImage: "arrow.clockwise") {
+          Task { await data.refresh() }
+        }
+        .buttonStyle(.borderedProminent)
+        Button("Connection settings", systemImage: "gearshape") {
+          showConnectionSettings()
+        }
+        .buttonStyle(.bordered)
+      }
+      .frame(minHeight: 420)
+    case .loaded:
+      if data.accounts.isEmpty {
+        ContentUnavailableView {
+          Label("No accounts", systemImage: "building.columns")
+        } description: {
+          Text("No accounts are currently available from Sure.")
+        } actions: {
+          Button("Connection settings", systemImage: "gearshape") {
+            showConnectionSettings()
+          }
+          .buttonStyle(.bordered)
+        }
+        .frame(minHeight: 420)
+      } else {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+          ForEach(data.accounts) { account in
+            accountLink(account)
+          }
+          addAccountCard
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func accountLink(_ account: FinanceAccount) -> some View {
+    if let accountID = UUID(uuidString: account.id) {
+      NavigationLink {
+        TransactionsView(
+          store: transactionHistoryStoreFactory.makeStore(
+            for: .account(id: accountID, name: account.name)
+          )
+        )
+      } label: {
+        accountCard(account)
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint("Shows transactions from the last 31 days")
+    } else {
+      accountCard(account)
     }
   }
 
@@ -50,9 +105,11 @@ struct AccountsView: View {
           .frame(width: 42, height: 42)
           .background(SureTheme.accountColor(account.tintName).opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
           .foregroundStyle(SureTheme.accountColor(account.tintName))
+          .accessibilityHidden(true)
         Spacer()
-        Image(systemName: "ellipsis")
+        Image(systemName: "chevron.right")
           .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
       }
       VStack(alignment: .leading, spacing: 2) {
         Text(account.name)
@@ -62,7 +119,7 @@ struct AccountsView: View {
           .foregroundStyle(.secondary)
       }
       HStack(alignment: .firstTextBaseline) {
-        Text(account.balance, format: FinanceFormatters.currency)
+        Text(account.balance, format: FinanceFormatters.currency(code: account.currencyCode))
           .font(.title2.bold())
         Spacer()
         Text(account.kind.rawValue)

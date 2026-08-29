@@ -12,7 +12,7 @@ struct TransactionsAPIClientTests {
     ])
     let accountID = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000101"))
     let query = TransactionQuery(
-      accountIDs: [accountID],
+      accountFilter: .accounts([accountID]),
       startDate: try LocalDate(year: 2026, month: 8, day: 1),
       endDate: try LocalDate(year: 2026, month: 8, day: 27),
       classification: .expense
@@ -36,10 +36,61 @@ struct TransactionsAPIClientTests {
     #expect(queryValues("page", in: requests[0]) == ["1"])
     #expect(queryValues("page", in: requests[1]) == ["2"])
     #expect(queryValues("per_page", in: requests[0]) == ["100"])
-    #expect(queryValues("account_ids[]", in: requests[0]) == [accountID.uuidString.lowercased()])
-    #expect(queryValues("start_date", in: requests[0]) == ["2026-08-01"])
-    #expect(queryValues("end_date", in: requests[0]) == ["2026-08-27"])
-    #expect(queryValues("type", in: requests[0]) == ["expense"])
+    for request in requests {
+      #expect(queryValues("account_ids[]", in: request) == [accountID.uuidString.lowercased()])
+      #expect(queryValues("start_date", in: request) == ["2026-08-01"])
+      #expect(queryValues("end_date", in: request) == ["2026-08-27"])
+      #expect(queryValues("type", in: request) == ["expense"])
+    }
+  }
+
+  @Test("History requests use the singular account filter and inclusive bounds")
+  func historyRequestQuery() async throws {
+    let stub = HTTPDataTransportStub([try .http(fixture: "transactions-empty")])
+    let accountID = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000101"))
+    let request = TransactionHistoryRequest(
+      accountID: accountID,
+      dateWindow: try TransactionDateWindow(
+        startDate: LocalDate(year: 2026, month: 7, day: 29),
+        endDate: LocalDate(year: 2026, month: 8, day: 28)
+      )
+    )
+
+    _ = try await TransactionsAPIClient(transport: makeTransport(stub))
+      .fetchAll(query: TransactionQuery(historyRequest: request))
+
+    let requests = await stub.requests()
+    let urlRequest = try #require(requests.first)
+    #expect(queryValues("account_id", in: urlRequest) == [accountID.uuidString.lowercased()])
+    #expect(queryValues("account_ids[]", in: urlRequest).isEmpty)
+    #expect(queryValues("start_date", in: urlRequest) == ["2026-07-29"])
+    #expect(queryValues("end_date", in: urlRequest) == ["2026-08-28"])
+  }
+
+  @Test("Recent activity keeps its seven-day bounds across every page")
+  func recentActivityPaginationQuery() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "transactions-page-1"),
+      try .http(fixture: "transactions-page-2")
+    ])
+    let request = TransactionHistoryRequest(
+      dateWindow: try TransactionDateWindow(
+        startDate: LocalDate(year: 2026, month: 8, day: 22),
+        endDate: LocalDate(year: 2026, month: 8, day: 28)
+      )
+    )
+
+    _ = try await TransactionsAPIClient(transport: makeTransport(stub))
+      .fetchAll(query: TransactionQuery(historyRequest: request))
+
+    let requests = await stub.requests()
+    #expect(requests.count == 2)
+    for request in requests {
+      #expect(queryValues("account_id", in: request).isEmpty)
+      #expect(queryValues("account_ids[]", in: request).isEmpty)
+      #expect(queryValues("start_date", in: request) == ["2026-08-22"])
+      #expect(queryValues("end_date", in: request) == ["2026-08-28"])
+    }
   }
 
   @Test("Treats an empty collection as successful")

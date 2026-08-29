@@ -1,7 +1,7 @@
 import Foundation
 
 struct TransactionQuery: Equatable {
-  var accountIDs: [UUID] = []
+  var accountFilter: TransactionAccountFilter?
   var categoryIDs: [UUID] = []
   var merchantIDs: [UUID] = []
   var tagIDs: [UUID] = []
@@ -15,7 +15,16 @@ struct TransactionQuery: Equatable {
       URLQueryItem(name: "page", value: String(page)),
       URLQueryItem(name: "per_page", value: String(perPage))
     ]
-    items += accountIDs.map { URLQueryItem(name: "account_ids[]", value: $0.uuidString.lowercased()) }
+    switch accountFilter {
+    case .account(let accountID):
+      items.append(URLQueryItem(name: "account_id", value: accountID.uuidString.lowercased()))
+    case .accounts(let accountIDs):
+      items += accountIDs.map {
+        URLQueryItem(name: "account_ids[]", value: $0.uuidString.lowercased())
+      }
+    case nil:
+      break
+    }
     items += categoryIDs.map { URLQueryItem(name: "category_ids[]", value: $0.uuidString.lowercased()) }
     items += merchantIDs.map { URLQueryItem(name: "merchant_ids[]", value: $0.uuidString.lowercased()) }
     items += tagIDs.map { URLQueryItem(name: "tag_ids[]", value: $0.uuidString.lowercased()) }
@@ -33,4 +42,17 @@ struct TransactionQuery: Equatable {
     }
     return items
   }
+}
+
+extension TransactionQuery {
+  init(historyRequest: TransactionHistoryRequest) {
+    accountFilter = historyRequest.accountID.map(TransactionAccountFilter.account)
+    startDate = historyRequest.dateWindow.startDate
+    endDate = historyRequest.dateWindow.endDate
+  }
+}
+
+enum TransactionAccountFilter: Equatable {
+  case account(UUID)
+  case accounts([UUID])
 }

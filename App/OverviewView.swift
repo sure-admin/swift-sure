@@ -5,6 +5,7 @@ struct OverviewView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
   var notificationManager: any InsightNotificationControlling
+  var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
     NavigationStack {
@@ -179,14 +180,30 @@ struct OverviewView: View {
   }
 
   private var recentCard: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text("Recent activity")
-        .font(.title3.bold())
-      if data.transactions.isEmpty {
-        Text("No recent transactions")
+    let recentTransactions = data.recentActivityTransactions
+    return VStack(alignment: .leading, spacing: 10) {
+      NavigationLink {
+        TransactionsView(
+          store: transactionHistoryStoreFactory.makeStore(for: .recentActivity)
+        )
+      } label: {
+        HStack {
+          Text("Recent activity")
+            .font(.title3.bold())
+          Spacer()
+          Image(systemName: "chevron.right")
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+        }
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint("Shows activity from the last 7 days")
+
+      if recentTransactions.isEmpty {
+        Text("No activity in the last 7 days")
           .foregroundStyle(.secondary)
       } else {
-        ForEach(data.transactions.prefix(3)) { transaction in
+        ForEach(recentTransactions.prefix(3)) { transaction in
           TransactionRow(transaction: transaction)
         }
       }

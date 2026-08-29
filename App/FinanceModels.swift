@@ -58,9 +58,3 @@ struct BudgetCategory: Identifiable {
     return spent / limit
   }
 }
-
-struct BalancePoint: Identifiable {
-  var id = UUID()
-  var month: String
-  var value: Double
-}

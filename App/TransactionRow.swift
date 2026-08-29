@@ -20,7 +20,10 @@ struct TransactionRow: View {
       }
       Spacer()
       VStack(alignment: .trailing, spacing: 2) {
-        Text(transaction.kind == .income ? transaction.amount : -transaction.amount, format: FinanceFormatters.currency)
+        Text(
+          transaction.kind == .income ? transaction.amount : -transaction.amount,
+          format: FinanceFormatters.currency(code: transaction.currencyCode)
+        )
           .font(.body.monospacedDigit().weight(.semibold))
           .foregroundStyle(transaction.kind == .income ? .green : .primary)
         Text(transaction.date, format: .dateTime.month(.abbreviated).day())

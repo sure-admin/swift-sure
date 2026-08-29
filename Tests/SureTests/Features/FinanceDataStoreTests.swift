@@ -213,6 +213,75 @@ struct FinanceDataStoreTests {
     #expect(store.reportingPeriodTransactions.map(\.id) == ["january-31", "january-1"])
   }
 
+  @Test("Recent activity uses the inclusive rolling seven-day window")
+  func recentActivityWindow() throws {
+    let calendar = utcCalendar()
+    let today = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 28, hour: 12))
+    )
+    let firstIncludedDay = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 22, hour: 12))
+    )
+    let dayBeforeWindow = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 12))
+    )
+    let tomorrow = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 29, hour: 12))
+    )
+    let store = FinanceDataStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      calendar: calendar,
+      now: { today },
+      syncInsights: { _ in }
+    )
+    store.transactions = [
+      transaction(id: "before", date: dayBeforeWindow),
+      transaction(id: "start", date: firstIncludedDay),
+      transaction(id: "future", date: tomorrow),
+      transaction(id: "today", date: today)
+    ]
+
+    #expect(store.recentActivityTransactions.map(\.id) == ["today", "start"])
+  }
+
+  @Test("Cancellation cannot publish a partially refreshed finance snapshot")
+  func cancelledRefreshIsAtomic() async {
+    let previousTimestamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: PartiallySuccessfulFinanceDataClient(),
+      insightSink: InsightSinkSpy()
+    )
+    store.accounts = [FinanceAccount(
+      id: "previous-account",
+      name: "Previous account",
+      institution: "Sure",
+      kind: .cash,
+      balance: 100,
+      change: 0,
+      tintName: "blue"
+    )]
+    store.transactions = [transaction(id: "previous-transaction", date: previousTimestamp)]
+    store.budgets = [BudgetCategory(
+      id: "previous-budget",
+      name: "Previous budget",
+      symbol: "cart.fill",
+      spent: 10,
+      limit: 100
+    )]
+    store.lastUpdated = previousTimestamp
+    store.state = .loaded
+
+    await store.refresh()
+
+    #expect(store.state == .loaded)
+    #expect(store.accounts.map(\.id) == ["previous-account"])
+    #expect(store.transactions.map(\.id) == ["previous-transaction"])
+    #expect(store.budgets.map(\.id) == ["previous-budget"])
+    #expect(store.lastUpdated == previousTimestamp)
+  }
+
   private func makeStore(
     connection: any ConnectionStateProviding,
     client: any FinanceDataClient,
@@ -306,6 +375,24 @@ private actor FinanceDataClientStub: FinanceDataClient {
   func recordedCalls() -> [Call] {
     calls
   }
+}
+
+private actor PartiallySuccessfulFinanceDataClient: FinanceDataClient {
+  func fetchAccounts() async throws -> [FinanceAccount] {
+    [FinanceAccount(
+      id: "new-account",
+      name: "New account",
+      institution: "Sure",
+      kind: .cash,
+      balance: 200,
+      change: 0,
+      tintName: "teal"
+    )]
+  }
+
+  func fetchTransactions() async throws -> [FinanceTransaction] { throw CancellationError() }
+  func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
+  func fetchInsights() async throws -> [BackendInsight] { [] }
 }
 
 @MainActor

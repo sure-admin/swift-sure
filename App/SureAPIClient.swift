@@ -73,6 +73,13 @@ struct SureAPIClient {
       .sorted { $0.date > $1.date }
   }
 
+  func fetchTransactions(_ request: TransactionHistoryRequest) async throws -> [FinanceTransaction] {
+    try await TransactionsAPIClient(transport: transport)
+      .fetchAll(query: TransactionQuery(historyRequest: request))
+      .map(FinancePresentationMapping.transaction)
+      .sorted { $0.date > $1.date }
+  }
+
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
     try await LegacyBudgetAPIClient(connection: connection).fetchBudgetCategories()
   }
@@ -82,4 +89,4 @@ struct SureAPIClient {
   }
 }
 
-extension SureAPIClient: FinanceDataClient, RemoteAssistantClient { }
+extension SureAPIClient: FinanceDataClient, RemoteAssistantClient, TransactionHistoryClient { }

@@ -36,6 +36,28 @@ final class FinanceDataStore {
     return transactions.filter { calendar.isDate($0.date, equalTo: reportingDate, toGranularity: .month) }
   }
 
+  var recentActivityTransactions: [FinanceTransaction] {
+    guard let window = try? TransactionDateWindow(
+      inclusiveDayCount: 7,
+      endingAt: now(),
+      calendar: calendar
+    ) else {
+      return []
+    }
+
+    return transactions
+      .filter { transaction in
+        guard let localDate = try? LocalDate(transaction.date, in: calendar) else {
+          return false
+        }
+        return window.contains(localDate)
+      }
+      .sorted { lhs, rhs in
+        if lhs.date == rhs.date { return lhs.id < rhs.id }
+        return lhs.date > rhs.date
+      }
+  }
+
   var reportingDate: Date? {
     transactions.first?.date
   }
@@ -75,18 +97,33 @@ final class FinanceDataStore {
       state = .needsConnection
       return
     }
+    let previousState = state
     state = .loading
     do {
       async let loadedAccounts = client.fetchAccounts()
       async let loadedTransactions = client.fetchTransactions()
-      accounts = try await loadedAccounts
-      transactions = try await loadedTransactions
-      budgets = (try? await client.fetchBudgetCategories()) ?? []
+      let refreshedAccounts = try await loadedAccounts
+      let refreshedTransactions = try await loadedTransactions
+      let refreshedBudgets: [BudgetCategory]
+      do {
+        refreshedBudgets = try await client.fetchBudgetCategories()
+      } catch {
+        guard !Self.isCancellation(error) else { throw CancellationError() }
+        refreshedBudgets = []
+      }
+      try Task.checkCancellation()
+      accounts = refreshedAccounts
+      transactions = refreshedTransactions
+      budgets = refreshedBudgets
       lastUpdated = now()
       state = .loaded
       await refreshInsights()
     } catch {
-      state = .failed(error.localizedDescription)
+      if Self.isCancellation(error) {
+        state = previousState
+      } else {
+        state = .failed(error.localizedDescription)
+      }
     }
   }
 
@@ -108,11 +145,20 @@ final class FinanceDataStore {
     do {
       insights = try await client.fetchInsights()
     } catch {
+      guard !Self.isCancellation(error) else {
+        isLoadingInsights = false
+        return
+      }
       insights = []
       insightError = error.localizedDescription
     }
     syncInsights(insights)
     isLoadingInsights = false
+  }
+
+  private static func isCancellation(_ error: Error) -> Bool {
+    if error is CancellationError || Task.isCancelled { return true }
+    return (error as? URLError)?.code == .cancelled
   }
 
   private static func makeLive() -> FinanceDataStore {
