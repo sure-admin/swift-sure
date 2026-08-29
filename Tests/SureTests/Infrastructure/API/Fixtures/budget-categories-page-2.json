@@ -1,0 +1,31 @@
+{
+  "budget_categories": [
+    {
+      "id": "00000000-0000-4000-8000-000000000612",
+      "budget_id": "00000000-0000-4000-8000-000000000602",
+      "currency": "USD",
+      "subcategory": false,
+      "inherits_parent_budget": false,
+      "rollover_enabled": true,
+      "budgeted_spending": "$700.00",
+      "budgeted_spending_cents": 70000,
+      "display_budgeted_spending": "$700.00",
+      "display_budgeted_spending_cents": 70000,
+      "category": {
+        "id": "00000000-0000-4000-8000-000000000622",
+        "name": "Housing",
+        "color": "#2B6CB0",
+        "lucide_icon": "house",
+        "parent_id": null
+      },
+      "created_at": "2026-07-20T10:00:00Z",
+      "updated_at": "2026-08-28T18:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 2,
+    "per_page": 1,
+    "total_count": 2,
+    "total_pages": 2
+  }
+}

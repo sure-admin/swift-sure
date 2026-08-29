@@ -1,0 +1,4 @@
+{
+  "error": "insufficient_scope",
+  "message": "This action requires the 'read' scope"
+}

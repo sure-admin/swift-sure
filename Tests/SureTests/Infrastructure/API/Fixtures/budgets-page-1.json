@@ -1,0 +1,27 @@
+{
+  "budgets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000601",
+      "start_date": "2026-07-01",
+      "end_date": "2026-07-31",
+      "name": "July 2026",
+      "currency": "USD",
+      "initialized": true,
+      "current": false,
+      "budgeted_spending": "$900.00",
+      "budgeted_spending_cents": 90000,
+      "expected_income": "$2,000.00",
+      "expected_income_cents": 200000,
+      "allocated_spending": "$900.00",
+      "allocated_spending_cents": 90000,
+      "created_at": "2026-06-20T10:00:00Z",
+      "updated_at": "2026-07-31T18:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 1,
+    "total_count": 2,
+    "total_pages": 2
+  }
+}

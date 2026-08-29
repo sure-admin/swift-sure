@@ -1,0 +1,12 @@
+{
+  "id": "00000000-0000-4000-8000-000000000611",
+  "budget_id": "00000000-0000-4000-8000-000000000602",
+  "currency": "USD",
+  "display_budgeted_spending": "$500.00",
+  "display_budgeted_spending_cents": 50000,
+  "actual_spending": "$123.45",
+  "category": {
+    "id": "00000000-0000-4000-8000-000000000621",
+    "name": "Groceries"
+  }
+}

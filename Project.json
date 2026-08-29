@@ -15,15 +15,15 @@
   },
   "targets" : {
     "Sure" : {
-      "entitlements" : {
-        "path" : "App\/App.entitlements",
-        "properties" : {
-          "aps-environment" : "$(APS_ENVIRONMENT)",
-          "com.apple.security.app-sandbox" : true,
-          "com.apple.security.network.client" : true,
-          "com.apple.security.network.server" : true
+      "dependencies" : [
+        {
+          "destinationFilters" : [
+            "iOS"
+          ],
+          "embed" : true,
+          "target" : "Sure Watch"
         }
-      },
+      ],
       "info" : {
         "path" : "App\/Info.plist",
         "properties" : {
@@ -44,11 +44,22 @@
         }
       },
       "platform" : "auto",
+      "scheme" : {
+        "coverageTargets" : [
+          "Sure"
+        ],
+        "gatherCoverageData" : true,
+        "testTargets" : [
+          "SureTests"
+        ]
+      },
       "settings" : {
         "base" : {
-          "APS_ENVIRONMENT" : "development",
           "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
           "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME" : "AccentColor",
+          "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" : "App\/iOS.entitlements",
+          "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" : "App\/iOS.entitlements",
+          "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" : "App\/macOS.entitlements",
           "CURRENT_PROJECT_VERSION" : "1",
           "MARKETING_VERSION" : "0.7.4",
           "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights",
@@ -58,8 +69,6 @@
         },
         "configs" : {
           "Release" : {
-            "APS_ENVIRONMENT" : "production",
-            "CODE_SIGN_IDENTITY" : "Apple Distribution",
             "CODE_SIGN_STYLE" : "Automatic"
           }
         }
@@ -78,6 +87,33 @@
       ],
       "type" : "application"
     },
+    "SureTests" : {
+      "dependencies" : [
+        {
+          "target" : "Sure"
+        }
+      ],
+      "platform" : "auto",
+      "settings" : {
+        "base" : {
+          "BUNDLE_LOADER" : "$(TEST_HOST)",
+          "SWIFT_VERSION" : "5.0",
+          "TEST_HOST[sdk=iphoneos*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Sure",
+          "TEST_HOST[sdk=iphonesimulator*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Sure",
+          "TEST_HOST[sdk=macosx*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Contents\/MacOS\/Sure"
+        }
+      },
+      "sources" : [
+        {
+          "path" : "Tests\/SureTests"
+        }
+      ],
+      "supportedDestinations" : [
+        "iOS",
+        "macOS"
+      ],
+      "type" : "bundle.unit-test"
+    },
     "Sure Watch" : {
       "info" : {
         "path" : "Watch\/Info.plist",
@@ -91,6 +127,15 @@
         }
       },
       "platform" : "watchOS",
+      "scheme" : {
+        "coverageTargets" : [
+          "Sure Watch"
+        ],
+        "gatherCoverageData" : true,
+        "testTargets" : [
+          "Sure WatchTests"
+        ]
+      },
       "settings" : {
         "base" : {
           "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
@@ -103,7 +148,6 @@
         },
         "configs" : {
           "Release" : {
-            "CODE_SIGN_IDENTITY" : "Apple Distribution",
             "CODE_SIGN_STYLE" : "Automatic"
           }
         }
@@ -120,6 +164,25 @@
         }
       ],
       "type" : "application"
+    },
+    "Sure WatchTests" : {
+      "dependencies" : [
+        {
+          "target" : "Sure Watch"
+        }
+      ],
+      "platform" : "watchOS",
+      "settings" : {
+        "base" : {
+          "SWIFT_VERSION" : "5.0"
+        }
+      },
+      "sources" : [
+        {
+          "path" : "Tests\/SureWatchTests"
+        }
+      ],
+      "type" : "bundle.unit-test"
     }
   }
 }

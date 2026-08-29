@@ -1,0 +1,22 @@
+{
+  "insights": [
+    {
+      "id": "00000000-0000-4000-8000-000000000601",
+      "type": "spending_change",
+      "title": "Grocery spending changed",
+      "body": "Grocery spending was lower than the prior period.",
+      "priority": "medium",
+      "status": "active",
+      "generated_at": "2026-08-27T12:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000602",
+      "type": "subscription_audit",
+      "title": "Review recurring services",
+      "body": "A recurring service may be worth reviewing.",
+      "priority": "low",
+      "status": "read",
+      "generated_at": null
+    }
+  ]
+}

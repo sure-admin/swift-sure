@@ -8,7 +8,13 @@ This repository contains the SwiftUI-native Sure client created with Bitrig. It 
 2. From the repository root, run `xcodegen generate --spec Project.json`.
 3. Open `Sure.xcodeproj` and choose the `Sure` or `Sure Watch` scheme.
 
-The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, and stores the resulting bearer token in the device Keychain. A read/write API key remains available as a fallback and can sync through iCloud Keychain.
+Production code is organized by ownership: `App/Application` composes the
+client, `App/Domain` holds UI-independent values, `App/Features` owns screens
+and feature state, `App/Infrastructure` implements external boundaries, and
+`App/DesignSystem` contains reusable presentation code. Cross-target value
+types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
+
+The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
 ## AI Insight push notifications
 
@@ -23,6 +29,11 @@ The Sure deployment must configure these environment variables:
 
 Sure sends sandbox notifications to development and simulator builds and production notifications to TestFlight and App Store builds. Insight delivery also requires Preview Features to be enabled for the Sure user.
 
-## Continuous integration
+## Tests and continuous integration
 
-The repository’s `Bitrig Native` GitHub Actions workflow generates the Xcode project and performs unsigned simulator builds for every supported platform. Push notification delivery requires a paid Apple Developer team and the APNs credentials above.
+The `Sure` scheme runs the offline Swift Testing suite on iOS and macOS. The
+`Sure Watch` scheme runs the Watch state suite. The repository’s `Bitrig
+Native` workflow generates the Xcode project, runs all three test destinations,
+and performs unsigned simulator builds for every supported platform. Push
+notification delivery requires a paid Apple Developer team and the APNs
+credentials above.

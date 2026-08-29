@@ -1,0 +1,13 @@
+{
+  "insights": [
+    {
+      "id": "00000000-0000-4000-8000-000000000603",
+      "type": "spending_change",
+      "title": "Unsupported priority",
+      "body": "This record intentionally uses a value outside the contract.",
+      "priority": "urgent",
+      "status": "active",
+      "generated_at": "2026-08-27T12:00:00Z"
+    }
+  ]
+}

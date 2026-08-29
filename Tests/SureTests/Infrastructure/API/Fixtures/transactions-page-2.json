@@ -1,0 +1,40 @@
+{
+  "transactions": [
+    {
+      "id": "00000000-0000-4000-8000-000000000203",
+      "date": "2026-08-24",
+      "amount": "¥850",
+      "amount_cents": 850,
+      "signed_amount_cents": -850,
+      "currency": "JPY",
+      "name": "Rail Fare",
+      "notes": null,
+      "external_id": null,
+      "source": null,
+      "user_modified": true,
+      "classification": "expense",
+      "account": {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "name": "Long-Term Investments",
+        "account_type": "investment"
+      },
+      "category": {
+        "id": "00000000-0000-4000-8000-000000000302",
+        "name": "Transportation",
+        "color": "#FF9800",
+        "icon": "train"
+      },
+      "merchant": null,
+      "tags": [],
+      "transfer": null,
+      "created_at": "2026-08-24T08:00:00Z",
+      "updated_at": "2026-08-24T08:05:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 2,
+    "per_page": 2,
+    "total_count": 3,
+    "total_pages": 2
+  }
+}
