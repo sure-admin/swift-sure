@@ -24,15 +24,6 @@
           "target" : "Sure Watch"
         }
       ],
-      "entitlements" : {
-        "path" : "App\/App.entitlements",
-        "properties" : {
-          "aps-environment" : "$(APS_ENVIRONMENT)",
-          "com.apple.security.app-sandbox" : true,
-          "com.apple.security.network.client" : true,
-          "com.apple.security.network.server" : true
-        }
-      },
       "info" : {
         "path" : "App\/Info.plist",
         "properties" : {
@@ -64,9 +55,11 @@
       },
       "settings" : {
         "base" : {
-          "APS_ENVIRONMENT" : "development",
           "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
           "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME" : "AccentColor",
+          "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" : "App\/iOS.entitlements",
+          "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" : "App\/iOS.entitlements",
+          "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" : "App\/macOS.entitlements",
           "CURRENT_PROJECT_VERSION" : "1",
           "MARKETING_VERSION" : "0.7.4",
           "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights",
@@ -76,7 +69,6 @@
         },
         "configs" : {
           "Release" : {
-            "APS_ENVIRONMENT" : "production",
             "CODE_SIGN_STYLE" : "Automatic"
           }
         }
