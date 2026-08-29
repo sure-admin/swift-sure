@@ -94,6 +94,16 @@ struct TransactionsAPIClient {
       throw SureAPIError.decoding
     }
 
+    guard signedMinorUnits != Int64.min else {
+      throw SureAPIError.decoding
+    }
+    switch classification {
+    case .income:
+      guard signedMinorUnits >= 0 else { throw SureAPIError.decoding }
+    case .expense:
+      guard signedMinorUnits <= 0 else { throw SureAPIError.decoding }
+    }
+
     return TransactionRecord(
       id: dto.id,
       accountID: dto.account.id,

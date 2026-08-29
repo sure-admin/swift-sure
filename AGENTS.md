@@ -60,7 +60,7 @@ The current targets are:
 - `Shared/`: the smallest possible set of types compiled into both app targets.
 - `appStoreConnect/`: App Store listing metadata, not runtime app code.
 
-Migrate `App/` incrementally toward this feature-oriented layout:
+Keep `App/` in this feature-oriented layout:
 
 ```text
 App/
@@ -72,6 +72,7 @@ App/
 Shared/              Cross-target value types only
 Watch/               Watch app UI and watch-specific infrastructure
 Tests/SureTests/      Unit and contract tests mirroring production areas
+Tests/SureWatchTests/ Watch-owned state tests
 ```
 
 Add subfolders only when they clarify ownership. Do not create generic dumping
@@ -265,8 +266,9 @@ xcodebuild -project Sure.xcodeproj -scheme 'Sure Watch' -configuration Debug \
   -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-Once the unit-test target exists, run its generated scheme test action on an
-available simulator or macOS destination. A change is not complete when tests
+Run the `Sure` scheme test action on an available iOS simulator and macOS
+destination. Run the `Sure Watch` scheme test action on a paired Watch
+simulator for Watch-owned state changes. A change is not complete when tests
 were not run without clearly stating why.
 
 When adding a source directory, target, or test target, update

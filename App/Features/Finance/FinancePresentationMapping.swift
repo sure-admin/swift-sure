@@ -7,32 +7,35 @@ enum FinancePresentationMapping {
       accountType: record.accountType
     )
     return FinanceAccount(
-      id: record.id.uuidString.lowercased(),
+      id: record.id,
       name: record.name,
       institution: record.institutionName ?? record.accountType ?? kind.rawValue,
       kind: kind,
-      balance: record.balance.legacyDoubleValue,
-      change: 0,
-      tintName: tintName(identifier: record.id),
-      currencyCode: record.balance.currency.rawValue
+      balance: record.balance,
+      tintName: tintName(identifier: record.id)
     )
   }
 
-  static func transaction(from record: TransactionRecord) -> FinanceTransaction {
+  static func transaction(from record: TransactionRecord) throws -> FinanceTransaction {
     let kind: TransactionKind = record.classification == .income ? .income : .expense
-    let decimalAmount = record.signedAmount.decimalValue
-    let magnitude = decimalAmount < 0 ? -decimalAmount : decimalAmount
+    let hasExpectedSign = switch kind {
+    case .income: record.signedAmount.minorUnits >= 0
+    case .expense: record.signedAmount.minorUnits <= 0
+    }
+    guard hasExpectedSign,
+          let magnitude = record.signedAmount.magnitude else {
+      throw SureAPIError.decoding
+    }
     let category = record.categoryName ?? "Uncategorized"
     return FinanceTransaction(
-      id: record.id.uuidString.lowercased(),
+      id: record.id,
       merchant: record.name,
       category: category,
       symbol: symbol(for: category, kind: kind),
-      date: record.date.legacyDate(),
-      amount: NSDecimalNumber(decimal: magnitude).doubleValue,
+      date: record.date,
+      amount: magnitude,
       kind: kind,
-      accountID: record.accountID.uuidString.lowercased(),
-      currencyCode: record.signedAmount.currency.rawValue
+      accountID: record.accountID
     )
   }
 

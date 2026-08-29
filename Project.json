@@ -102,7 +102,7 @@
           "target" : "Sure"
         }
       ],
-      "platform" : "iOS",
+      "platform" : "auto",
       "settings" : {
         "base" : {
           "SWIFT_VERSION" : "5.0"
@@ -112,6 +112,10 @@
         {
           "path" : "Tests\/SureTests"
         }
+      ],
+      "supportedDestinations" : [
+        "iOS",
+        "macOS"
       ],
       "type" : "bundle.unit-test"
     },
@@ -128,6 +132,15 @@
         }
       },
       "platform" : "watchOS",
+      "scheme" : {
+        "coverageTargets" : [
+          "Sure Watch"
+        ],
+        "gatherCoverageData" : true,
+        "testTargets" : [
+          "Sure WatchTests"
+        ]
+      },
       "settings" : {
         "base" : {
           "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
@@ -157,6 +170,25 @@
         }
       ],
       "type" : "application"
+    },
+    "Sure WatchTests" : {
+      "dependencies" : [
+        {
+          "target" : "Sure Watch"
+        }
+      ],
+      "platform" : "watchOS",
+      "settings" : {
+        "base" : {
+          "SWIFT_VERSION" : "5.0"
+        }
+      },
+      "sources" : [
+        {
+          "path" : "Tests\/SureWatchTests"
+        }
+      ],
+      "type" : "bundle.unit-test"
     }
   }
 }

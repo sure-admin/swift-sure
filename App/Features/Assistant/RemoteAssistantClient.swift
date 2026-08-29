@@ -1,4 +1,6 @@
+import Foundation
+
 protocol RemoteAssistantClient {
-  func createChat() async throws -> String
-  func sendMessage(_ content: String, chatID: String) async throws -> String
+  func createChat() async throws -> UUID
+  func sendMessage(_ content: String, chatID: UUID) async throws -> String
 }

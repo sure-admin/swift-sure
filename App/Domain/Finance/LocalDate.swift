@@ -77,21 +77,6 @@ struct LocalDate: Codable, Comparable, Hashable, Sendable {
     return lhs.day < rhs.day
   }
 
-  // The legacy UI still requires an absolute Date. Constructing noon in its
-  // display calendar keeps the server's date-only value on the intended day.
-  func legacyDate(in displayCalendar: Calendar = .autoupdatingCurrent) -> Date {
-    var calendar = Self.calendar
-    calendar.timeZone = displayCalendar.timeZone
-    var components = DateComponents()
-    components.calendar = calendar
-    components.timeZone = calendar.timeZone
-    components.year = year
-    components.month = month
-    components.day = day
-    components.hour = 12
-    return calendar.date(from: components)!
-  }
-
   private static var calendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.locale = Locale(identifier: "en_US_POSIX")

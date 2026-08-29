@@ -22,22 +22,17 @@ struct LocalDateTests {
     }
   }
 
-  @Test("Preserves the display day at extreme time-zone offsets")
-  func displayTimeZones() throws {
-    let localDate = try LocalDate(year: 2026, month: 12, day: 31)
+  @Test("Derives the local calendar day at extreme time-zone offsets")
+  func timeZoneDerivation() throws {
+    let instant = try #require(
+      ISO8601DateFormatter().date(from: "2026-12-31T23:30:00Z")
+    )
+    var west = Calendar(identifier: .gregorian)
+    west.timeZone = try #require(TimeZone(secondsFromGMT: -43_200))
+    var east = Calendar(identifier: .gregorian)
+    east.timeZone = try #require(TimeZone(secondsFromGMT: 50_400))
 
-    for secondsFromGMT in [-43_200, 50_400] {
-      var calendar = Calendar(identifier: .gregorian)
-      calendar.timeZone = try #require(TimeZone(secondsFromGMT: secondsFromGMT))
-      let components = calendar.dateComponents(
-        [.year, .month, .day, .hour],
-        from: localDate.legacyDate(in: calendar)
-      )
-
-      #expect(components.year == 2026)
-      #expect(components.month == 12)
-      #expect(components.day == 31)
-      #expect(components.hour == 12)
-    }
+    #expect(try LocalDate(instant, in: west) == LocalDate(year: 2026, month: 12, day: 31))
+    #expect(try LocalDate(instant, in: east) == LocalDate(year: 2027, month: 1, day: 1))
   }
 }

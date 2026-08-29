@@ -134,6 +134,19 @@ struct TransactionsAPIClientTests {
     }
   }
 
+  @Test("Rejects signed values that contradict transaction classification")
+  func inconsistentSign() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "transactions-inconsistent-sign")
+    ])
+
+    await #expect(throws: SureAPIError.decoding) {
+      _ = try await TransactionsAPIClient(
+        transport: makeTransport(stub)
+      ).fetchAll()
+    }
+  }
+
   private func makeTransport(_ stub: HTTPDataTransportStub) -> SureAPITransport {
     SureAPITransport(
       baseURL: URL(string: "https://sure.example")!,

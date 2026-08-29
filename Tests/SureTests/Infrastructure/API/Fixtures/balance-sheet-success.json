@@ -1,0 +1,18 @@
+{
+  "currency": "USD",
+  "net_worth": {
+    "amount": "987654321.09",
+    "currency": "USD",
+    "formatted": "$987,654,321.09"
+  },
+  "assets": {
+    "amount": "1000000000.10",
+    "currency": "USD",
+    "formatted": "$1,000,000,000.10"
+  },
+  "liabilities": {
+    "amount": "12345679.01",
+    "currency": "USD",
+    "formatted": "$12,345,679.01"
+  }
+}

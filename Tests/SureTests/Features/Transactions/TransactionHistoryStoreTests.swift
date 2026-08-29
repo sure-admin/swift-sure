@@ -70,16 +70,16 @@ struct TransactionHistoryStoreTests {
     let earlier = Date(timeIntervalSince1970: 1_700_000_000)
     let later = Date(timeIntervalSince1970: 1_700_086_400)
     let client = TransactionHistoryClientStub(outcome: .success([
-      transaction(id: "b", date: later),
-      transaction(id: "c", date: earlier),
-      transaction(id: "a", date: later)
+      transaction(id: 2, date: later),
+      transaction(id: 3, date: earlier),
+      transaction(id: 1, date: later)
     ]))
     let store = makeStore(scope: .recentActivity, client: client)
 
     await store.load()
 
     #expect(store.state == .loaded)
-    #expect(store.transactions.map(\.id) == ["a", "b", "c"])
+    #expect(store.transactions.map(\.id) == [historyTestID(1), historyTestID(2), historyTestID(3)])
   }
 
   @Test("An empty response is a successful loaded state")
@@ -120,12 +120,12 @@ struct TransactionHistoryStoreTests {
 
     await store.load()
     await client.setOutcome(.success([
-      transaction(id: "recovered", date: referenceDate)
+      transaction(id: 4, date: referenceDate)
     ]))
     await store.load()
 
     #expect(store.state == .loaded)
-    #expect(store.transactions.map(\.id) == ["recovered"])
+    #expect(store.transactions.map(\.id) == [historyTestID(4)])
   }
 
   @Test("Cancellation restores the previous state instead of failing")
@@ -186,17 +186,19 @@ struct TransactionHistoryStoreTests {
     )
   }
 
-  private func transaction(id: String, date: Date) -> FinanceTransaction {
+  private func transaction(id: Int, date: Date) -> FinanceTransaction {
     FinanceTransaction(
-      id: id,
+      id: historyTestID(id),
       merchant: "Merchant",
       category: "Category",
       symbol: "creditcard.fill",
-      date: date,
-      amount: 10,
+      date: try! LocalDate(date, in: utcCalendar),
+      amount: Money(
+        minorUnits: 1_000,
+        currency: CurrencyCode("USD")!
+      ),
       kind: .expense,
-      accountID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-      currencyCode: "USD"
+      accountID: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
     )
   }
 
@@ -215,6 +217,13 @@ struct TransactionHistoryStoreTests {
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     return calendar
   }
+}
+
+private func historyTestID(_ value: Int) -> UUID {
+  UUID(uuidString: String(
+    format: "00000000-0000-4000-8000-%012d",
+    value
+  ))!
 }
 
 private actor TransactionHistoryClientStub: TransactionHistoryClient {

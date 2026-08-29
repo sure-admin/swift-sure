@@ -17,7 +17,6 @@ struct InsightsAPIClientTests {
     #expect(insights[0].priority == "medium")
     #expect(insights[0].status == "active")
     #expect(insights[0].generatedAt == Date(timeIntervalSince1970: 1_787_832_000))
-    #expect(insights[0].periodStart == nil)
     #expect(insights[1].generatedAt == nil)
   }
 

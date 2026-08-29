@@ -19,7 +19,6 @@ struct InsightsAPIClient {
       body: dto.body,
       priority: dto.priority.rawValue,
       status: dto.status.rawValue,
-      periodStart: nil,
       generatedAt: dto.generatedAt
     )
   }

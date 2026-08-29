@@ -1,0 +1,18 @@
+{
+  "currency": "USD",
+  "net_worth": {
+    "amount": "12.345",
+    "currency": "USD",
+    "formatted": "$12.35"
+  },
+  "assets": {
+    "amount": "20.00",
+    "currency": "USD",
+    "formatted": "$20.00"
+  },
+  "liabilities": {
+    "amount": "7.65",
+    "currency": "USD",
+    "formatted": "$7.65"
+  }
+}

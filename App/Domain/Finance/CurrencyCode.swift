@@ -6,7 +6,8 @@ struct CurrencyCode: Hashable, Sendable {
   init?(_ value: String) {
     let normalized = value.uppercased()
     guard normalized.utf8.count == 3,
-          normalized.utf8.allSatisfy({ (65...90).contains($0) }) else {
+          normalized.utf8.allSatisfy({ (65...90).contains($0) }),
+          Self.isoCurrencies.contains(normalized) else {
       return nil
     }
     rawValue = normalized
@@ -35,4 +36,8 @@ struct CurrencyCode: Hashable, Sendable {
   ]
 
   private static let fourMinorUnitCurrencies: Set<String> = ["CLF", "UYW"]
+
+  private static let isoCurrencies = Set(
+    Locale.Currency.isoCurrencies.map(\.identifier)
+  )
 }

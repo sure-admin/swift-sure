@@ -47,7 +47,7 @@ final class TransactionHistoryStore {
       let loadedTransactions = try await client.fetchTransactions(request)
       try Task.checkCancellation()
       transactions = loadedTransactions.sorted { lhs, rhs in
-        if lhs.date == rhs.date { return lhs.id < rhs.id }
+        if lhs.date == rhs.date { return lhs.id.uuidString < rhs.id.uuidString }
         return lhs.date > rhs.date
       }
       state = .loaded

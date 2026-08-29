@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-  @State private var store = WatchInsightsStore()
+  var store: WatchInsightsStore
 
   var body: some View {
     NavigationStack {
@@ -31,6 +31,9 @@ struct ContentView: View {
         .padding(.horizontal, 2)
       }
       .navigationTitle("Insights")
+    }
+    .task {
+      store.start()
     }
   }
 

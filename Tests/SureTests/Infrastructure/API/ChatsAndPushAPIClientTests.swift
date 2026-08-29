@@ -20,6 +20,36 @@ struct ChatsAndPushAPIClientTests {
     #expect(body.title == "Sure for Apple")
   }
 
+  @Test("Rejects a malformed successful chat creation response")
+  func malformedChatCreation() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"id":"not-a-uuid"}"#, status: 201)
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+
+    do {
+      _ = try await client.create(title: "Sure for Apple")
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .decoding)
+    }
+  }
+
+  @Test("Maps chat creation validation failures")
+  func chatCreationValidationFailure() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "error-validation", status: 422)
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+
+    do {
+      _ = try await client.create(title: "")
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .validation)
+    }
+  }
+
   @Test("Polls typed chat messages without sleeping in tests")
   func sendMessage() async throws {
     let stub = HTTPDataTransportStub([
@@ -124,6 +154,42 @@ struct ChatsAndPushAPIClientTests {
     }
   }
 
+  @Test("Rejects a malformed successful message submission response")
+  func malformedMessageSubmission() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "chat-empty"),
+      try .http(json: #"{"id":"not-a-uuid"}"#, status: 201)
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+    let chatID = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000701"))
+
+    do {
+      _ = try await client.sendMessage("How am I doing?", chatID: chatID)
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .decoding)
+    }
+    #expect((await stub.requests()).map(\.httpMethod) == ["GET", "POST"])
+  }
+
+  @Test("Maps message submission validation failures")
+  func messageSubmissionValidationFailure() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "chat-empty"),
+      try .http(fixture: "error-validation", status: 422)
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+    let chatID = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000701"))
+
+    do {
+      _ = try await client.sendMessage("", chatID: chatID)
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .validation)
+    }
+    #expect((await stub.requests()).map(\.httpMethod) == ["GET", "POST"])
+  }
+
   @Test("Registers and unregisters a typed push subscription")
   func pushSubscription() async throws {
     let stub = HTTPDataTransportStub([
@@ -142,6 +208,53 @@ struct ChatsAndPushAPIClientTests {
     #expect(body.token == "synthetic-device-token")
     #expect(body.environment == "sandbox")
     #expect(body.platform == "ios")
+  }
+
+  @Test("Rejects a malformed successful push registration response")
+  func malformedPushRegistration() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"id":"not-a-uuid"}"#, status: 201)
+    ])
+    let client = PushSubscriptionsAPIClient(transport: makeTransport(stub))
+
+    do {
+      _ = try await client.register(token: "synthetic-device-token", environment: .sandbox)
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .decoding)
+    }
+  }
+
+  @Test("Maps push registration validation failures")
+  func pushRegistrationValidationFailure() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "error-validation", status: 422)
+    ])
+    let client = PushSubscriptionsAPIClient(transport: makeTransport(stub))
+
+    do {
+      _ = try await client.register(token: "", environment: .sandbox)
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      #expect(error == .validation)
+    }
+  }
+
+  @Test("Preserves DELETE 404 for idempotent lifecycle cleanup")
+  func missingPushSubscription() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "error-validation", status: 404)
+    ])
+    let client = PushSubscriptionsAPIClient(transport: makeTransport(stub))
+    let identifier = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000801"))
+
+    do {
+      try await client.unregister(id: identifier)
+      #expect(Bool(false))
+    } catch let error as SureAPIError {
+      // NotificationManager treats this typed result as successful idempotent cleanup.
+      #expect(error == .notFound)
+    }
   }
 
   private var noDelayPolicy: ChatPollingPolicy {

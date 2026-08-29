@@ -57,6 +57,66 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
 
+  mac-test:
+    name: Mac unit tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec Project.json
+
+      - name: Test
+        run: >-
+          xcodebuild
+          -project Sure.xcodeproj
+          -scheme Sure
+          -configuration Debug
+          -destination 'platform=macOS'
+          -derivedDataPath "${{ runner.temp }}/DerivedData-mac-tests"
+          CODE_SIGNING_ALLOWED=NO
+          test
+
+  watch-test:
+    name: Watch unit tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec Project.json
+
+      - name: Test Watch state
+        run: |
+          simulator_id="$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("watchOS")) | .value[]] | first | .udid')"
+          phone_simulator_id="$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[]] | first | .udid')"
+          test -n "$simulator_id"
+          test -n "$phone_simulator_id"
+          pair_id="$(xcrun simctl list pairs -j | jq -r --arg watch "$simulator_id" '[.pairs | to_entries[] | select(.value.watch.udid == $watch)] | first | .key // empty')"
+          if [ -z "$pair_id" ]; then
+            xcrun simctl pair "$simulator_id" "$phone_simulator_id"
+          fi
+          xcodebuild \
+            -project Sure.xcodeproj \
+            -scheme "Sure Watch" \
+            -configuration Debug \
+            -destination "platform=watchOS Simulator,id=$simulator_id" \
+            -derivedDataPath "${{ runner.temp }}/DerivedData-watch-tests" \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
   build:
     name: Build ${{ matrix.name }}
     runs-on: macos-15

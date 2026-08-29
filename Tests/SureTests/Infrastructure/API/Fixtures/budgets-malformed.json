@@ -1,0 +1,22 @@
+{
+  "budgets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000602",
+      "start_date": "2026-08-01",
+      "end_date": "2026-08-31",
+      "name": "August 2026",
+      "initialized": true,
+      "current": true,
+      "allocated_spending": "$1,200.00",
+      "allocated_spending_cents": 120000,
+      "created_at": "2026-07-20T10:00:00Z",
+      "updated_at": "2026-08-28T18:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 100,
+    "total_count": 1,
+    "total_pages": 1
+  }
+}

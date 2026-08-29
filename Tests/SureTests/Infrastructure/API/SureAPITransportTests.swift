@@ -90,6 +90,19 @@ struct SureAPITransportTests {
     }
   }
 
+  @Test("Rejects a bare calendar date where a timestamp is required")
+  func rejectsBareTimestampDate() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"created_at":"2026-08-29"}"#)
+    ])
+
+    await #expect(throws: SureAPIError.decoding) {
+      let _: TimestampResponse = try await makeTransport(stub: stub).send(
+        APIRequest(method: .get, pathComponents: ["api", "v1", "items"])
+      )
+    }
+  }
+
   @Test("Preserves cancellation")
   func cancellation() async throws {
     let stub = HTTPDataTransportStub([.failure(CancellationError())])
@@ -407,6 +420,14 @@ struct SureAPITransportTests {
 
 private struct ValueResponse: Decodable {
   var value: String
+}
+
+private struct TimestampResponse: Decodable {
+  var createdAt: Date
+
+  enum CodingKeys: String, CodingKey {
+    case createdAt = "created_at"
+  }
 }
 
 private struct CreateValueRequest: Codable {

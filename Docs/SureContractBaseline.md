@@ -13,6 +13,7 @@ Permalinks for the contract sources used by this baseline:
 - [OpenAPI](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/openapi.yaml)
 - [Client architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/clients.md)
 - [Transaction API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/balance_sheet_controller.rb)
 - [Chat API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/chats.md)
 - [AI architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/hosting/ai.md)
 
@@ -27,9 +28,8 @@ yet. The app should nevertheless tolerate additive optional response fields.
   subscription lifecycle operations may write infrastructure state.
 - Keep endpoint clients independent of credential storage and mutable UI state.
   They receive one immutable request context from the active session.
-- Prefer documented typed endpoints. In particular, migrate insight loading to
-  the documented `/api/v1/insights` operation during the typed API work instead
-  of prompting chat to return tool JSON.
+- Prefer documented typed endpoints. Insight loading uses
+  `/api/v1/insights` instead of prompting chat to return tool JSON.
 - Handle collection pagination explicitly when the endpoint supports it.
 - Treat preview-feature 403 responses separately from invalid credentials.
 - Keep wire DTOs, financial domain types, and SwiftUI presentation types
@@ -50,13 +50,12 @@ The pinned chat show operation paginates messages in ascending order. Its Pagy
 effective page size, so the client follows the returned `page` and
 `total_pages` fields rather than recalculating the last page from `per_page`.
 
-Budget typing remains deliberately deferred. The documented
-`/api/v1/budget_categories` collection omits `actual_spending`, while the
-existing budget UI requires that value. Preserving the screen with documented
-operations would require category collection pagination followed by detail
-hydration. Until that product/performance choice is made, budget loading stays
-inside `LegacyBudgetAPIClient`; no other feature may depend on that legacy
-transport or parsing behavior.
+The documented `/api/v1/budget_categories` collection omits
+`actual_spending`, while the existing budget UI requires that value. The typed
+client therefore paginates budgets, deliberately selects the single current
+budget, paginates its category summaries, and hydrates each summary through
+`/api/v1/budget_categories/{id}`. Integer minor-unit fields from those detail
+responses are the lossless source for category spending and limits.
 
 ## Transaction product behavior
 
@@ -94,20 +93,21 @@ This client does not use Sure's separate mobile email/password device-token
 flow. Adopting that workflow requires a distinct product decision and contract
 review rather than being inferred from the browser/Passkey OAuth flow.
 
-## Known migration gaps
+## Financial presentation invariants
 
-Remaining gaps after the typed API foundation are:
+The typed read-only foundation has no remaining legacy financial parser or
+binary floating-point presentation bridge:
 
-- Budget loading still uses permissive `JSONSerialization`, recursive key
-  lookup, the legacy nested category route, and fallback identifiers.
-- Typed account and transaction records preserve integer minor units and
-  currency, but existing SwiftUI presentation models still receive an explicit
-  temporary `Double` conversion bridge.
-- The Overview net-worth summary still combines presentation balances locally;
-  it must move to Sure's authoritative balance-sheet result before it is treated
-  as correct for mixed-currency families.
+- Accounts, transactions, balance-sheet values, and budget categories retain
+  integer minor units and ISO currency through feature state and formatting.
+- Overview net worth comes from the documented `/api/v1/balance_sheet`
+  operation. Native account balances are never summed as a substitute.
+- Period income and spending remain grouped by currency. The client does not
+  invent exchange rates or label a mixed-currency total as one currency.
 
-These gaps are migration inventory, not supported alternate contracts.
+The only `Double` conversion is an isolated Swift Charts coordinate after the
+client has established that every plotted account uses the same reporting
+currency; it is not used for display or financial calculation.
 
 ## Updating the pin
 
