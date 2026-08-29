@@ -15,6 +15,15 @@
   },
   "targets" : {
     "Sure" : {
+      "dependencies" : [
+        {
+          "destinationFilters" : [
+            "iOS"
+          ],
+          "embed" : true,
+          "target" : "Sure Watch"
+        }
+      ],
       "entitlements" : {
         "path" : "App\/App.entitlements",
         "properties" : {
