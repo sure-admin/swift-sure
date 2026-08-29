@@ -1,10 +1,10 @@
 import Foundation
 
-protocol HTTPDataTransport {
+protocol HTTPDataTransport: Sendable {
   func data(for request: URLRequest) async throws -> (Data, URLResponse)
 }
 
-struct URLSessionHTTPDataTransport: HTTPDataTransport {
+struct URLSessionHTTPDataTransport: HTTPDataTransport, @unchecked Sendable {
   var session: URLSession
 
   init(session: URLSession) {

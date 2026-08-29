@@ -89,6 +89,32 @@ struct AssistantStoreTests {
     #expect(store.errorMessage == AssistantTestFailure.expected.localizedDescription)
   }
 
+  @Test("A session change discards an in-flight reply and its remote chat")
+  func sessionChangeInvalidatesReply() async {
+    let connection = AssistantConnectionStub(isConfigured: true)
+    let remote = SessionSwitchRemoteAssistant()
+    let store = AssistantStore(
+      connection: connection,
+      remoteAssistant: remote,
+      localAssistant: LocalAssistantStub(response: "Local answer")
+    )
+    store.draft = "Old account question"
+    let firstSend = Task { await store.send(to: .sureServer) }
+    await remote.waitUntilFirstMessageStarted()
+
+    connection.sessionGeneration += 1
+    await remote.completeFirstMessage()
+    await firstSend.value
+
+    #expect(!store.messages.map(\.content).contains("Old account answer"))
+    #expect(store.errorMessage == nil)
+
+    store.draft = "New account question"
+    await store.send(to: .sureServer)
+    #expect(await remote.createCount == 2)
+    #expect(store.messages.last?.content == "New account answer")
+  }
+
   private func makeStore(
     connection: AssistantConnectionStub,
     remoteAssistant: RemoteAssistantSpy = RemoteAssistantSpy(),
@@ -105,6 +131,7 @@ struct AssistantStoreTests {
 private final class AssistantConnectionStub: ConnectionStateProviding {
   var isConfigured: Bool
   var hasVerifiedAPIKey: Bool
+  var sessionGeneration = 0
 
   init(isConfigured: Bool, hasVerifiedAPIKey: Bool = false) {
     self.isConfigured = isConfigured
@@ -150,6 +177,46 @@ private actor RemoteAssistantSpy: RemoteAssistantClient {
       messages: messages,
       chatIDs: chatIDs
     )
+  }
+}
+
+private actor SessionSwitchRemoteAssistant: RemoteAssistantClient {
+  private(set) var createCount = 0
+  private var messageCount = 0
+  private var firstMessageContinuation: CheckedContinuation<Void, Never>?
+  private var startWaiters: [CheckedContinuation<Void, Never>] = []
+  private var firstMessageStarted = false
+
+  func createChat() async throws -> String {
+    createCount += 1
+    return "chat-\(createCount)"
+  }
+
+  func sendMessage(_ content: String, chatID: String) async throws -> String {
+    messageCount += 1
+    if messageCount == 1 {
+      await withCheckedContinuation { continuation in
+        firstMessageContinuation = continuation
+        firstMessageStarted = true
+        let waiters = startWaiters
+        startWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+      }
+      return "Old account answer"
+    }
+    return "New account answer"
+  }
+
+  func waitUntilFirstMessageStarted() async {
+    guard !firstMessageStarted else { return }
+    await withCheckedContinuation { continuation in
+      startWaiters.append(continuation)
+    }
+  }
+
+  func completeFirstMessage() {
+    firstMessageContinuation?.resume()
+    firstMessageContinuation = nil
   }
 }
 

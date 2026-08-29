@@ -4,15 +4,17 @@ import Foundation
 // category list omits actual spending, so preserving the current UI requires a
 // separate product decision about detail hydration.
 struct LegacyBudgetAPIClient {
-  var connection: SureConnection
+  var transport: SureAPITransport
 
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
-    let data = try await request(path: "/api/v1/budgets")
+    let data = try await request(pathComponents: ["api", "v1", "budgets"])
     let object = try JSONSerialization.jsonObject(with: data)
     let budgetObjects = findDictionaries(named: "budgets", in: object)
     guard let budget = budgetObjects.first,
           let budgetID = string(keys: ["id", "uuid"], in: budget) else { return [] }
-    let categoriesData = try await request(path: "/api/v1/budgets/\(budgetID)/categories")
+    let categoriesData = try await request(
+      pathComponents: ["api", "v1", "budgets", budgetID, "categories"]
+    )
     let categoriesObject = try JSONSerialization.jsonObject(with: categoriesData)
     return findDictionaries(named: "budget_categories", in: categoriesObject).compactMap { category in
       guard let name = string(keys: ["name", "category_name"], in: category),
@@ -38,35 +40,10 @@ struct LegacyBudgetAPIClient {
     }
   }
 
-  private func request(path: String) async throws -> Data {
-    guard let baseURL = URL(string: connection.serverURL),
-          let url = URL(string: path, relativeTo: baseURL) else {
-      throw SureAPIError.invalidURL
-    }
-    var request = URLRequest(url: url)
-    request.httpMethod = "GET"
-    request.timeoutInterval = 60
-    request.setValue("application/json", forHTTPHeaderField: "Accept")
-    if connection.isPasskeyConnected {
-      request.setValue("Bearer \(connection.accessToken)", forHTTPHeaderField: "Authorization")
-    } else {
-      request.setValue(connection.apiKey, forHTTPHeaderField: "X-Api-Key")
-    }
-
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard let response = response as? HTTPURLResponse else {
-      throw SureAPIError.invalidResponse
-    }
-    guard 200..<300 ~= response.statusCode else {
-      if response.statusCode == 401 {
-        throw SureAPIError.unauthorized
-      }
-      if response.statusCode == 403 {
-        throw SureAPIError.forbidden
-      }
-      throw SureAPIError.server(response.statusCode)
-    }
-    return data
+  private func request(pathComponents: [String]) async throws -> Data {
+    try await transport.send(
+      APIRequest<Data>(method: .get, pathComponents: pathComponents)
+    )
   }
 
   private func findDictionaries(named key: String, in object: Any) -> [[String: Any]] {

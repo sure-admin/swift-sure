@@ -1,7 +1,8 @@
 import Foundation
 import Network
 
-final class OAuthLoopbackServer {
+// All mutable listener and continuation state is isolated to `queue`.
+final class OAuthLoopbackServer: @unchecked Sendable {
   let redirectURL: URL
 
   private let listener: NWListener

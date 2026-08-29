@@ -1,154 +1,338 @@
 import Foundation
 import Observation
 
+@MainActor
 @Observable
 final class SureConnection {
-  static let shared = SureConnection()
-
   var serverURL: String {
-    didSet { UserDefaults.standard.set(serverURL, forKey: "sureServerURL") }
+    didSet { updateAPIKeyDraftState() }
   }
+
   var apiKey: String {
-    didSet {
-      isAPIKeyStored = KeychainStore.save(apiKey, account: "apiKey", scope: .iCloud)
-      if apiKey != oldValue {
-        setAPIKeyVerified(false)
-      }
-    }
+    didSet { updateAPIKeyDraftState() }
   }
-  private(set) var accessToken: String
-  private(set) var isAPIKeyStored = false
-  private(set) var hasVerifiedAPIKey = false
-  private(set) var isSignedOut = false
-  var status: ConnectionStatus = .notConnected
+
+  private(set) var isAPIKeyStored: Bool
+  private(set) var hasVerifiedAPIKey: Bool
+  private(set) var isSignedOut: Bool
+  private(set) var sessionGeneration = 0
+  var status: ConnectionStatus
 
   var isConfigured: Bool {
-    !isSignedOut && hasUsableCredential
+    !isSignedOut && committedContext != nil
   }
 
   var isPasskeyConnected: Bool {
-    !accessToken.isEmpty
+    guard case .some(.bearer) = committedContext?.authorization else { return false }
+    return !isSignedOut
   }
 
   var canConnectWithAPIKey: Bool {
-    URL(string: serverURL) != nil && !apiKey.isEmpty
+    guard !normalizedAPIKey.isEmpty else { return false }
+    return (try? candidateContext(authorization: .apiKey(normalizedAPIKey))) != nil
+  }
+
+  var canSignInWithPasskey: Bool {
+    (try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))) != nil
   }
 
   var canLogOut: Bool {
-    !isSignedOut && hasUsableCredential
+    hasStoredCredentialIssue
+      || storedOAuthSession != nil
+      || storedAPIKeySession != nil
+      || (!isSignedOut && committedContext != nil)
   }
 
-  private var hasUsableCredential: Bool {
-    URL(string: serverURL) != nil && (!accessToken.isEmpty || !apiKey.isEmpty)
-  }
+  private var session: SureSession
+  private var credentials: any CredentialRepository
+  private var preferences: any ConnectionPreferences
+  private var oauth: any OAuthAuthenticating
+  private var verify: (SureRequestContext) async throws -> Void
+  private var beginCredentialChange: () async -> Void
+  private var endCredentialChange: () async -> Void
+  private var lifecycle: any SureConnectionLifecycleHandling
+  private var committedContext: SureRequestContext?
+  private var storedOAuthSession: StoredOAuthSession?
+  private var storedAPIKeySession: StoredAPIKeySession?
+  private var hasStoredCredentialIssue: Bool
 
-  private init() {
-    let savedAPIKey = KeychainStore.read(account: "apiKey", scope: .iCloud) ?? ""
-    serverURL = UserDefaults.standard.string(forKey: "sureServerURL") ?? "https://demo.sure.am"
-    apiKey = savedAPIKey
-    accessToken = KeychainStore.read(account: "oauthAccessToken") ?? ""
-    isSignedOut = UserDefaults.standard.bool(forKey: "sureExplicitlySignedOut")
-    isAPIKeyStored = KeychainStore.contains(account: "apiKey", scope: .iCloud)
-    hasVerifiedAPIKey = !savedAPIKey.isEmpty
-      && KeychainStore.read(account: "verifiedAPIKey", scope: .iCloud) == "true"
-  }
-
-  func test() async {
-    guard hasUsableCredential else {
-      status = .failed("Sign in with a passkey or enter an API key first.")
-      return
-    }
-    status = .connecting
-    do {
-      try await SureAPIClient(connection: self).verifyConnection()
-      markSignedIn()
-      status = .connected
-      setAPIKeyVerified(true)
-      #if os(iOS)
-      await NotificationManager.shared.registerStoredDeviceTokenIfNeeded()
-      #endif
-    } catch {
-      status = .failed(error.localizedDescription)
-    }
-  }
-
-  @MainActor
-  func signInWithPasskey() async {
-    let previousAccessToken = accessToken
-    status = .connecting
-    do {
-      let tokens = try await PasskeyOAuthService().signIn(serverURL: serverURL)
-      accessToken = tokens.accessToken
-      try await verifyCurrentCredentials()
-      guard KeychainStore.save(tokens.accessToken, account: "oauthAccessToken") else {
-        throw PasskeyOAuthError.backend("The access token couldn’t be saved in Keychain.")
-      }
-      if let refreshToken = tokens.refreshToken {
-        KeychainStore.save(refreshToken, account: "oauthRefreshToken")
-      }
-      markSignedIn()
-      status = .connected
-      #if os(iOS)
-      await NotificationManager.shared.registerStoredDeviceTokenIfNeeded()
-      #endif
-    } catch {
-      accessToken = previousAccessToken
-      KeychainStore.save(previousAccessToken, account: "oauthAccessToken")
-      status = .failed(error.localizedDescription)
-    }
-  }
-
-  @MainActor
-  func connectWithAPIKey() async {
-    let previousAccessToken = accessToken
-    let wasSignedOut = isSignedOut
-    accessToken = ""
-    await test()
-    if status == .connected {
-      KeychainStore.save("", account: "oauthAccessToken")
-      KeychainStore.save("", account: "oauthRefreshToken")
+  init(
+    initialState: SureConnectionInitialState,
+    session: SureSession,
+    credentials: any CredentialRepository,
+    preferences: any ConnectionPreferences,
+    oauth: any OAuthAuthenticating,
+    verify: @escaping (SureRequestContext) async throws -> Void,
+    beginCredentialChange: @escaping () async -> Void,
+    endCredentialChange: @escaping () async -> Void,
+    lifecycle: any SureConnectionLifecycleHandling
+  ) {
+    serverURL = initialState.serverURL
+    apiKey = initialState.isExplicitlySignedOut ? "" : initialState.credentials.apiKey ?? ""
+    storedAPIKeySession = initialState.credentials.apiKeySession
+    storedOAuthSession = initialState.credentials.oauthSession
+    hasStoredCredentialIssue = initialState.initializationError != nil
+    committedContext = initialState.requestContext
+    isAPIKeyStored = initialState.credentials.apiKey != nil
+    hasVerifiedAPIKey = initialState.credentials.apiKey != nil
+      && initialState.credentials.isAPIKeyVerified
+    isSignedOut = initialState.isExplicitlySignedOut
+    if let initializationError = initialState.initializationError {
+      status = .failed(initializationError)
     } else {
-      accessToken = previousAccessToken
-      isSignedOut = wasSignedOut
+      status = initialState.requestContext == nil ? .notConnected : .connected
+    }
+    self.session = session
+    self.credentials = credentials
+    self.preferences = preferences
+    self.oauth = oauth
+    self.verify = verify
+    self.beginCredentialChange = beginCredentialChange
+    self.endCredentialChange = endCredentialChange
+    self.lifecycle = lifecycle
+  }
+
+  func signInWithPasskey() async {
+    guard status != .connecting else { return }
+    let stableStatus = connectedOrDisconnectedStatus
+    var candidateSession: StoredOAuthSession?
+    var preparedCurrentSession = false
+    status = .connecting
+
+    do {
+      let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
+      let tokens = try await oauth.signIn(serverURL: server.url.absoluteString)
+      let storedTokens = try StoredOAuthCredentials(
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken
+      )
+      let candidate = try StoredOAuthSession(
+        serverURL: server.url,
+        credentials: storedTokens,
+        isVerified: true
+      )
+      candidateSession = candidate
+      let context = try candidate.requestContext()
+
+      try Task.checkCancellation()
+      try await verify(context)
+      try Task.checkCancellation()
+      await lifecycle.prepareForConnectionChange()
+      preparedCurrentSession = true
+      try Task.checkCancellation()
+      await beginCredentialChange()
+      var previousOAuth: StoredOAuthSession?
+      do {
+        try Task.checkCancellation()
+        previousOAuth = (try? credentials.loadCredentials())?.oauthSession
+        try Task.checkCancellation()
+        try credentials.replaceSession(.oauth(candidate))
+        preferences.setServerURL(context.baseURL.absoluteString)
+        preferences.setExplicitlySignedOut(false)
+        await session.replaceContext(with: context)
+      } catch {
+        await endCredentialChange()
+        throw error
+      }
+      await endCredentialChange()
+
+      committedContext = context
+      storedOAuthSession = candidate
+      storedAPIKeySession = nil
+      hasStoredCredentialIssue = false
+      sessionGeneration += 1
+      serverURL = context.baseURL.absoluteString
+      isSignedOut = false
+      status = .connected
+      await lifecycle.didConnect()
+
+      if let previousOAuth, previousOAuth != candidate {
+        await revoke(previousOAuth)
+      }
+    } catch {
+      if let candidateSession {
+        await revoke(candidateSession)
+      }
+      if preparedCurrentSession, stableStatus == .connected {
+        await lifecycle.didConnect()
+      }
+      if Self.isCancellation(error) {
+        status = stableStatus
+      } else {
+        status = .failed(Self.safeMessage(for: error))
+      }
     }
   }
 
-  @MainActor
+  func connectWithAPIKey() async {
+    guard status != .connecting else { return }
+    let candidateAPIKey = normalizedAPIKey
+    let stableStatus = connectedOrDisconnectedStatus
+    var preparedCurrentSession = false
+    status = .connecting
+
+    do {
+      let context = try candidateContext(authorization: .apiKey(candidateAPIKey))
+      let candidate = try StoredAPIKeySession(
+        serverURL: context.baseURL,
+        apiKey: candidateAPIKey,
+        isVerified: true
+      )
+      try await verify(context)
+      try Task.checkCancellation()
+      await lifecycle.prepareForConnectionChange()
+      preparedCurrentSession = true
+      try Task.checkCancellation()
+      await beginCredentialChange()
+      var previousOAuth: StoredOAuthSession?
+
+      do {
+        try Task.checkCancellation()
+        previousOAuth = (try? credentials.loadCredentials())?.oauthSession
+        try Task.checkCancellation()
+        try credentials.replaceSession(.apiKey(candidate))
+        preferences.setServerURL(context.baseURL.absoluteString)
+        preferences.setExplicitlySignedOut(false)
+        await session.replaceContext(with: context)
+      } catch {
+        await endCredentialChange()
+        throw error
+      }
+      await endCredentialChange()
+
+      storedAPIKeySession = candidate
+      storedOAuthSession = nil
+      hasStoredCredentialIssue = false
+      sessionGeneration += 1
+      committedContext = context
+      serverURL = context.baseURL.absoluteString
+      apiKey = candidateAPIKey
+      isSignedOut = false
+      updateAPIKeyDraftState()
+      status = .connected
+      await lifecycle.didConnect()
+
+      if let previousOAuth {
+        await revoke(previousOAuth)
+      }
+    } catch {
+      if preparedCurrentSession, stableStatus == .connected {
+        await lifecycle.didConnect()
+      }
+      if Self.isCancellation(error) {
+        status = stableStatus
+      } else {
+        status = .failed(Self.safeMessage(for: error))
+      }
+    }
+  }
+
   func logOut() async {
-    #if os(iOS)
-    await NotificationManager.shared.disableInsightNotifications()
-    #endif
-    let oauthService = PasskeyOAuthService()
-    await oauthService.revoke(token: accessToken, serverURL: serverURL)
-    if let refreshToken = KeychainStore.read(account: "oauthRefreshToken") {
-      await oauthService.revoke(token: refreshToken, serverURL: serverURL)
-    }
-    accessToken = ""
-    KeychainStore.save("", account: "oauthAccessToken")
-    KeychainStore.save("", account: "oauthRefreshToken")
+    guard status != .connecting else { return }
+    status = .connecting
+    // Persist the user's intent before any suspension so relaunch is fail-closed.
+    preferences.setExplicitlySignedOut(true)
     isSignedOut = true
-    UserDefaults.standard.set(true, forKey: "sureExplicitlySignedOut")
-    UserDefaults.standard.set(false, forKey: "insightNotificationsEnabled")
-    status = .notConnected
-    FinanceDataStore.shared.disconnect()
+    sessionGeneration += 1
+    await lifecycle.prepareForLogout()
+    await beginCredentialChange()
+
+    let currentCredentials = (try? credentials.loadCredentials())
+      ?? StoredCredentialSnapshot(
+        session: storedOAuthSession.map(StoredAuthenticatedSession.oauth)
+          ?? storedAPIKeySession.map(StoredAuthenticatedSession.apiKey)
+      )
+    let currentOAuth = currentCredentials.oauthSession
+    await session.clearContext()
+    committedContext = nil
+    if let currentOAuth {
+      await revoke(currentOAuth)
+    }
+
+    var persistenceError: Error?
+    do {
+      try credentials.replaceSession(nil)
+    } catch {
+      persistenceError = error
+    }
+
+    await endCredentialChange()
+    let remainingCredentials = try? credentials.loadCredentials()
+    storedOAuthSession = remainingCredentials?.oauthSession
+      ?? (persistenceError == nil ? nil : currentOAuth)
+    storedAPIKeySession = remainingCredentials?.apiKeySession
+      ?? (persistenceError == nil ? nil : currentCredentials.apiKeySession)
+    hasStoredCredentialIssue = persistenceError != nil
+    apiKey = ""
+    isAPIKeyStored = false
+    hasVerifiedAPIKey = false
+    lifecycle.didLogOut()
+    status = persistenceError.map { .failed(Self.safeMessage(for: $0)) } ?? .notConnected
   }
 
-  private func verifyCurrentCredentials() async throws {
-    try await SureAPIClient(connection: self).verifyConnection()
+  private var normalizedAPIKey: String {
+    apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  private func setAPIKeyVerified(_ isVerified: Bool) {
-    hasVerifiedAPIKey = isVerified
-    KeychainStore.save(
-      isVerified ? "true" : "",
-      account: "verifiedAPIKey",
-      scope: .iCloud
+  private var connectedOrDisconnectedStatus: ConnectionStatus {
+    committedContext == nil || isSignedOut ? .notConnected : .connected
+  }
+
+  private func candidateContext(
+    authorization: SureRequestAuthorization
+  ) throws -> SureRequestContext {
+    let value = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let url = URL(string: value) else {
+      throw SureRequestContextError.invalidBaseURL
+    }
+    return try SureRequestContext(baseURL: url, authorization: authorization)
+  }
+
+  private func updateAPIKeyDraftState() {
+    let matchesStoredKey = !normalizedAPIKey.isEmpty
+      && normalizedAPIKey == storedAPIKeySession?.apiKey
+    isAPIKeyStored = matchesStoredKey
+    hasVerifiedAPIKey = matchesStoredKey
+      && storedAPIKeySession?.isVerified == true
+      && storedAPIKeySession?.serverURL.absoluteString == normalizedServerURL
+  }
+
+  private var normalizedServerURL: String? {
+    guard let context = try? candidateContext(authorization: .apiKey("candidate")) else {
+      return nil
+    }
+    return context.baseURL.absoluteString
+  }
+
+  private func revoke(_ session: StoredOAuthSession) async {
+    guard session.isVerified else { return }
+    await oauth.revoke(
+      token: session.credentials.accessToken,
+      serverURL: session.serverURL.absoluteString
     )
+    if let refreshToken = session.credentials.refreshToken {
+      await oauth.revoke(token: refreshToken, serverURL: session.serverURL.absoluteString)
+    }
   }
 
-  private func markSignedIn() {
-    isSignedOut = false
-    UserDefaults.standard.set(false, forKey: "sureExplicitlySignedOut")
+  private static func isCancellation(_ error: Error) -> Bool {
+    if error is CancellationError || Task.isCancelled { return true }
+    return (error as? URLError)?.code == .cancelled
+  }
+
+  private static func safeMessage(for error: Error) -> String {
+    switch error {
+    case let error as SureAPIError:
+      error.localizedDescription
+    case let error as PasskeyOAuthError:
+      error.localizedDescription
+    case let error as CredentialRepositoryError:
+      error.localizedDescription
+    case let error as SureRequestContextError:
+      error.localizedDescription
+    default:
+      "The Sure connection couldn’t be completed."
+    }
   }
 }
 

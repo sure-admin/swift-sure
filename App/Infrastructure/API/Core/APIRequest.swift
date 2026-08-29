@@ -102,3 +102,21 @@ extension APIRequest where Response == Void {
     decodedResponse = { _, _ in () }
   }
 }
+
+extension APIRequest where Response == Data {
+  init(
+    method: HTTPMethod,
+    pathComponents: [String],
+    queryItems: [URLQueryItem] = [],
+    expectedStatusCodes: Set<Int> = [200],
+    forbiddenResponse: APIForbiddenResponse = .authorization
+  ) {
+    self.method = method
+    self.pathComponents = pathComponents
+    self.queryItems = queryItems
+    self.expectedStatusCodes = expectedStatusCodes
+    self.forbiddenResponse = forbiddenResponse
+    encodedBody = nil
+    decodedResponse = { data, _ in data }
+  }
+}

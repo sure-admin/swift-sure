@@ -7,8 +7,7 @@ enum KeychainStore {
   @discardableResult
   static func save(_ value: String, account: String, scope: Scope = .deviceOnly) -> Bool {
     guard !value.isEmpty else {
-      delete(account: account, scope: scope)
-      return false
+      return remove(account, scope: scope)
     }
 
     let encoded = Data(value.utf8)
@@ -43,8 +42,10 @@ enum KeychainStore {
     read(account: account, scope: scope) != nil
   }
 
-  private static func delete(account: String, scope: Scope) {
-    SecItemDelete(query(account: account, scope: scope) as CFDictionary)
+  @discardableResult
+  static func remove(_ account: String, scope: Scope = .deviceOnly) -> Bool {
+    let status = SecItemDelete(query(account: account, scope: scope) as CFDictionary)
+    return status == errSecSuccess || status == errSecItemNotFound
   }
 
   private static func query(account: String, scope: Scope) -> [String: Any] {

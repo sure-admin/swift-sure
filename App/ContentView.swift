@@ -18,6 +18,7 @@ struct ContentView: View {
           notificationManager: notificationManager,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )
+        .id(connection.sessionGeneration)
       }
 
       Tab("Assistant", systemImage: "sparkles", value: .assistant) {
@@ -26,6 +27,7 @@ struct ContentView: View {
           financeData: financeData,
           remoteAssistant: remoteAssistant
         )
+        .id(connection.sessionGeneration)
       }
 
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
@@ -33,10 +35,12 @@ struct ContentView: View {
           data: financeData,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )
+        .id(connection.sessionGeneration)
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
         BudgetView(data: financeData)
+          .id(connection.sessionGeneration)
       }
     }
     .tabViewStyle(.sidebarAdaptable)

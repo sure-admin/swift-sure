@@ -25,8 +25,8 @@ yet. The app should nevertheless tolerate additive optional response fields.
 - Sure remains the system of record for financial data and calculations.
 - Financial features are read-only. Authentication/session and APNs
   subscription lifecycle operations may write infrastructure state.
-- Preserve the existing API-key and Passkey OAuth behavior until the dedicated
-  authentication step. Do not mix an authentication migration into API typing.
+- Keep endpoint clients independent of credential storage and mutable UI state.
+  They receive one immutable request context from the active session.
 - Prefer documented typed endpoints. In particular, migrate insight loading to
   the documented `/api/v1/insights` operation during the typed API work instead
   of prompting chat to return tool JSON.
@@ -73,6 +73,27 @@ Date windows must be calculated through an injected calendar/clock so boundary
 behavior is deterministic and testable. The typed transaction mapping must
 retain the account identifier needed for account filtering.
 
+## Authentication baseline
+
+Passkey sign-in follows Sure's documented public-client OAuth flow: dynamic
+client registration, Authorization Code with PKCE, a validated loopback
+callback, code exchange, and best-effort revocation. OAuth refresh uses
+`POST /oauth/token` with the cached client ID and rotated refresh token. Refresh
+is single-flight, retries the rejected request at most once, and never applies
+to API-key sessions.
+
+The selected authorization kind, canonical server URL, and credential material
+are one atomic device-Keychain record. A host-bound API-key backup may sync
+through iCloud Keychain, but it does not override an active device session.
+Legacy credentials that were stored separately from the server URL migrate
+unverified and are never sent until the user explicitly confirms the host and
+the app verifies or replaces them. OAuth tokens and API keys are redacted from
+errors and diagnostics.
+
+This client does not use Sure's separate mobile email/password device-token
+flow. Adopting that workflow requires a distinct product decision and contract
+review rather than being inferred from the browser/Passkey OAuth flow.
+
 ## Known migration gaps
 
 Remaining gaps after the typed API foundation are:
@@ -85,8 +106,6 @@ Remaining gaps after the typed API foundation are:
 - The Overview net-worth summary still combines presentation balances locally;
   it must move to Sure's authoritative balance-sheet result before it is treated
   as correct for mixed-currency families.
-- Current OAuth behavior remains intentionally deferred until the authentication
-  migration step.
 
 These gaps are migration inventory, not supported alternate contracts.
 

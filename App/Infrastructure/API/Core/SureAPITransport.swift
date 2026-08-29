@@ -1,9 +1,11 @@
 import Foundation
 
 struct SureAPITransport {
-  private var baseURL: () throws -> URL
+  private var requestContext: () async throws -> SureRequestContext
+  private var isRequestContextCurrent: (SureRequestContext) async -> Bool
   private var dataTransport: any HTTPDataTransport
-  private var authorizer: any RequestAuthorizing
+  private var authorizer: (any RequestAuthorizing)?
+  private var unauthorizedRecovery: (any UnauthorizedRequestRecovering)?
   private var timeoutInterval: TimeInterval
   private var makeDecoder: () -> JSONDecoder
   private var makeEncoder: () -> JSONEncoder
@@ -16,9 +18,13 @@ struct SureAPITransport {
     makeDecoder: @escaping () -> JSONDecoder = Self.defaultDecoder,
     makeEncoder: @escaping () -> JSONEncoder = Self.defaultEncoder
   ) {
-    self.baseURL = { baseURL }
+    requestContext = {
+      try SureRequestContext(baseURL: baseURL, authorization: nil)
+    }
+    isRequestContextCurrent = { _ in true }
     self.dataTransport = dataTransport
     self.authorizer = authorizer
+    unauthorizedRecovery = nil
     self.timeoutInterval = timeoutInterval
     self.makeDecoder = makeDecoder
     self.makeEncoder = makeEncoder
@@ -32,9 +38,33 @@ struct SureAPITransport {
     makeDecoder: @escaping () -> JSONDecoder = Self.defaultDecoder,
     makeEncoder: @escaping () -> JSONEncoder = Self.defaultEncoder
   ) {
-    self.baseURL = baseURL
+    requestContext = {
+      try SureRequestContext(baseURL: baseURL(), authorization: nil)
+    }
+    isRequestContextCurrent = { _ in true }
     self.dataTransport = dataTransport
     self.authorizer = authorizer
+    unauthorizedRecovery = nil
+    self.timeoutInterval = timeoutInterval
+    self.makeDecoder = makeDecoder
+    self.makeEncoder = makeEncoder
+  }
+
+  init(
+    session: any SureRequestContextProviding,
+    dataTransport: any HTTPDataTransport,
+    unauthorizedRecovery: (any UnauthorizedRequestRecovering)? = nil,
+    timeoutInterval: TimeInterval = 60,
+    makeDecoder: @escaping () -> JSONDecoder = Self.defaultDecoder,
+    makeEncoder: @escaping () -> JSONEncoder = Self.defaultEncoder
+  ) {
+    requestContext = { try await session.requestContext() }
+    isRequestContextCurrent = { context in
+      (try? await session.requestContext()) == context
+    }
+    self.dataTransport = dataTransport
+    authorizer = nil
+    self.unauthorizedRecovery = unauthorizedRecovery
     self.timeoutInterval = timeoutInterval
     self.makeDecoder = makeDecoder
     self.makeEncoder = makeEncoder
@@ -43,7 +73,37 @@ struct SureAPITransport {
   func send<Response>(_ apiRequest: APIRequest<Response>) async throws -> Response {
     try Task.checkCancellation()
 
-    var request = URLRequest(url: try url(for: apiRequest))
+    let context: SureRequestContext
+    do {
+      context = try await requestContext()
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch let error as SureRequestContextError {
+      switch error {
+      case .invalidAuthorization:
+        throw SureAPIError.unauthorized
+      case .invalidBaseURL:
+        throw SureAPIError.invalidURL
+      }
+    } catch is SureSessionError {
+      throw SureAPIError.unauthorized
+    } catch let error as SureAPIError {
+      throw error
+    } catch {
+      throw SureAPIError.invalidURL
+    }
+
+    return try await send(apiRequest, context: context, permitsRecovery: true)
+  }
+
+  private func send<Response>(
+    _ apiRequest: APIRequest<Response>,
+    context: SureRequestContext,
+    permitsRecovery: Bool
+  ) async throws -> Response {
+    try Task.checkCancellation()
+
+    var request = URLRequest(url: try url(for: apiRequest, baseURL: context.baseURL))
     request.httpMethod = apiRequest.method.rawValue
     request.timeoutInterval = timeoutInterval
     request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -59,8 +119,60 @@ struct SureAPITransport {
       throw SureAPIError.encoding
     }
 
-    authorizer.authorize(&request)
+    authorize(&request, with: context.authorization)
 
+    let (data, httpResponse) = try await response(for: request)
+    let isExpectedResponse = apiRequest.expectedStatusCodes.contains(httpResponse.statusCode)
+    if !isExpectedResponse,
+       httpResponse.statusCode == 401,
+       permitsRecovery,
+       let unauthorizedRecovery,
+       let refreshedContext = try await recoveredContext(
+         using: unauthorizedRecovery,
+         rejectedContext: context
+       ) {
+      return try await send(
+        apiRequest,
+        context: refreshedContext,
+        permitsRecovery: false
+      )
+    }
+
+    guard await isRequestContextCurrent(context) else {
+      throw CancellationError()
+    }
+    guard isExpectedResponse else {
+      let errorResponse = try? makeDecoder().decode(ErrorResponseDTO.self, from: data)
+      throw error(
+        for: httpResponse.statusCode,
+        forbiddenResponse: apiRequest.forbiddenResponse,
+        errorResponse: errorResponse
+      )
+    }
+
+    do {
+      let response = try apiRequest.decodeResponse(from: data, using: makeDecoder())
+      guard await isRequestContextCurrent(context) else {
+        throw CancellationError()
+      }
+      return response
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      throw SureAPIError.decoding
+    }
+  }
+
+  private func authorize(
+    _ request: inout URLRequest,
+    with authorization: SureRequestAuthorization?
+  ) {
+    SureConnectionRequestAuthorizer(authorization: authorization)
+      .authorize(&request)
+    authorizer?.authorize(&request)
+  }
+
+  private func response(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
     let data: Data
     let response: URLResponse
     do {
@@ -74,30 +186,34 @@ struct SureAPITransport {
     }
 
     try Task.checkCancellation()
-
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SureAPIError.invalidResponse
     }
-    guard apiRequest.expectedStatusCodes.contains(httpResponse.statusCode) else {
-      let errorResponse = try? makeDecoder().decode(ErrorResponseDTO.self, from: data)
-      throw error(
-        for: httpResponse.statusCode,
-        forbiddenResponse: apiRequest.forbiddenResponse,
-        errorResponse: errorResponse
-      )
-    }
+    return (data, httpResponse)
+  }
 
+  private func recoveredContext(
+    using recovery: any UnauthorizedRequestRecovering,
+    rejectedContext: SureRequestContext
+  ) async throws -> SureRequestContext? {
     do {
-      return try apiRequest.decodeResponse(from: data, using: makeDecoder())
+      guard let context = try await recovery.recoverUnauthorizedRequest(
+        for: rejectedContext
+      ), context.baseURL == rejectedContext.baseURL else {
+        return nil
+      }
+      return context
     } catch is CancellationError {
       throw CancellationError()
     } catch {
-      throw SureAPIError.decoding
+      return nil
     }
   }
 
-  private func url<Response>(for apiRequest: APIRequest<Response>) throws -> URL {
-    let baseURL = try baseURL()
+  private func url<Response>(
+    for apiRequest: APIRequest<Response>,
+    baseURL: URL
+  ) throws -> URL {
     guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
           let scheme = components.scheme?.lowercased(),
           let host = components.host,

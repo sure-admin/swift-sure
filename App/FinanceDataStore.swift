@@ -4,8 +4,6 @@ import Observation
 @MainActor
 @Observable
 final class FinanceDataStore {
-  static let shared = makeLive()
-
   var accounts: [FinanceAccount] = []
   var transactions: [FinanceTransaction] = []
   var budgets: [BudgetCategory] = []
@@ -77,6 +75,7 @@ final class FinanceDataStore {
   private let calendar: Calendar
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
+  private var generation = 0
 
   init(
     connection: any ConnectionStateProviding,
@@ -98,6 +97,7 @@ final class FinanceDataStore {
       return
     }
     let previousState = state
+    let refreshGeneration = generation
     state = .loading
     do {
       async let loadedAccounts = client.fetchAccounts()
@@ -112,13 +112,15 @@ final class FinanceDataStore {
         refreshedBudgets = []
       }
       try Task.checkCancellation()
+      guard generation == refreshGeneration, connection.isConfigured else { return }
       accounts = refreshedAccounts
       transactions = refreshedTransactions
       budgets = refreshedBudgets
       lastUpdated = now()
       state = .loaded
-      await refreshInsights()
+      await refreshInsights(generation: refreshGeneration)
     } catch {
+      guard generation == refreshGeneration else { return }
       if Self.isCancellation(error) {
         state = previousState
       } else {
@@ -128,6 +130,7 @@ final class FinanceDataStore {
   }
 
   func disconnect() {
+    generation += 1
     accounts = []
     transactions = []
     budgets = []
@@ -139,12 +142,15 @@ final class FinanceDataStore {
     syncInsights([])
   }
 
-  private func refreshInsights() async {
+  private func refreshInsights(generation refreshGeneration: Int) async {
     isLoadingInsights = true
     insightError = nil
     do {
-      insights = try await client.fetchInsights()
+      let refreshedInsights = try await client.fetchInsights()
+      guard generation == refreshGeneration, connection.isConfigured else { return }
+      insights = refreshedInsights
     } catch {
+      guard generation == refreshGeneration else { return }
       guard !Self.isCancellation(error) else {
         isLoadingInsights = false
         return
@@ -161,24 +167,6 @@ final class FinanceDataStore {
     return (error as? URLError)?.code == .cancelled
   }
 
-  private static func makeLive() -> FinanceDataStore {
-    let connection = SureConnection.shared
-    let client = SureAPIClient(connection: connection)
-    #if os(iOS)
-    let syncInsights: ([BackendInsight]) -> Void = { insights in
-      WatchInsightsSync.shared.send(insights)
-    }
-    #else
-    let syncInsights: ([BackendInsight]) -> Void = { _ in }
-    #endif
-    return FinanceDataStore(
-      connection: connection,
-      client: client,
-      calendar: .autoupdatingCurrent,
-      now: { .now },
-      syncInsights: syncInsights
-    )
-  }
 }
 
 enum FinanceDataState: Equatable {

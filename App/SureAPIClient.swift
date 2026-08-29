@@ -1,22 +1,13 @@
 import Foundation
 
 struct SureAPIClient {
-  var connection: SureConnection
   private var transport: SureAPITransport
   private var chatPollingPolicy: ChatPollingPolicy
 
-  init(connection: SureConnection) {
-    self.connection = connection
-    transport = SureAPITransport(connection: connection)
-    chatPollingPolicy = .live
-  }
-
   init(
-    connection: SureConnection,
     transport: SureAPITransport,
-    chatPollingPolicy: ChatPollingPolicy
+    chatPollingPolicy: ChatPollingPolicy = .live
   ) {
-    self.connection = connection
     self.transport = transport
     self.chatPollingPolicy = chatPollingPolicy
   }
@@ -25,18 +16,13 @@ struct SureAPIClient {
     try await AccountsAPIClient(transport: transport).verifyAccess()
   }
 
-  func registerPushSubscription(token: String, environment: APNsEnvironment) async throws -> String {
+  func registerPushSubscription(token: String, environment: APNsEnvironment) async throws -> UUID {
     try await PushSubscriptionsAPIClient(transport: transport)
       .register(token: token, environment: environment)
-      .uuidString
-      .lowercased()
   }
 
-  func unregisterPushSubscription(id: String) async throws {
-    guard let identifier = UUID(uuidString: id) else {
-      throw SureAPIError.validation
-    }
-    try await PushSubscriptionsAPIClient(transport: transport).unregister(id: identifier)
+  func unregisterPushSubscription(id: UUID) async throws {
+    try await PushSubscriptionsAPIClient(transport: transport).unregister(id: id)
   }
 
   func createChat() async throws -> String {
@@ -81,7 +67,7 @@ struct SureAPIClient {
   }
 
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
-    try await LegacyBudgetAPIClient(connection: connection).fetchBudgetCategories()
+    try await LegacyBudgetAPIClient(transport: transport).fetchBudgetCategories()
   }
 
   func fetchInsights() async throws -> [BackendInsight] {

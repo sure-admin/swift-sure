@@ -1,129 +1,333 @@
 import Foundation
-import UserNotifications
-
-#if os(iOS)
-import UIKit
-#endif
 
 @MainActor
 final class NotificationManager {
-  static let shared = NotificationManager()
+  private var currentServerURL: () async -> URL?
+  private var pushSubscriptions: PushSubscriptionOperations
+  private var authorization: any NotificationAuthorizationProviding
+  private var remoteRegistration: any RemoteNotificationRegistering
+  private var storage: any NotificationStateStoring
+  private var environment: () -> APNsEnvironment
+  private var registrationTask: Task<Void, Never>?
+  private var isRegistrationBlocked = false
+
+  init(
+    currentServerURL: @escaping () async -> URL?,
+    pushSubscriptions: PushSubscriptionOperations,
+    authorization: any NotificationAuthorizationProviding,
+    remoteRegistration: any RemoteNotificationRegistering,
+    storage: any NotificationStateStoring,
+    environment: @escaping () -> APNsEnvironment
+  ) {
+    self.currentServerURL = currentServerURL
+    self.pushSubscriptions = pushSubscriptions
+    self.authorization = authorization
+    self.remoteRegistration = remoteRegistration
+    self.storage = storage
+    self.environment = environment
+  }
 
   func enableInsightNotifications() async -> Bool {
-    #if os(iOS)
     do {
-      let center = UNUserNotificationCenter.current()
-      let settings = await center.notificationSettings()
-      let authorized: Bool
-      switch settings.authorizationStatus {
-      case .authorized, .provisional, .ephemeral:
-        authorized = true
+      let isAuthorized = switch await authorization.status() {
+      case .authorized:
+        true
       case .notDetermined:
-        authorized = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+        try await authorization.requestAuthorization()
       case .denied:
-        authorized = false
-      @unknown default:
-        authorized = false
+        false
       }
-      guard authorized else { return false }
-      UIApplication.shared.registerForRemoteNotifications()
+
+      guard isAuthorized else {
+        storage.insightNotificationsEnabled = false
+        return false
+      }
+      storage.insightNotificationsEnabled = true
+      remoteRegistration.registerForRemoteNotifications()
       await registerStoredDeviceTokenIfNeeded()
+      return true
+    } catch {
+      storage.insightNotificationsEnabled = false
+      record(error)
+      return false
+    }
+  }
+
+  func disableInsightNotifications() async {
+    storage.insightNotificationsEnabled = false
+    await awaitInFlightRegistration()
+
+    guard let serverURL = await normalizedCurrentServerURL() else {
+      detachActiveSubscriptionForLaterCleanup()
+      return
+    }
+    migrateLegacySubscription(for: serverURL)
+    await retryPendingUnregistrations(on: serverURL)
+    await cleanActiveSubscription(on: serverURL)
+  }
+
+  func registerStoredDeviceTokenIfNeeded() async {
+    guard !isRegistrationBlocked else { return }
+
+    if let registrationTask {
+      await registrationTask.value
+      return
+    }
+
+    let task = Task { @MainActor [weak self] in
+      guard let self else { return }
+      await performStoredDeviceTokenRegistration()
+    }
+    registrationTask = task
+    await task.value
+    registrationTask = nil
+  }
+
+  private func performStoredDeviceTokenRegistration() async {
+    guard let serverURL = await normalizedCurrentServerURL() else { return }
+    migrateLegacySubscription(for: serverURL)
+
+    guard !isRegistrationBlocked,
+          storage.insightNotificationsEnabled,
+          let token = storage.deviceToken,
+          !token.isEmpty else { return }
+
+    let registrationEnvironment = environment()
+    guard let currentState = loadSubscriptionState() else { return }
+    if let active = currentState.active {
+      if active.serverURL == serverURL,
+         active.deviceToken == token,
+         active.environment == registrationEnvironment {
+        return
+      }
+
+      if active.serverURL == serverURL {
+        await cleanActiveSubscription(on: serverURL)
+      } else {
+        detachActiveSubscriptionForLaterCleanup()
+      }
+    }
+
+    guard !isRegistrationBlocked else { return }
+
+    do {
+      let identifier = try await pushSubscriptions.register(token, registrationEnvironment)
+      let subscription = try StoredPushSubscription(
+        id: identifier,
+        serverURL: serverURL,
+        deviceToken: token,
+        environment: registrationEnvironment
+      )
+      do {
+        var state = try storage.loadSubscriptionState()
+        if let displaced = state.active, displaced != subscription {
+          enqueue(displaced, in: &state)
+        }
+        state.active = subscription
+        try storage.saveSubscriptionState(state)
+        storage.registrationError = nil
+      } catch {
+        record(error)
+        await compensateForUnstoredRegistration(subscription, on: serverURL)
+      }
+    } catch {
+      record(error)
+    }
+  }
+
+  private func awaitInFlightRegistration() async {
+    guard let registrationTask else { return }
+    await registrationTask.value
+    self.registrationTask = nil
+  }
+
+  private func normalizedCurrentServerURL() async -> URL? {
+    guard let serverURL = await currentServerURL() else { return nil }
+    return try? SureRequestContext(baseURL: serverURL, authorization: nil).baseURL
+  }
+
+  private func migrateLegacySubscription(for serverURL: URL) {
+    guard let identifier = storage.legacySubscriptionID,
+          let token = storage.deviceToken,
+          !token.isEmpty,
+          let subscription = try? StoredPushSubscription(
+            id: identifier,
+            serverURL: serverURL,
+            deviceToken: token,
+            environment: environment()
+          ) else { return }
+
+    guard var state = loadSubscriptionState() else { return }
+    if state.active?.id != identifier || state.active?.serverURL != serverURL {
+      enqueue(subscription, in: &state)
+      guard saveSubscriptionState(state) else { return }
+    }
+    storage.legacySubscriptionID = nil
+  }
+
+  private func cleanActiveSubscription(on serverURL: URL) async {
+    guard let active = loadSubscriptionState()?.active else { return }
+    guard active.serverURL == serverURL else {
+      detachActiveSubscriptionForLaterCleanup()
+      return
+    }
+
+    let wasRemoved = await unregister(active, on: serverURL)
+    guard var state = loadSubscriptionState() else { return }
+    guard state.active == active else { return }
+    state.active = nil
+    if !wasRemoved {
+      enqueue(active, in: &state)
+    }
+    guard saveSubscriptionState(state) else { return }
+    if wasRemoved,
+       !state.pendingUnregistrations.contains(where: { $0.serverURL == serverURL }) {
+      storage.registrationError = nil
+    }
+  }
+
+  private func detachActiveSubscriptionForLaterCleanup() {
+    guard var state = loadSubscriptionState() else { return }
+    guard let active = state.active else { return }
+    state.active = nil
+    enqueue(active, in: &state)
+    saveSubscriptionState(state)
+  }
+
+  private func retryPendingUnregistrations(on serverURL: URL) async {
+    guard let state = loadSubscriptionState() else { return }
+    let targets = state.pendingUnregistrations.filter {
+      $0.serverURL == serverURL
+    }
+    guard !targets.isEmpty else { return }
+
+    var encounteredFailure = false
+    for target in targets {
+      if await unregister(target, on: serverURL) {
+        guard var state = loadSubscriptionState() else {
+          encounteredFailure = true
+          continue
+        }
+        state.pendingUnregistrations.removeAll { $0 == target }
+        if !saveSubscriptionState(state) {
+          encounteredFailure = true
+        }
+      } else {
+        encounteredFailure = true
+      }
+    }
+    if !encounteredFailure {
+      storage.registrationError = nil
+    }
+  }
+
+  private func unregister(_ subscription: StoredPushSubscription, on serverURL: URL) async -> Bool {
+    guard subscription.serverURL == serverURL else { return false }
+
+    do {
+      try await pushSubscriptions.unregister(subscription.id)
+      return true
+    } catch SureAPIError.notFound {
       return true
     } catch {
       record(error)
       return false
     }
-    #else
-    return false
-    #endif
   }
 
-  func disableInsightNotifications() async {
-    guard let subscriptionID = KeychainStore.read(account: StorageKey.subscriptionID),
-          SureConnection.shared.isConfigured else { return }
+  private func compensateForUnstoredRegistration(
+    _ subscription: StoredPushSubscription,
+    on serverURL: URL
+  ) async {
+    guard await unregister(subscription, on: serverURL) == false else { return }
+    guard var state = loadSubscriptionState() else { return }
+    enqueue(subscription, in: &state)
+    saveSubscriptionState(state)
+  }
+
+  private func loadSubscriptionState() -> StoredPushSubscriptionState? {
     do {
-      try await SureAPIClient(connection: SureConnection.shared)
-        .unregisterPushSubscription(id: subscriptionID)
-      KeychainStore.save("", account: StorageKey.subscriptionID)
-      UserDefaults.standard.removeObject(forKey: StorageKey.registrationError)
+      return try storage.loadSubscriptionState()
     } catch {
       record(error)
+      return nil
     }
   }
 
-  func receiveDeviceToken(_ token: String) async {
-    KeychainStore.save(token, account: StorageKey.deviceToken)
-    await registerStoredDeviceTokenIfNeeded()
-  }
-
-  func registerStoredDeviceTokenIfNeeded() async {
-    guard UserDefaults.standard.bool(forKey: StorageKey.insightsEnabled),
-          SureConnection.shared.isConfigured,
-          let token = KeychainStore.read(account: StorageKey.deviceToken) else { return }
+  @discardableResult
+  private func saveSubscriptionState(_ state: StoredPushSubscriptionState) -> Bool {
     do {
-      let subscriptionID = try await SureAPIClient(connection: SureConnection.shared)
-        .registerPushSubscription(token: token, environment: .current)
-      KeychainStore.save(subscriptionID, account: StorageKey.subscriptionID)
-      UserDefaults.standard.removeObject(forKey: StorageKey.registrationError)
+      try storage.saveSubscriptionState(state)
+      return true
     } catch {
       record(error)
+      return false
     }
+  }
+
+  private func enqueue(
+    _ subscription: StoredPushSubscription,
+    in state: inout StoredPushSubscriptionState
+  ) {
+    guard !state.pendingUnregistrations.contains(subscription) else { return }
+    state.pendingUnregistrations.append(subscription)
   }
 
   private func record(_ error: Error) {
-    UserDefaults.standard.set(error.localizedDescription, forKey: StorageKey.registrationError)
-  }
-
-  private enum StorageKey {
-    static let deviceToken = "apnsDeviceToken"
-    static let subscriptionID = "pushSubscriptionID"
-    static let insightsEnabled = "insightNotificationsEnabled"
-    static let registrationError = "pushRegistrationError"
+    storage.registrationError = error.localizedDescription
   }
 }
 
 extension NotificationManager: InsightNotificationControlling { }
 
-#if os(iOS)
-final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-  func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
-  ) -> Bool {
-    UNUserNotificationCenter.current().delegate = self
-    Task {
-      let settings = await UNUserNotificationCenter.current().notificationSettings()
-      if [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus) {
-        application.registerForRemoteNotifications()
-      }
+extension NotificationManager: AuthenticationNotificationLifecycle {
+  func didConnect() async {
+    guard let serverURL = await normalizedCurrentServerURL() else { return }
+    migrateLegacySubscription(for: serverURL)
+    await retryPendingUnregistrations(on: serverURL)
+    isRegistrationBlocked = false
+    await registerStoredDeviceTokenIfNeeded()
+  }
+
+  func prepareForConnectionChange() async {
+    isRegistrationBlocked = true
+    await awaitInFlightRegistration()
+
+    guard let serverURL = await normalizedCurrentServerURL() else {
+      detachActiveSubscriptionForLaterCleanup()
+      return
     }
-    return true
+    migrateLegacySubscription(for: serverURL)
+    await retryPendingUnregistrations(on: serverURL)
+    await cleanActiveSubscription(on: serverURL)
   }
 
-  func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-    Task { await NotificationManager.shared.receiveDeviceToken(token) }
-  }
-
-  func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-    UserDefaults.standard.set(error.localizedDescription, forKey: "pushRegistrationError")
-  }
-
-  func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    willPresent notification: UNNotification
-  ) async -> UNNotificationPresentationOptions {
-    [.banner, .sound, .badge]
-  }
-
-  func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    didReceive response: UNNotificationResponse
-  ) async {
-    if let insightID = response.notification.request.content.userInfo["insight_id"] as? String {
-      UserDefaults.standard.set(insightID, forKey: "pendingInsightID")
-    }
-    try? await center.setBadgeCount(0)
+  func prepareForLogout() async {
+    storage.insightNotificationsEnabled = false
+    await prepareForConnectionChange()
   }
 }
-#endif
+
+extension NotificationManager: RemoteNotificationEventHandling {
+  func applicationDidFinishLaunching() async {
+    guard await authorization.status() == .authorized else { return }
+    remoteRegistration.registerForRemoteNotifications()
+    await registerStoredDeviceTokenIfNeeded()
+  }
+
+  func receiveDeviceToken(_ token: String) async {
+    storage.deviceToken = token
+    await registerStoredDeviceTokenIfNeeded()
+  }
+
+  func receiveRemoteRegistrationFailure(_ error: Error) {
+    record(error)
+  }
+
+  func receiveNotificationResponse(insightID: String?) async {
+    if let insightID {
+      storage.pendingInsightID = insightID
+    }
+    await authorization.clearBadge()
+  }
+}

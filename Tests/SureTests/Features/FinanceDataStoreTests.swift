@@ -282,6 +282,29 @@ struct FinanceDataStoreTests {
     #expect(store.lastUpdated == previousTimestamp)
   }
 
+  @Test("Disconnect invalidates a refresh that finishes after the session changes")
+  func disconnectInvalidatesInFlightRefresh() async {
+    let connection = ConnectionStateStub(isConfigured: true)
+    let client = SuspendedAccountsFinanceDataClient()
+    let store = makeStore(
+      connection: connection,
+      client: client,
+      insightSink: InsightSinkSpy()
+    )
+    let refresh = Task { await store.refresh() }
+    await client.waitUntilStarted()
+
+    connection.isConfigured = false
+    store.disconnect()
+    await client.complete()
+    await refresh.value
+
+    #expect(store.state == .needsConnection)
+    #expect(store.accounts.isEmpty)
+    #expect(store.transactions.isEmpty)
+    #expect(store.lastUpdated == nil)
+  }
+
   private func makeStore(
     connection: any ConnectionStateProviding,
     client: any FinanceDataClient,
@@ -319,6 +342,7 @@ struct FinanceDataStoreTests {
 private final class ConnectionStateStub: ConnectionStateProviding {
   var isConfigured: Bool
   var hasVerifiedAPIKey: Bool
+  var sessionGeneration = 0
 
   init(isConfigured: Bool, hasVerifiedAPIKey: Bool = false) {
     self.isConfigured = isConfigured
@@ -393,6 +417,47 @@ private actor PartiallySuccessfulFinanceDataClient: FinanceDataClient {
   func fetchTransactions() async throws -> [FinanceTransaction] { throw CancellationError() }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
   func fetchInsights() async throws -> [BackendInsight] { [] }
+}
+
+private actor SuspendedAccountsFinanceDataClient: FinanceDataClient {
+  private var continuation: CheckedContinuation<Void, Never>?
+  private var startedWaiters: [CheckedContinuation<Void, Never>] = []
+  private var didStart = false
+
+  func fetchAccounts() async throws -> [FinanceAccount] {
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+      didStart = true
+      let waiters = startedWaiters
+      startedWaiters.removeAll()
+      waiters.forEach { $0.resume() }
+    }
+    return [FinanceAccount(
+      id: "late-account",
+      name: "Late account",
+      institution: "Sure",
+      kind: .cash,
+      balance: 100,
+      change: 0,
+      tintName: "blue"
+    )]
+  }
+
+  func fetchTransactions() async throws -> [FinanceTransaction] { [] }
+  func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
+  func fetchInsights() async throws -> [BackendInsight] { [] }
+
+  func waitUntilStarted() async {
+    guard !didStart else { return }
+    await withCheckedContinuation { continuation in
+      startedWaiters.append(continuation)
+    }
+  }
+
+  func complete() {
+    continuation?.resume()
+    continuation = nil
+  }
 }
 
 @MainActor

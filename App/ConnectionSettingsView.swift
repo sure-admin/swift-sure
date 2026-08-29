@@ -39,7 +39,7 @@ struct ConnectionSettingsView: View {
             .foregroundStyle(SureTheme.ink)
           }
           .buttonStyle(.plain)
-          .disabled(URL(string: connection.serverURL) == nil || connection.status == .connecting)
+          .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
 
           HStack {
             Rectangle().frame(height: 1).foregroundStyle(.quaternary)
@@ -60,7 +60,7 @@ struct ConnectionSettingsView: View {
               .textContentType(.password)
               #endif
             if connection.isAPIKeyStored {
-              Label("Saved in iCloud Keychain", systemImage: "key.fill")
+              Label("Saved in Keychain", systemImage: "key.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             } else if !connection.apiKey.isEmpty {
