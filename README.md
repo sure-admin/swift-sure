@@ -37,3 +37,27 @@ Native` workflow generates the Xcode project, runs all three test destinations,
 and performs unsigned simulator builds for every supported platform. Push
 notification delivery requires a paid Apple Developer team and the APNs
 credentials above.
+
+## TestFlight deployments
+
+Pushes to `main` run the complete native CI suite without deploying. Pushing a
+tag whose name starts with `v` runs the same tests and platform builds; after
+they pass, CI archives the iOS app and uploads it to App Store Connect for
+TestFlight processing. CI derives a unique build number above the latest
+uploaded build for the current marketing version, so existing manual uploads
+and workflow reruns cannot reuse an older number.
+
+Configure these GitHub Actions secrets before merging the deployment workflow:
+
+- `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`: base64-encoded Apple Distribution
+  `.p12` certificate and private key
+- `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`: password for that `.p12`
+- `APPLE_TEAM_ID`: Apple Developer team ID
+- `APP_STORE_CONNECT_ISSUER_ID`: App Store Connect API issuer ID
+- `APP_STORE_CONNECT_KEY_ID`: App Store Connect API key ID
+- `APP_STORE_CONNECT_PRIVATE_KEY_BASE64`: base64-encoded App Store Connect API
+  `.p8` private key
+
+The API key must be able to manage signing assets and upload builds for bundle
+ID `am.sure.insights`. The workflow imports credentials only into an ephemeral
+runner keychain and removes them after the deployment job.
