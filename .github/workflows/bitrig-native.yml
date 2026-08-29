@@ -25,7 +25,7 @@ permissions:
   contents: read
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
 
 concurrency:
   group: bitrig-native-${{ github.ref }}
@@ -84,6 +84,7 @@ jobs:
           -destination 'platform=macOS'
           -derivedDataPath "${{ runner.temp }}/DerivedData-mac-tests"
           CODE_SIGNING_ALLOWED=NO
+          'TEST_HOST=$(BUILT_PRODUCTS_DIR)/Sure.app/Contents/MacOS/Sure'
           test
 
   watch-test:
