@@ -40,11 +40,12 @@ credentials above.
 
 ## TestFlight deployments
 
-Every push to `main` (including a merged pull request) runs the complete native
-CI suite. After all tests and platform builds pass, CI archives the iOS app and
-uploads it to App Store Connect for TestFlight processing. CI derives a unique
-build number above the latest uploaded build for the current marketing version,
-so existing manual uploads and workflow reruns cannot reuse an older number.
+Pushes to `main` run the complete native CI suite without deploying. Pushing a
+tag whose name starts with `v` runs the same tests and platform builds; after
+they pass, CI archives the iOS app and uploads it to App Store Connect for
+TestFlight processing. CI derives a unique build number above the latest
+uploaded build for the current marketing version, so existing manual uploads
+and workflow reruns cannot reuse an older number.
 
 Configure these GitHub Actions secrets before merging the deployment workflow:
 
