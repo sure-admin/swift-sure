@@ -96,7 +96,11 @@
       "platform" : "auto",
       "settings" : {
         "base" : {
-          "SWIFT_VERSION" : "5.0"
+          "BUNDLE_LOADER" : "$(TEST_HOST)",
+          "SWIFT_VERSION" : "5.0",
+          "TEST_HOST[sdk=iphoneos*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Sure",
+          "TEST_HOST[sdk=iphonesimulator*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Sure",
+          "TEST_HOST[sdk=macosx*]" : "$(BUILT_PRODUCTS_DIR)\/Sure.app\/Contents\/MacOS\/Sure"
         }
       },
       "sources" : [
