@@ -1,0 +1,30 @@
+{
+  "id": "00000000-0000-4000-8000-000000000701",
+  "title": "Sure for Apple",
+  "error": null,
+  "created_at": "2026-08-27T10:00:00Z",
+  "updated_at": "2026-08-27T11:59:00Z",
+  "messages": [
+    {"id":"00000000-0000-4000-8000-000000000710","type":"user_message","role":"user","content":"Synthetic message 1","created_at":"2026-08-27T10:01:00Z","updated_at":"2026-08-27T10:01:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000711","type":"assistant_message","role":"assistant","content":"Synthetic response 1","model":"fixture-model","created_at":"2026-08-27T10:02:00Z","updated_at":"2026-08-27T10:02:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000712","type":"user_message","role":"user","content":"Synthetic message 2","created_at":"2026-08-27T10:03:00Z","updated_at":"2026-08-27T10:03:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000713","type":"assistant_message","role":"assistant","content":"Synthetic response 2","model":"fixture-model","created_at":"2026-08-27T10:04:00Z","updated_at":"2026-08-27T10:04:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000714","type":"user_message","role":"user","content":"Synthetic message 3","created_at":"2026-08-27T10:05:00Z","updated_at":"2026-08-27T10:05:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000715","type":"assistant_message","role":"assistant","content":"Synthetic response 3","model":"fixture-model","created_at":"2026-08-27T10:06:00Z","updated_at":"2026-08-27T10:06:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000716","type":"user_message","role":"user","content":"Synthetic message 4","created_at":"2026-08-27T10:07:00Z","updated_at":"2026-08-27T10:07:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000717","type":"assistant_message","role":"assistant","content":"Synthetic response 4","model":"fixture-model","created_at":"2026-08-27T10:08:00Z","updated_at":"2026-08-27T10:08:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000718","type":"user_message","role":"user","content":"Synthetic message 5","created_at":"2026-08-27T10:09:00Z","updated_at":"2026-08-27T10:09:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000719","type":"assistant_message","role":"assistant","content":"Synthetic response 5","model":"fixture-model","created_at":"2026-08-27T10:10:00Z","updated_at":"2026-08-27T10:10:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000720","type":"user_message","role":"user","content":"Synthetic message 6","created_at":"2026-08-27T10:11:00Z","updated_at":"2026-08-27T10:11:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000721","type":"assistant_message","role":"assistant","content":"Synthetic response 6","model":"fixture-model","created_at":"2026-08-27T10:12:00Z","updated_at":"2026-08-27T10:12:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000722","type":"user_message","role":"user","content":"Synthetic message 7","created_at":"2026-08-27T10:13:00Z","updated_at":"2026-08-27T10:13:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000723","type":"assistant_message","role":"assistant","content":"Synthetic response 7","model":"fixture-model","created_at":"2026-08-27T10:14:00Z","updated_at":"2026-08-27T10:14:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000724","type":"user_message","role":"user","content":"Synthetic message 8","created_at":"2026-08-27T10:15:00Z","updated_at":"2026-08-27T10:15:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000725","type":"assistant_message","role":"assistant","content":"Synthetic response 8","model":"fixture-model","created_at":"2026-08-27T10:16:00Z","updated_at":"2026-08-27T10:16:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000726","type":"user_message","role":"user","content":"Synthetic message 9","created_at":"2026-08-27T10:17:00Z","updated_at":"2026-08-27T10:17:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000727","type":"assistant_message","role":"assistant","content":"Synthetic response 9","model":"fixture-model","created_at":"2026-08-27T10:18:00Z","updated_at":"2026-08-27T10:18:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000728","type":"user_message","role":"user","content":"Synthetic message 10","created_at":"2026-08-27T10:19:00Z","updated_at":"2026-08-27T10:19:00Z"},
+    {"id":"00000000-0000-4000-8000-000000000729","type":"assistant_message","role":"assistant","content":"Synthetic response 10","model":"fixture-model","created_at":"2026-08-27T10:20:00Z","updated_at":"2026-08-27T10:20:00Z"}
+  ],
+  "pagination": {"page":1,"per_page":50,"total_count":21,"total_pages":2}
+}

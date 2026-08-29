@@ -1,6 +1,6 @@
 import Foundation
 
-enum APNsEnvironment: String {
+enum APNsEnvironment: String, Codable {
   case sandbox
   case production
 

@@ -1,0 +1,23 @@
+{
+  "accounts": [
+    {
+      "name": "Missing Identifier",
+      "balance": "$10.00",
+      "balance_cents": 1000,
+      "cash_balance": "$10.00",
+      "cash_balance_cents": 1000,
+      "currency": "USD",
+      "classification": "asset",
+      "account_type": "depository",
+      "status": "active",
+      "created_at": "2026-08-01T10:00:00Z",
+      "updated_at": "2026-08-27T18:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 25,
+    "total_count": 1,
+    "total_pages": 1
+  }
+}

@@ -26,6 +26,7 @@ struct FinanceAccount: Identifiable {
   var balance: Double
   var change: Double
   var tintName: String
+  var currencyCode: String? = nil
 }
 
 enum TransactionKind {
@@ -41,6 +42,8 @@ struct FinanceTransaction: Identifiable {
   var date: Date
   var amount: Double
   var kind: TransactionKind
+  var accountID: String? = nil
+  var currencyCode: String? = nil
 }
 
 struct BudgetCategory: Identifiable {

@@ -60,7 +60,7 @@ final class SureConnection {
     }
     status = .connecting
     do {
-      _ = try await SureAPIClient(connection: self).request(path: "/api/v1/accounts", method: "GET")
+      try await SureAPIClient(connection: self).verifyConnection()
       markSignedIn()
       status = .connected
       setAPIKeyVerified(true)
@@ -134,7 +134,7 @@ final class SureConnection {
   }
 
   private func verifyCurrentCredentials() async throws {
-    _ = try await SureAPIClient(connection: self).request(path: "/api/v1/accounts", method: "GET")
+    try await SureAPIClient(connection: self).verifyConnection()
   }
 
   private func setAPIKeyVerified(_ isVerified: Bool) {

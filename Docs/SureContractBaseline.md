@@ -34,6 +34,29 @@ yet. The app should nevertheless tolerate additive optional response fields.
 - Treat preview-feature 403 responses separately from invalid credentials.
 - Keep wire DTOs, financial domain types, and SwiftUI presentation types
   separate.
+- Require HTTPS for configured Sure servers. Debug builds may use plain HTTP
+  only for loopback development hosts such as `localhost` and `127.0.0.1`.
+
+## Pinned compatibility extensions
+
+The pinned transaction response template emits `amount_cents` and
+`signed_amount_cents` as integer minor-unit fields. They are not yet listed in
+the generated OpenAPI `Transaction` schema. The typed client relies on these
+fields for lossless signed money mapping and covers them with fixtures tied to
+this revision. Do not assume that behavior for older Sure revisions.
+
+The pinned chat show operation paginates messages in ascending order. Its Pagy
+9 integration reports a legacy `per_page` value that does not match the
+effective page size, so the client follows the returned `page` and
+`total_pages` fields rather than recalculating the last page from `per_page`.
+
+Budget typing remains deliberately deferred. The documented
+`/api/v1/budget_categories` collection omits `actual_spending`, while the
+existing budget UI requires that value. Preserving the screen with documented
+operations would require category collection pagination followed by detail
+hydration. Until that product/performance choice is made, budget loading stays
+inside `LegacyBudgetAPIClient`; no other feature may depend on that legacy
+transport or parsing behavior.
 
 ## Transaction product behavior
 
@@ -52,16 +75,16 @@ retain the account identifier needed for account filtering.
 
 ## Known migration gaps
 
-The current client predates this baseline and is not yet contract-verified:
+Remaining gaps after the typed API foundation are:
 
-- `SureAPIClient` uses permissive `JSONSerialization` and recursive key lookup.
-- Collection pagination is not followed.
-- Missing server identifiers and dates can become random/local fallback values.
-- Insight retrieval currently creates a chat and asks it to return tool JSON.
-- Budget-category routing and payloads still need reconciliation with the pinned
-  OpenAPI document.
-- Financial values currently use `Double` and do not preserve currency in the
-  domain model.
+- Budget loading still uses permissive `JSONSerialization`, recursive key
+  lookup, the legacy nested category route, and fallback identifiers.
+- Typed account and transaction records preserve integer minor units and
+  currency, but existing SwiftUI presentation models still receive an explicit
+  temporary `Double` conversion bridge.
+- The Overview net-worth summary still combines presentation balances locally;
+  it must move to Sure's authoritative balance-sheet result before it is treated
+  as correct for mixed-currency families.
 - Current OAuth behavior remains intentionally deferred until the authentication
   migration step.
 
