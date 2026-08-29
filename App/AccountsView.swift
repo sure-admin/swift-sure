@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AccountsView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
-  @State private var data = FinanceDataStore.shared
+  var data: FinanceDataStore
 
   var body: some View {
     NavigationStack {

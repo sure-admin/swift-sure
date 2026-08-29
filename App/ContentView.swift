@@ -1,25 +1,34 @@
 import SwiftUI
 
 struct ContentView: View {
+  var connection: SureConnection
+  var financeData: FinanceDataStore
+  var notificationManager: any InsightNotificationControlling
+  var remoteAssistant: any RemoteAssistantClient
+
   @State private var selection: AppSection = .overview
   @State private var showingConnectionSettings = false
 
   var body: some View {
     TabView(selection: $selection) {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
-        OverviewView()
+        OverviewView(data: financeData, notificationManager: notificationManager)
       }
 
       Tab("Assistant", systemImage: "sparkles", value: .assistant) {
-        AssistantView()
+        AssistantView(
+          connection: connection,
+          financeData: financeData,
+          remoteAssistant: remoteAssistant
+        )
       }
 
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
-        AccountsView()
+        AccountsView(data: financeData)
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
-        BudgetView()
+        BudgetView(data: financeData)
       }
     }
     .tabViewStyle(.sidebarAdaptable)
@@ -27,7 +36,7 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView()
+      ConnectionSettingsView(connection: connection, financeData: financeData)
     }
   }
 }

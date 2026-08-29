@@ -152,6 +152,8 @@ final class SureConnection {
   }
 }
 
+extension SureConnection: ConnectionStateProviding { }
+
 enum ConnectionStatus: Equatable {
   case notConnected
   case connecting

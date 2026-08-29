@@ -10,7 +10,17 @@ struct AppDefinition: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   #endif
 
+  @State private var connection: SureConnection
+  @State private var financeData: FinanceDataStore
+  private var notificationManager: any InsightNotificationControlling
+  private var remoteAssistant: any RemoteAssistantClient
+
   init() {
+    let connection = SureConnection.shared
+    _connection = State(initialValue: connection)
+    _financeData = State(initialValue: FinanceDataStore.shared)
+    notificationManager = NotificationManager.shared
+    remoteAssistant = SureAPIClient(connection: connection)
     #if os(iOS)
     WatchInsightsSync.shared.activate()
     #endif
@@ -18,7 +28,12 @@ struct AppDefinition: App {
 
   var body: some Scene {
     WindowGroup {
-      ContentView()
+      ContentView(
+        connection: connection,
+        financeData: financeData,
+        notificationManager: notificationManager,
+        remoteAssistant: remoteAssistant
+      )
     }
   }
 }

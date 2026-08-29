@@ -9,12 +9,22 @@ final class AssistantStore {
   var isResponding = false
   var errorMessage: String?
   private var chatID: String?
+  private let connection: any ConnectionStateProviding
+  private let remoteAssistant: any RemoteAssistantClient
+  private let localAssistant: any LocalAssistantResponding
 
-  init() {
+  init(
+    connection: any ConnectionStateProviding,
+    remoteAssistant: any RemoteAssistantClient,
+    localAssistant: any LocalAssistantResponding
+  ) {
+    self.connection = connection
+    self.remoteAssistant = remoteAssistant
+    self.localAssistant = localAssistant
     messages = [
       AssistantMessage(role: .assistant, content: Self.introduction)
     ]
-    updateConnectionPrompts(hasVerifiedAPIKey: SureConnection.shared.hasVerifiedAPIKey)
+    updateConnectionPrompts(hasVerifiedAPIKey: connection.hasVerifiedAPIKey)
   }
 
   func updateConnectionPrompts(hasVerifiedAPIKey: Bool) {
@@ -40,7 +50,7 @@ final class AssistantStore {
       let response: String
       switch destination {
       case .localModel:
-        response = try await LocalAssistantService.respond(to: prompt, conversation: conversation)
+        response = try await localAssistant.respond(to: prompt, conversation: conversation)
       case .sureServer:
         response = try await sendToSure(prompt)
       }
@@ -52,20 +62,18 @@ final class AssistantStore {
   }
 
   private func sendToSure(_ prompt: String) async throws -> String {
-    let connection = SureConnection.shared
     guard connection.isConfigured else {
       throw SureAPIError.unauthorized
     }
 
-    let client = SureAPIClient(connection: connection)
     let identifier: String
     if let chatID {
       identifier = chatID
     } else {
-      identifier = try await client.createChat()
+      identifier = try await remoteAssistant.createChat()
     }
     chatID = identifier
-    return try await client.sendMessage(prompt, chatID: identifier)
+    return try await remoteAssistant.sendMessage(prompt, chatID: identifier)
   }
 
   private static let introduction = "Here you will be able to ask me anything about your money. I can explain spending, compare accounts, find recurring costs, and help you plan."

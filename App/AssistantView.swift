@@ -2,10 +2,25 @@ import SwiftUI
 
 struct AssistantView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
-  @State private var connection = SureConnection.shared
-  @State private var store = AssistantStore()
+  var connection: SureConnection
+  @State private var store: AssistantStore
   @State private var sureSendHaptic = 0
   @State private var didLongPressSend = false
+
+  init(
+    connection: SureConnection,
+    financeData: FinanceDataStore,
+    remoteAssistant: any RemoteAssistantClient
+  ) {
+    self.connection = connection
+    _store = State(
+      initialValue: AssistantStore(
+        connection: connection,
+        remoteAssistant: remoteAssistant,
+        localAssistant: LocalAssistantService(financeData: financeData)
+      )
+    )
+  }
 
   var body: some View {
     NavigationStack {

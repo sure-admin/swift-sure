@@ -2,7 +2,8 @@ import SwiftUI
 
 struct ConnectionSettingsView: View {
   @Environment(\.dismiss) private var dismiss
-  @State private var connection = SureConnection.shared
+  @Bindable var connection: SureConnection
+  var financeData: FinanceDataStore
 
   var body: some View {
     NavigationStack {
@@ -118,7 +119,7 @@ struct ConnectionSettingsView: View {
         systemImage: "checkmark.circle.fill"
       )
         .foregroundStyle(.green)
-        .task { await FinanceDataStore.shared.refresh() }
+        .task { await financeData.refresh() }
     case .failed(let message):
       Label(message, systemImage: "exclamationmark.triangle.fill")
         .foregroundStyle(.red)

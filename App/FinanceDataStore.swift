@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class FinanceDataStore {
-  static let shared = FinanceDataStore()
+  static let shared = makeLive()
 
   var accounts: [FinanceAccount] = []
   var transactions: [FinanceTransaction] = []
@@ -33,7 +33,7 @@ final class FinanceDataStore {
 
   var reportingPeriodTransactions: [FinanceTransaction] {
     guard let reportingDate else { return [] }
-    return transactions.filter { Calendar.current.isDate($0.date, equalTo: reportingDate, toGranularity: .month) }
+    return transactions.filter { calendar.isDate($0.date, equalTo: reportingDate, toGranularity: .month) }
   }
 
   var reportingDate: Date? {
@@ -41,28 +41,50 @@ final class FinanceDataStore {
   }
 
   var reportingPeriodLabel: String {
-    reportingDate?.formatted(.dateTime.month(.wide).year()) ?? "Latest period"
+    let style = Date.FormatStyle(
+      calendar: calendar,
+      timeZone: calendar.timeZone
+    )
+      .month(.wide)
+      .year()
+    return reportingDate?.formatted(style) ?? "Latest period"
   }
 
-  private init() { }
+  private let connection: any ConnectionStateProviding
+  private let client: any FinanceDataClient
+  private let calendar: Calendar
+  private let now: () -> Date
+  private let syncInsights: ([BackendInsight]) -> Void
+
+  init(
+    connection: any ConnectionStateProviding,
+    client: any FinanceDataClient,
+    calendar: Calendar,
+    now: @escaping () -> Date,
+    syncInsights: @escaping ([BackendInsight]) -> Void
+  ) {
+    self.connection = connection
+    self.client = client
+    self.calendar = calendar
+    self.now = now
+    self.syncInsights = syncInsights
+  }
 
   func refresh() async {
-    let connection = SureConnection.shared
     guard connection.isConfigured else {
       state = .needsConnection
       return
     }
     state = .loading
     do {
-      let client = SureAPIClient(connection: connection)
       async let loadedAccounts = client.fetchAccounts()
       async let loadedTransactions = client.fetchTransactions()
       accounts = try await loadedAccounts
       transactions = try await loadedTransactions
       budgets = (try? await client.fetchBudgetCategories()) ?? []
-      lastUpdated = .now
+      lastUpdated = now()
       state = .loaded
-      await refreshInsights(using: client)
+      await refreshInsights()
     } catch {
       state = .failed(error.localizedDescription)
     }
@@ -77,12 +99,10 @@ final class FinanceDataStore {
     insightError = nil
     lastUpdated = nil
     state = .needsConnection
-    #if os(iOS)
-    WatchInsightsSync.shared.send([])
-    #endif
+    syncInsights([])
   }
 
-  private func refreshInsights(using client: SureAPIClient) async {
+  private func refreshInsights() async {
     isLoadingInsights = true
     insightError = nil
     do {
@@ -91,10 +111,27 @@ final class FinanceDataStore {
       insights = []
       insightError = error.localizedDescription
     }
-    #if os(iOS)
-    WatchInsightsSync.shared.send(insights)
-    #endif
+    syncInsights(insights)
     isLoadingInsights = false
+  }
+
+  private static func makeLive() -> FinanceDataStore {
+    let connection = SureConnection.shared
+    let client = SureAPIClient(connection: connection)
+    #if os(iOS)
+    let syncInsights: ([BackendInsight]) -> Void = { insights in
+      WatchInsightsSync.shared.send(insights)
+    }
+    #else
+    let syncInsights: ([BackendInsight]) -> Void = { _ in }
+    #endif
+    return FinanceDataStore(
+      connection: connection,
+      client: client,
+      calendar: .autoupdatingCurrent,
+      now: { .now },
+      syncInsights: syncInsights
+    )
   }
 }
 

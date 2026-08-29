@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BudgetView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
-  @State private var data = FinanceDataStore.shared
+  var data: FinanceDataStore
 
   private var spent: Double { data.budgets.reduce(0) { $0 + $1.spent } }
   private var limit: Double { data.budgets.reduce(0) { $0 + $1.limit } }

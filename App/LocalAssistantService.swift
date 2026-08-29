@@ -5,8 +5,10 @@ import FoundationModels
 #endif
 
 @MainActor
-enum LocalAssistantService {
-  static func respond(to prompt: String, conversation: [AssistantMessage]) async throws -> String {
+struct LocalAssistantService: LocalAssistantResponding {
+  var financeData: FinanceDataStore
+
+  func respond(to prompt: String, conversation: [AssistantMessage]) async throws -> String {
     #if canImport(FoundationModels)
     if #available(iOS 26.0, macOS 26.0, *) {
       let model = SystemLanguageModel.default
@@ -34,7 +36,7 @@ enum LocalAssistantService {
     throw LocalAssistantError.unsupportedOperatingSystem
   }
 
-  private static func localPrompt(question: String, conversation: [AssistantMessage]) -> String {
+  private func localPrompt(question: String, conversation: [AssistantMessage]) -> String {
     """
     Financial context:
     \(financialContext())
@@ -47,8 +49,8 @@ enum LocalAssistantService {
     """
   }
 
-  private static func financialContext() -> String {
-    let store = FinanceDataStore.shared
+  private func financialContext() -> String {
+    let store = financeData
     var sections = [
       "Reporting period: \(store.reportingPeriodLabel)",
       "Net worth: \(store.netWorth.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))",
@@ -84,7 +86,7 @@ enum LocalAssistantService {
     return sections.joined(separator: "\n\n")
   }
 
-  private static func conversationContext(_ messages: [AssistantMessage]) -> String {
+  private func conversationContext(_ messages: [AssistantMessage]) -> String {
     let recentMessages = messages.suffix(6).map { message in
       let speaker = message.role == .user ? "User" : "Assistant"
       return "\(speaker): \(String(message.content.prefix(1_000)))"
@@ -92,7 +94,7 @@ enum LocalAssistantService {
     return recentMessages.isEmpty ? "No previous messages." : recentMessages.joined(separator: "\n")
   }
 
-  private static func currency(_ value: Double) -> String {
+  private func currency(_ value: Double) -> String {
     value.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
   }
 }

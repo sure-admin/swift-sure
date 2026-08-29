@@ -82,6 +82,8 @@ final class NotificationManager {
   }
 }
 
+extension NotificationManager: InsightNotificationControlling { }
+
 #if os(iOS)
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
   func application(

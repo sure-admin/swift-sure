@@ -384,6 +384,8 @@ enum SureAPIError: LocalizedError {
   }
 }
 
+extension SureAPIClient: FinanceDataClient, RemoteAssistantClient { }
+
 private struct RemoteAssistantReply {
   var id: String
   var content: String

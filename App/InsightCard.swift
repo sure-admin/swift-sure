@@ -4,6 +4,7 @@ struct InsightCard: View {
   var insights: [BackendInsight]
   var isLoading: Bool
   var errorMessage: String?
+  var notificationManager: any InsightNotificationControlling
 
   @AppStorage("insightNotificationsEnabled") private var notificationsEnabled = false
   @State private var showingNotificationFailure = false
@@ -52,10 +53,10 @@ struct InsightCard: View {
         .onChange(of: notificationsEnabled) { _, enabled in
           Task {
             guard enabled else {
-              await NotificationManager.shared.disableInsightNotifications()
+              await notificationManager.disableInsightNotifications()
               return
             }
-            let granted = await NotificationManager.shared.enableInsightNotifications()
+            let granted = await notificationManager.enableInsightNotifications()
             if !granted {
               notificationsEnabled = false
               showingNotificationFailure = true

@@ -3,7 +3,8 @@ import SwiftUI
 
 struct OverviewView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
-  @State private var data = FinanceDataStore.shared
+  var data: FinanceDataStore
+  var notificationManager: any InsightNotificationControlling
 
   var body: some View {
     NavigationStack {
@@ -70,7 +71,8 @@ struct OverviewView: View {
       InsightCard(
         insights: data.insights,
         isLoading: data.isLoadingInsights,
-        errorMessage: data.insightError
+        errorMessage: data.insightError,
+        notificationManager: notificationManager
       )
       netWorthCard
       ViewThatFits {
