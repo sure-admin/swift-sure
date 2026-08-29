@@ -1,6 +1,6 @@
 struct BalanceSheetRecord: Equatable, Sendable {
   var currency: CurrencyCode
-  var netWorth: Money
-  var assets: Money
-  var liabilities: Money
+  var netWorth: DecimalMoney
+  var assets: DecimalMoney
+  var liabilities: DecimalMoney
 }

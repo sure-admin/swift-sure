@@ -8,7 +8,10 @@ struct LocalAssistantServiceTests {
   @Test("The emitted prompt uses authoritative net worth instead of account arithmetic")
   func authoritativeNetWorthContext() throws {
     let usd = try #require(CurrencyCode("USD"))
-    let authoritativeNetWorth = Money(minorUnits: 987_654, currency: usd)
+    let authoritativeNetWorth = DecimalMoney(
+      amount: Decimal(string: "9876.54")!,
+      currency: usd
+    )
     let firstBalance = Money(minorUnits: 10_000, currency: usd)
     let secondBalance = Money(minorUnits: 20_000, currency: usd)
     let reconstructedNetWorth = try #require(firstBalance.adding(secondBalance))
@@ -16,8 +19,8 @@ struct LocalAssistantServiceTests {
     store.balanceSheet = BalanceSheetRecord(
       currency: usd,
       netWorth: authoritativeNetWorth,
-      assets: Money(minorUnits: 1_087_654, currency: usd),
-      liabilities: Money(minorUnits: 100_000, currency: usd)
+      assets: DecimalMoney(amount: Decimal(string: "10876.54")!, currency: usd),
+      liabilities: DecimalMoney(amount: Decimal(1_000), currency: usd)
     )
     store.accounts = [
       account(id: 1, name: "Checking", balance: firstBalance),
@@ -41,12 +44,17 @@ struct LocalAssistantServiceTests {
     let eur = try #require(CurrencyCode("EUR"))
     let jpy = try #require(CurrencyCode("JPY"))
     let date = try LocalDate(year: 2026, month: 8, day: 29)
-    let store = makeStore()
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let referenceDate = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 29, hour: 12))
+    )
+    let store = makeStore(now: referenceDate)
     store.balanceSheet = BalanceSheetRecord(
       currency: usd,
-      netWorth: Money(minorUnits: 100_000, currency: usd),
-      assets: Money(minorUnits: 150_000, currency: usd),
-      liabilities: Money(minorUnits: 50_000, currency: usd)
+      netWorth: DecimalMoney(amount: Decimal(1_000), currency: usd),
+      assets: DecimalMoney(amount: Decimal(1_500), currency: usd),
+      liabilities: DecimalMoney(amount: Decimal(500), currency: usd)
     )
     store.transactions = [
       transaction(id: 10, date: date, amount: Money(minorUnits: 100_000, currency: usd), kind: .income),
@@ -78,7 +86,9 @@ struct LocalAssistantServiceTests {
     #expect(prompt.contains("Period spending: \(expectedSpending)"))
   }
 
-  private func makeStore() -> FinanceDataStore {
+  private func makeStore(
+    now: Date = Date(timeIntervalSince1970: 1_800_000_000)
+  ) -> FinanceDataStore {
     var calendar = Calendar(identifier: .gregorian)
     calendar.locale = Locale(identifier: "en_US_POSIX")
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -86,7 +96,7 @@ struct LocalAssistantServiceTests {
       connection: LocalAssistantConnectionStub(),
       client: UnusedLocalAssistantFinanceDataClient(),
       calendar: calendar,
-      now: { Date(timeIntervalSince1970: 1_800_000_000) },
+      now: { now },
       syncInsights: { _ in }
     )
   }
@@ -136,7 +146,9 @@ private struct UnusedLocalAssistantFinanceDataClient: FinanceDataClient {
     throw UnusedLocalAssistantClientError.unexpectedCall
   }
 
-  func fetchTransactions() async throws -> [FinanceTransaction] {
+  func fetchTransactions(
+    in dateWindow: TransactionDateWindow
+  ) async throws -> [FinanceTransaction] {
     throw UnusedLocalAssistantClientError.unexpectedCall
   }
 

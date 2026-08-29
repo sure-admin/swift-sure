@@ -10,31 +10,43 @@ struct MoneyTests {
     let jpy = try #require(CurrencyCode("JPY"))
     let kwd = try #require(CurrencyCode("KWD"))
     let clf = try #require(CurrencyCode("CLF"))
+    let mga = try #require(CurrencyCode("MGA"))
+    let btc = try #require(CurrencyCode("BTC"))
 
     #expect(Money(minorUnits: -12_345, currency: usd).decimalValue == Decimal(string: "-123.45"))
     #expect(Money(minorUnits: 0, currency: usd).decimalValue == Decimal.zero)
     #expect(Money(minorUnits: 12_345, currency: jpy).decimalValue == Decimal(12_345))
     #expect(Money(minorUnits: 12_345, currency: kwd).decimalValue == Decimal(string: "12.345"))
     #expect(Money(minorUnits: 12_345, currency: clf).decimalValue == Decimal(string: "1.2345"))
+    #expect(Money(minorUnits: 5, currency: mga).decimalValue == Decimal(1))
+    #expect(Money(minorUnits: 123_456_789, currency: btc).decimalValue == Decimal(string: "1.23456789"))
     #expect(
       Money(minorUnits: Int64.max, currency: usd).decimalValue
         == Decimal(Int64.max) / Decimal(100)
     )
   }
 
-  @Test("Rejects values that are not three-letter ASCII currency codes")
+  @Test("Accepts the pinned Sure registry and rejects unknown currency codes")
   func invalidCurrencyCodes() {
     #expect(CurrencyCode("US") == nil)
     #expect(CurrencyCode("US1") == nil)
     #expect(CurrencyCode("ÅBC") == nil)
     #expect(CurrencyCode("ZZZ") == nil)
     #expect(CurrencyCode("usd")?.rawValue == "USD")
+    #expect(CurrencyCode("BTC")?.minorUnitDigits == 8)
+    #expect(CurrencyCode("doge")?.minorUnitDigits == 8)
+    #expect(CurrencyCode("USDC")?.minorUnitDigits == 2)
+    #expect(CurrencyCode("GBX")?.minorUnitDigits == 0)
+    #expect(CurrencyCode("GGP")?.minorUnitDigits == 2)
+    #expect(CurrencyCode("IMP")?.minorUnitDigits == 2)
+    #expect(CurrencyCode("JEP")?.minorUnitDigits == 2)
   }
 
   @Test("Converts exact decimal wire amounts without rounding")
   func decimalAmounts() throws {
     let usd = try #require(CurrencyCode("USD"))
     let kwd = try #require(CurrencyCode("KWD"))
+    let mga = try #require(CurrencyCode("MGA"))
 
     #expect(
       Money(decimalValue: Decimal(string: "0.00")!, currency: usd)?.minorUnits == 0
@@ -48,6 +60,8 @@ struct MoneyTests {
         == 12_345
     )
     #expect(Money(decimalValue: Decimal(string: "12.345")!, currency: usd) == nil)
+    #expect(Money(decimalValue: Decimal(string: "1.2")!, currency: mga)?.minorUnits == 6)
+    #expect(Money(decimalValue: Decimal(string: "1.1")!, currency: mga) == nil)
     #expect(
       Money(
         decimalValue: Decimal(string: "92233720368547758.08")!,

@@ -42,7 +42,7 @@ struct BudgetView: View {
               .buttonStyle(.borderedProminent)
             }
             .frame(minHeight: 260)
-          } else if let message = data.budgetError {
+          } else if let message = data.budgetError, data.budgets.isEmpty {
             ContentUnavailableView {
               Label("Couldn’t load budget", systemImage: "exclamationmark.triangle")
             } description: {
@@ -62,6 +62,15 @@ struct BudgetView: View {
             )
             .frame(minHeight: 260)
           } else {
+            if data.budgetError != nil {
+              Label(
+                "Budget couldn’t be refreshed. Showing the last loaded values.",
+                systemImage: "exclamationmark.triangle"
+              )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             budgetHero
             VStack(spacing: 18) {
               ForEach(data.budgets) { category in

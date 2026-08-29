@@ -25,26 +25,38 @@ struct InsightCard: View {
         }
       }
 
-      if isLoading {
+      if isLoading && insights.isEmpty {
         HStack(spacing: 10) {
           ProgressView()
           Text("Loading insights from Sure…")
             .foregroundStyle(.secondary)
         }
-      } else if let errorMessage {
-        Label(errorMessage, systemImage: "exclamationmark.triangle")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      } else if insights.isEmpty {
-        ContentUnavailableView(
-          "No new insights",
-          systemImage: "checkmark.circle",
-          description: Text("Sure has no active insights for this account.")
-        )
       } else {
-        ForEach(Array(insights.enumerated()), id: \.element.id) { index, insight in
-          if index > 0 { Divider() }
-          insightRow(insight)
+        if isLoading {
+          HStack(spacing: 10) {
+            ProgressView()
+            Text("Refreshing insights from Sure…")
+              .foregroundStyle(.secondary)
+          }
+        }
+        if let errorMessage {
+          Label(errorMessage, systemImage: "exclamationmark.triangle")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        if insights.isEmpty {
+          if errorMessage == nil {
+            ContentUnavailableView(
+              "No new insights",
+              systemImage: "checkmark.circle",
+              description: Text("Sure has no active insights for this account.")
+            )
+          }
+        } else {
+          ForEach(Array(insights.enumerated()), id: \.element.id) { index, insight in
+            if index > 0 { Divider() }
+            insightRow(insight)
+          }
         }
       }
 

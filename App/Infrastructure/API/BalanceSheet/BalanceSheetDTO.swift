@@ -17,9 +17,9 @@ struct BalanceSheetDTO: Decodable, Equatable {
     }
     return BalanceSheetRecord(
       currency: currencyCode,
-      netWorth: try netWorth.money(expectedCurrency: currencyCode),
-      assets: try assets.money(expectedCurrency: currencyCode),
-      liabilities: try liabilities.money(expectedCurrency: currencyCode)
+      netWorth: try netWorth.decimalMoney(expectedCurrency: currencyCode),
+      assets: try assets.decimalMoney(expectedCurrency: currencyCode),
+      liabilities: try liabilities.decimalMoney(expectedCurrency: currencyCode)
     )
   }
 }

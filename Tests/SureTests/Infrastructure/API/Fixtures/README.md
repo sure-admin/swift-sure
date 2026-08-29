@@ -33,9 +33,10 @@ Fixture coverage:
 - `accounts-empty.json`: the empty collection envelope.
 - `accounts-malformed.json`: an account missing its required server `id`.
 - `balance-sheet-success.json`: the authoritative reporting currency, net
-  worth, assets, and liabilities using exact decimal money strings.
-- `balance-sheet-malformed.json`: excess currency scale that must not be
-  rounded silently.
+  worth, assets, and liabilities using the exponent-form decimal strings
+  emitted by Rails for Sure `BigDecimal` money values.
+- `balance-sheet-fx-precision.json`: a valid cross-currency total whose raw
+  precision extends below the reporting currency's display unit.
 - `balance-sheet-mismatched-currency.json`: a nested liability value whose
   currency contradicts the reporting currency.
 - `transactions-page-1.json`, `transactions-page-2.json`: a complete two-page

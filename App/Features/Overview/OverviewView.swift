@@ -33,7 +33,7 @@ struct OverviewView: View {
         }
       }
       .task {
-        if data.state == .idle || data.state == .needsConnection {
+        if data.state == .idle {
           await data.refresh()
         }
       }
@@ -75,6 +75,15 @@ struct OverviewView: View {
         errorMessage: data.insightError,
         notificationManager: notificationManager
       )
+      if (data.accountsError != nil && !data.accounts.isEmpty)
+          || (data.transactionsError != nil && !data.transactions.isEmpty) {
+        Label(
+          "Some data couldn’t be refreshed. Showing the last loaded values.",
+          systemImage: "exclamationmark.triangle"
+        )
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
       netWorthCard
       ViewThatFits {
         HStack(alignment: .top, spacing: 18) {
@@ -125,14 +134,21 @@ struct OverviewView: View {
           Text(data.netWorth.map(FinanceFormatters.currency) ?? "Unavailable")
             .font(.system(.largeTitle, design: .rounded, weight: .bold))
             .contentTransition(.numericText())
+          if data.balanceSheetError != nil {
+            Label("Net worth couldn’t be refreshed", systemImage: "exclamationmark.triangle")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
         Spacer()
-        Text("LIVE")
-          .font(.caption2.bold())
-          .padding(.horizontal, 9)
-          .padding(.vertical, 5)
-          .background(SureTheme.highlight, in: Capsule())
-          .foregroundStyle(SureTheme.ink)
+        if data.balanceSheetError == nil {
+          Text("LIVE")
+            .font(.caption2.bold())
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(SureTheme.highlight, in: Capsule())
+            .foregroundStyle(SureTheme.ink)
+        }
       }
 
       if !data.accounts.isEmpty {
@@ -161,6 +177,10 @@ struct OverviewView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+      } else if data.accountsError != nil {
+        Text("The account breakdown is currently unavailable.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
     }
     .sureCard()
@@ -170,17 +190,22 @@ struct OverviewView: View {
     VStack(alignment: .leading, spacing: 14) {
       Text(data.reportingPeriodLabel)
         .font(.title3.bold())
-      HStack(spacing: 18) {
-        metric(title: "Income", value: data.periodIncome, color: .green)
-        metric(title: "Spent", value: data.periodSpending, color: .orange)
-      }
-      if let savingsRate = data.savingsRate {
-        Divider()
-        HStack {
-          Label("Savings rate", systemImage: "leaf.fill")
-          Spacer()
-          Text(savingsRate, format: .percent.precision(.fractionLength(0)))
-            .fontWeight(.bold)
+      if data.transactionsError != nil && data.transactions.isEmpty {
+        Label("Spending activity is currently unavailable", systemImage: "exclamationmark.triangle")
+          .foregroundStyle(.secondary)
+      } else {
+        HStack(spacing: 18) {
+          metric(title: "Income", value: data.periodIncome, color: .green)
+          metric(title: "Spent", value: data.periodSpending, color: .orange)
+        }
+        if let savingsRate = data.savingsRate {
+          Divider()
+          HStack {
+            Label("Savings rate", systemImage: "leaf.fill")
+            Spacer()
+            Text(savingsRate, format: .percent.precision(.fractionLength(0)))
+              .fontWeight(.bold)
+          }
         }
       }
     }
@@ -208,7 +233,10 @@ struct OverviewView: View {
       .buttonStyle(.plain)
       .accessibilityHint("Shows activity from the last 7 days")
 
-      if recentTransactions.isEmpty {
+      if data.transactionsError != nil && recentTransactions.isEmpty {
+        Text("Recent activity is currently unavailable")
+          .foregroundStyle(.secondary)
+      } else if recentTransactions.isEmpty {
         Text("No activity in the last 7 days")
           .foregroundStyle(.secondary)
       } else {

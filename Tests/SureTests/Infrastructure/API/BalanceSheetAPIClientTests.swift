@@ -15,26 +15,55 @@ struct BalanceSheetAPIClientTests {
     ).fetch()
 
     #expect(record.currency.rawValue == "USD")
-    #expect(record.netWorth.minorUnits == 98_765_432_109)
-    #expect(record.assets.minorUnits == 100_000_000_010)
-    #expect(record.liabilities.minorUnits == 1_234_567_901)
+    #expect(record.netWorth.amount == Decimal(string: "987654321.09"))
+    #expect(record.assets.amount == Decimal(string: "1000000000.10"))
+    #expect(record.liabilities.amount == Decimal(string: "12345679.01"))
     let request = try #require(await stub.requests().first)
     #expect(request.httpMethod == "GET")
     #expect(request.url?.path == "/api/v1/balance_sheet")
     #expect(request.url?.query == nil)
   }
 
-  @Test("Rejects an amount with excess currency scale")
-  func malformedMoney() async throws {
+  @Test("Parses signed exponent-form Rails money without rounding")
+  func exponentMoney() throws {
+    let money = try APIMoneyDTO(
+      amount: "-0.12345e3",
+      currency: "USD",
+      formatted: "-$123.45"
+    ).decimalMoney()
+
+    #expect(money.amount == Decimal(string: "-123.45"))
+  }
+
+  @Test("Rejects malformed or overflowing exponent money")
+  func invalidExponentMoney() {
+    #expect(throws: SureAPIError.decoding) {
+      try APIMoneyDTO(
+        amount: "0.12e",
+        currency: "USD",
+        formatted: "$0.12"
+      ).decimalMoney()
+    }
+    #expect(throws: SureAPIError.decoding) {
+      try APIMoneyDTO(
+        amount: "1e1000",
+        currency: "USD",
+        formatted: "$1e1000"
+      ).decimalMoney()
+    }
+  }
+
+  @Test("Preserves valid sub-minor-unit FX precision")
+  func fxPrecision() async throws {
     let stub = HTTPDataTransportStub([
-      try .http(fixture: "balance-sheet-malformed")
+      try .http(fixture: "balance-sheet-fx-precision")
     ])
 
-    await #expect(throws: SureAPIError.decoding) {
-      _ = try await BalanceSheetAPIClient(
-        transport: makeTransport(stub)
-      ).fetch()
-    }
+    let record = try await BalanceSheetAPIClient(
+      transport: makeTransport(stub)
+    ).fetch()
+
+    #expect(record.netWorth.amount == Decimal(string: "12.345"))
   }
 
   @Test("Rejects a nested currency that differs from the reporting currency")

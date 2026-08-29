@@ -45,6 +45,11 @@ struct TransactionQuery: Equatable {
 }
 
 extension TransactionQuery {
+  init(dateWindow: TransactionDateWindow) {
+    startDate = dateWindow.startDate
+    endDate = dateWindow.endDate
+  }
+
   init(historyRequest: TransactionHistoryRequest) {
     accountFilter = historyRequest.accountID.map(TransactionAccountFilter.account)
     startDate = historyRequest.dateWindow.startDate

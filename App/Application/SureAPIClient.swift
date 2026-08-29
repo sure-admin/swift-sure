@@ -51,9 +51,9 @@ struct SureAPIClient {
     try await BalanceSheetAPIClient(transport: transport).fetch()
   }
 
-  func fetchTransactions() async throws -> [FinanceTransaction] {
+  func fetchTransactions(in dateWindow: TransactionDateWindow) async throws -> [FinanceTransaction] {
     try await TransactionsAPIClient(transport: transport)
-      .fetchAll()
+      .fetchAll(query: TransactionQuery(dateWindow: dateWindow))
       .map(FinancePresentationMapping.transaction)
       .sorted { $0.date > $1.date }
   }

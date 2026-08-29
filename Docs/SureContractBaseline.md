@@ -57,6 +57,17 @@ budget, paginates its category summaries, and hydrates each summary through
 `/api/v1/budget_categories/{id}`. Integer minor-unit fields from those detail
 responses are the lossless source for category spending and limits.
 
+Sure serializes `Money#amount` through Rails `BigDecimal`, which may use
+exponent-form decimal strings. The client accepts that lossless representation
+and validates it against Sure's pinned currency registry, including BTC, DOGE,
+USDC, GBX, GGP, IMP, and JEP rather than relying on Apple's platform registry,
+which omits those Sure-supported codes.
+
+Authoritative balance-sheet totals may contain sub-minor-unit precision after
+Sure applies exchange rates. Those totals remain `Decimal` through the domain
+and are rounded only for display; native account, transaction, and budget values
+continue to use the server's integer minor units.
+
 ## Transaction product behavior
 
 The first production transaction surface remains read-only:
@@ -99,7 +110,7 @@ The typed read-only foundation has no remaining legacy financial parser or
 binary floating-point presentation bridge:
 
 - Accounts, transactions, balance-sheet values, and budget categories retain
-  integer minor units and ISO currency through feature state and formatting.
+  integer minor units and Sure currency codes through feature state and formatting.
 - Overview net worth comes from the documented `/api/v1/balance_sheet`
   operation. Native account balances are never summed as a substitute.
 - Period income and spending remain grouped by currency. The client does not

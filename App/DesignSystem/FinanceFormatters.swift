@@ -2,15 +2,29 @@ import Foundation
 
 enum FinanceFormatters {
   static func currency(_ money: Money) -> String {
-    money.decimalValue.formatted(
-      .currency(code: money.currency.rawValue)
+    currency(amount: money.decimalValue, code: money.currency, compact: false)
+  }
+
+  static func currency(_ money: DecimalMoney) -> String {
+    currency(
+      amount: money.amount,
+      code: money.currency,
+      compact: false,
+      locale: .autoupdatingCurrent
+    )
+  }
+
+  static func currency(_ money: DecimalMoney, locale: Locale) -> String {
+    currency(
+      amount: money.amount,
+      code: money.currency,
+      compact: false,
+      locale: locale
     )
   }
 
   static func compactCurrency(_ money: Money) -> String {
-    money.decimalValue.formatted(
-      .currency(code: money.currency.rawValue).notation(.compactName)
-    )
+    currency(amount: money.decimalValue, code: money.currency, compact: true)
   }
 
   static func currency(
@@ -60,4 +74,72 @@ enum FinanceFormatters {
     components.hour = 12
     return calendar.date(from: components)!
   }
+
+  private static func currency(
+    amount: Decimal,
+    code: CurrencyCode,
+    compact: Bool,
+    locale: Locale = .autoupdatingCurrent
+  ) -> String {
+    let amount = roundedForDisplay(amount, code: code)
+    if codeFormattedCurrencies.contains(code.rawValue) {
+      return codeFormatted(
+        amount: amount,
+        code: code,
+        compact: compact,
+        locale: locale
+      )
+    }
+    if compact {
+      return amount.formatted(
+        .currency(code: code.rawValue)
+          .notation(.compactName)
+          .precision(.fractionLength(code.minorUnitDigits))
+          .locale(locale)
+      )
+    }
+    return amount.formatted(
+      .currency(code: code.rawValue)
+        .precision(.fractionLength(code.minorUnitDigits))
+        .locale(locale)
+    )
+  }
+
+  private static func codeFormatted(
+    amount value: Decimal,
+    code: CurrencyCode,
+    compact: Bool,
+    locale: Locale
+  ) -> String {
+    let amount: String
+    if compact {
+      amount = value.formatted(
+        .number
+          .notation(.compactName)
+          .precision(.fractionLength(code.minorUnitDigits))
+          .locale(locale)
+      )
+    } else {
+      amount = value.formatted(
+        .number
+          .precision(.fractionLength(code.minorUnitDigits))
+          .locale(locale)
+      )
+    }
+    return "\(code.rawValue) \(amount)"
+  }
+
+  private static func roundedForDisplay(
+    _ value: Decimal,
+    code: CurrencyCode
+  ) -> Decimal {
+    var value = value
+    var rounded = Decimal.zero
+    NSDecimalRound(&rounded, &value, code.minorUnitDigits, .plain)
+    return rounded
+  }
+
+  private static let codeFormattedCurrencies: Set<String> = [
+    "BTC", "DOGE", "GBX", "GGP", "IMP", "JEP", "USDC"
+  ]
 }

@@ -5,8 +5,11 @@ import Observation
 @Observable
 final class FinanceDataStore {
   var balanceSheet: BalanceSheetRecord?
+  var balanceSheetError: String?
   var accounts: [FinanceAccount] = []
+  var accountsError: String?
   var transactions: [FinanceTransaction] = []
+  var transactionsError: String?
   var budgets: [BudgetCategory] = []
   var budgetError: String?
   var insights: [BackendInsight] = []
@@ -15,7 +18,7 @@ final class FinanceDataStore {
   var state: FinanceDataState = .idle
   var lastUpdated: Date?
 
-  var netWorth: Money? {
+  var netWorth: DecimalMoney? {
     balanceSheet?.netWorth
   }
 
@@ -78,7 +81,7 @@ final class FinanceDataStore {
   }
 
   var reportingDate: LocalDate? {
-    transactions.first?.date
+    try? LocalDate(now(), in: calendar)
   }
 
   var reportingPeriodLabel: String {
@@ -92,6 +95,8 @@ final class FinanceDataStore {
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
   private var generation = 0
+  private var refreshSequence = 0
+  private var activeRefresh: ActiveRefresh?
 
   init(
     connection: any ConnectionStateProviding,
@@ -108,44 +113,146 @@ final class FinanceDataStore {
   }
 
   func refresh() async {
+    if let activeRefresh {
+      await activeRefresh.task.value
+      return
+    }
+
+    refreshSequence &+= 1
+    let refreshID = refreshSequence
+    let task = Task { @MainActor [weak self] in
+      guard let self else { return }
+      await self.performRefresh()
+    }
+    activeRefresh = ActiveRefresh(id: refreshID, task: task)
+    await task.value
+    if activeRefresh?.id == refreshID {
+      activeRefresh = nil
+    }
+  }
+
+  private func performRefresh() async {
     guard connection.isConfigured else {
       state = .needsConnection
       return
     }
     let previousState = state
     let refreshGeneration = generation
+    var didPublishFinance = false
     state = .loading
+    isLoadingInsights = true
     do {
-      async let loadedBalanceSheet = client.fetchBalanceSheet()
-      async let loadedAccounts = client.fetchAccounts()
-      async let loadedTransactions = client.fetchTransactions()
-      let refreshedBalanceSheet = try await loadedBalanceSheet
-      let refreshedAccounts = try await loadedAccounts
-      let refreshedTransactions = try await loadedTransactions
-      let refreshedBudgets: [BudgetCategory]
-      let refreshedBudgetError: String?
-      do {
-        refreshedBudgets = try await client.fetchBudgetCategories()
-        refreshedBudgetError = nil
-      } catch {
-        guard !Self.isCancellation(error) else { throw CancellationError() }
-        refreshedBudgets = []
-        refreshedBudgetError = error.localizedDescription
+      let transactionWindow = try TransactionDateWindow(
+        inclusiveDayCount: 31,
+        endingAt: now(),
+        calendar: calendar
+      )
+      async let loadedBalanceSheet = capture { try await client.fetchBalanceSheet() }
+      async let loadedAccounts = capture { try await client.fetchAccounts() }
+      async let loadedTransactions = capture {
+        try await client.fetchTransactions(in: transactionWindow)
       }
+      async let loadedBudgets = capture { try await client.fetchBudgetCategories() }
+      async let loadedInsights = capture { try await client.fetchInsights() }
+      let financeResults = await (
+        balanceSheet: loadedBalanceSheet,
+        accounts: loadedAccounts,
+        transactions: loadedTransactions,
+        budgets: loadedBudgets
+      )
       try Task.checkCancellation()
+      guard !Self.wasCancelled(financeResults.balanceSheet),
+            !Self.wasCancelled(financeResults.accounts),
+            !Self.wasCancelled(financeResults.transactions),
+            !Self.wasCancelled(financeResults.budgets) else {
+        throw CancellationError()
+      }
       guard generation == refreshGeneration, connection.isConfigured else { return }
-      balanceSheet = refreshedBalanceSheet
-      accounts = refreshedAccounts
-      transactions = refreshedTransactions
-      budgets = refreshedBudgets
-      budgetError = refreshedBudgetError
-      lastUpdated = now()
-      state = .loaded
-      await refreshInsights(generation: refreshGeneration)
+
+      var successfulLoads = 0
+      var failureMessages: [String] = []
+      var didRefreshBalanceSheet = false
+      var didRefreshAccounts = false
+      var didRefreshTransactions = false
+      switch financeResults.balanceSheet {
+      case .success(let value):
+        balanceSheet = value
+        balanceSheetError = nil
+        didRefreshBalanceSheet = true
+        successfulLoads += 1
+      case .failure(let error):
+        balanceSheetError = error.localizedDescription
+        failureMessages.append(error.localizedDescription)
+      }
+      switch financeResults.accounts {
+      case .success(let value):
+        accounts = value
+        accountsError = nil
+        didRefreshAccounts = true
+        successfulLoads += 1
+      case .failure(let error):
+        accountsError = error.localizedDescription
+        failureMessages.append(error.localizedDescription)
+      }
+      switch financeResults.transactions {
+      case .success(let value):
+        transactions = value
+        transactionsError = nil
+        didRefreshTransactions = true
+        successfulLoads += 1
+      case .failure(let error):
+        transactionsError = error.localizedDescription
+        failureMessages.append(error.localizedDescription)
+      }
+      switch financeResults.budgets {
+      case .success(let value):
+        budgets = value
+        budgetError = nil
+        successfulLoads += 1
+      case .failure(let error):
+        budgetError = error.localizedDescription
+        failureMessages.append(error.localizedDescription)
+      }
+
+      if successfulLoads > 0 {
+        if didRefreshBalanceSheet && didRefreshAccounts && didRefreshTransactions {
+          lastUpdated = now()
+        }
+        state = .loaded
+        didPublishFinance = true
+      }
+
+      let insightResult = await loadedInsights
+      try Task.checkCancellation()
+      guard !Self.wasCancelled(insightResult) else {
+        throw CancellationError()
+      }
+      guard generation == refreshGeneration, connection.isConfigured else { return }
+
+      switch insightResult {
+      case .success(let value):
+        insights = value
+        insightError = nil
+        syncInsights(value)
+        successfulLoads += 1
+      case .failure(let error):
+        insightError = error.localizedDescription
+        failureMessages.append(error.localizedDescription)
+      }
+      isLoadingInsights = false
+
+      if successfulLoads > 0 {
+        state = .loaded
+      } else {
+        state = .failed(failureMessages.first ?? "Sure data is unavailable.")
+      }
     } catch {
       guard generation == refreshGeneration else { return }
+      isLoadingInsights = false
       if Self.isCancellation(error) {
-        state = previousState
+        if !didPublishFinance {
+          state = previousState
+        }
       } else {
         state = .failed(error.localizedDescription)
       }
@@ -153,10 +260,15 @@ final class FinanceDataStore {
   }
 
   func disconnect() {
+    activeRefresh?.task.cancel()
+    activeRefresh = nil
     generation += 1
     balanceSheet = nil
+    balanceSheetError = nil
     accounts = []
+    accountsError = nil
     transactions = []
+    transactionsError = nil
     budgets = []
     budgetError = nil
     insights = []
@@ -167,24 +279,14 @@ final class FinanceDataStore {
     syncInsights([])
   }
 
-  private func refreshInsights(generation refreshGeneration: Int) async {
-    isLoadingInsights = true
-    insightError = nil
+  private func capture<Value>(
+    _ operation: () async throws -> Value
+  ) async -> Result<Value, any Error> {
     do {
-      let refreshedInsights = try await client.fetchInsights()
-      guard generation == refreshGeneration, connection.isConfigured else { return }
-      insights = refreshedInsights
+      return .success(try await operation())
     } catch {
-      guard generation == refreshGeneration else { return }
-      guard !Self.isCancellation(error) else {
-        isLoadingInsights = false
-        return
-      }
-      insights = []
-      insightError = error.localizedDescription
+      return .failure(error)
     }
-    syncInsights(insights)
-    isLoadingInsights = false
   }
 
   private static func isCancellation(_ error: Error) -> Bool {
@@ -192,4 +294,15 @@ final class FinanceDataStore {
     return (error as? URLError)?.code == .cancelled
   }
 
+  private static func wasCancelled<Value>(
+    _ result: Result<Value, any Error>
+  ) -> Bool {
+    guard case .failure(let error) = result else { return false }
+    return isCancellation(error)
+  }
+
+  private struct ActiveRefresh {
+    var id: Int
+    var task: Task<Void, Never>
+  }
 }

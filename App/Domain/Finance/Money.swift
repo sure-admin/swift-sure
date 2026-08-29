@@ -48,10 +48,6 @@ struct Money: Equatable, Hashable, Sendable {
   }
 
   private static func divisor(for currency: CurrencyCode) -> Decimal {
-    var divisor = Decimal(1)
-    for _ in 0..<currency.minorUnitDigits {
-      divisor *= 10
-    }
-    return divisor
+    Decimal(currency.minorUnitConversion)
   }
 }

@@ -79,22 +79,32 @@ struct FinanceDataStoreTests {
 
     let calls = await client.recordedCalls()
     #expect(store.state == .loaded)
-    #expect(store.netWorth == financeTestMoney(1_000_000))
+    #expect(store.netWorth == financeTestDecimalMoney(1_000_000))
     #expect(store.accounts.map(\.id) == [financeTestID(1)])
     #expect(store.transactions.map(\.id) == [financeTestID(2)])
     #expect(store.budgets.map(\.id) == [financeTestID(3)])
     #expect(store.insights.map(\.id) == ["insight-1"])
     #expect(store.lastUpdated == fixedNow)
+    #expect(store.balanceSheetError == nil)
+    #expect(store.accountsError == nil)
+    #expect(store.transactionsError == nil)
+    #expect(store.budgetError == nil)
     #expect(store.insightError == nil)
     #expect(insightSink.sentInsightIDs == [["insight-1"]])
+    #expect(await client.recordedTransactionWindows().map(\.startDate.iso8601String) == [
+      "2026-12-16"
+    ])
+    #expect(await client.recordedTransactionWindows().map(\.endDate.iso8601String) == [
+      "2027-01-15"
+    ])
     #expect(calls.count == FinanceDataClientStub.Call.allCases.count)
     for call in FinanceDataClientStub.Call.allCases {
       #expect(calls.filter { $0 == call }.count == 1)
     }
   }
 
-  @Test("A required data failure leaves the store failed")
-  func requiredDataFailure() async {
+  @Test("An account failure does not hide other successful resources")
+  func accountFailureIsolation() async {
     let client = FinanceDataClientStub(accountsResult: .failure(.expected))
     let store = makeStore(
       connection: ConnectionStateStub(isConfigured: true),
@@ -104,11 +114,14 @@ struct FinanceDataStoreTests {
 
     await store.refresh()
 
-    #expect(store.state == .failed("Expected failure"))
+    #expect(store.state == .loaded)
+    #expect(store.accounts.isEmpty)
+    #expect(store.accountsError == "Expected failure")
+    #expect(store.netWorth != nil)
     #expect(store.lastUpdated == nil)
   }
 
-  @Test("The authoritative balance sheet is required and never reconstructed from accounts")
+  @Test("A balance-sheet failure never reconstructs net worth or hides accounts")
   func balanceSheetFailure() async {
     let client = FinanceDataClientStub(
       balanceSheetResult: .failure(.expected),
@@ -131,9 +144,60 @@ struct FinanceDataStoreTests {
 
     await store.refresh()
 
-    #expect(store.state == .failed("Expected failure"))
+    #expect(store.state == .loaded)
     #expect(store.netWorth == nil)
-    #expect(store.accounts.isEmpty)
+    #expect(store.balanceSheetError == "Expected failure")
+    #expect(store.accounts.map(\.id) == [financeTestID(4)])
+  }
+
+  @Test("A transaction failure does not hide accounts or net worth")
+  func transactionFailureIsolation() async {
+    let account = FinanceAccount(
+      id: financeTestID(5),
+      name: "Checking",
+      institution: "Sure",
+      kind: .cash,
+      balance: financeTestMoney(10_000),
+      tintName: "blue"
+    )
+    let client = FinanceDataClientStub(
+      accountsResult: .success([account]),
+      transactionsResult: .failure(.expected)
+    )
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy()
+    )
+
+    await store.refresh()
+
+    #expect(store.state == .loaded)
+    #expect(store.netWorth != nil)
+    #expect(store.accounts.map(\.id) == [financeTestID(5)])
+    #expect(store.transactions.isEmpty)
+    #expect(store.transactionsError == "Expected failure")
+  }
+
+  @Test("The store fails globally only when every resource fails")
+  func totalFailure() async {
+    let client = FinanceDataClientStub(
+      balanceSheetResult: .failure(.expected),
+      accountsResult: .failure(.expected),
+      transactionsResult: .failure(.expected),
+      budgetsResult: .failure(.expected),
+      insightsResult: .failure(.expected)
+    )
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy()
+    )
+
+    await store.refresh()
+
+    #expect(store.state == .failed("Expected failure"))
+    #expect(store.lastUpdated == nil)
   }
 
   @Test("A budget failure remains distinct from an empty budget")
@@ -168,7 +232,64 @@ struct FinanceDataStoreTests {
     #expect(store.state == .loaded)
     #expect(store.insights.isEmpty)
     #expect(store.insightError == "Expected failure")
-    #expect(insightSink.sentInsightIDs == [[]])
+    #expect(insightSink.sentInsightIDs.isEmpty)
+  }
+
+  @Test("An insight failure does not make cached Watch data appear fresh")
+  func cachedInsightsAreNotResyncedAfterFailure() async {
+    let insight = BackendInsight(
+      id: "insight-cached",
+      type: "budget_on_track",
+      title: "On track",
+      body: "Spending is within the plan.",
+      priority: "medium",
+      status: "active",
+      generatedAt: nil
+    )
+    let client = FinanceDataClientStub(insightsResult: .success([insight]))
+    let insightSink = InsightSinkSpy()
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: insightSink
+    )
+    await store.refresh()
+    await client.setInsightsResult(.failure(.expected))
+
+    await store.refresh()
+
+    #expect(store.insights.map(\.id) == ["insight-cached"])
+    #expect(store.insightError == "Expected failure")
+    #expect(insightSink.sentInsightIDs == [["insight-cached"]])
+  }
+
+  @Test("A partial refresh preserves cached data and its prior timestamp")
+  func partialRefreshPreservesFreshness() async {
+    let previousTimestamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let cachedAccount = FinanceAccount(
+      id: financeTestID(6),
+      name: "Cached account",
+      institution: "Sure",
+      kind: .cash,
+      balance: financeTestMoney(25_000),
+      tintName: "blue"
+    )
+    let client = FinanceDataClientStub(accountsResult: .failure(.expected))
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy()
+    )
+    store.accounts = [cachedAccount]
+    store.lastUpdated = previousTimestamp
+    store.state = .loaded
+
+    await store.refresh()
+
+    #expect(store.state == .loaded)
+    #expect(store.accounts.map(\.id) == [cachedAccount.id])
+    #expect(store.accountsError == "Expected failure")
+    #expect(store.lastUpdated == previousTimestamp)
   }
 
   @Test("Disconnect clears cached state and the synced insights")
@@ -207,7 +328,10 @@ struct FinanceDataStoreTests {
 
     #expect(store.accounts.isEmpty)
     #expect(store.balanceSheet == nil)
+    #expect(store.balanceSheetError == nil)
+    #expect(store.accountsError == nil)
     #expect(store.transactions.isEmpty)
+    #expect(store.transactionsError == nil)
     #expect(store.budgets.isEmpty)
     #expect(store.budgetError == nil)
     #expect(store.insights.isEmpty)
@@ -242,6 +366,31 @@ struct FinanceDataStoreTests {
     ]
 
     #expect(store.reportingPeriodTransactions.map(\.id) == [financeTestID(31), financeTestID(1)])
+  }
+
+  @Test("Reporting totals stay anchored to the current month when it has no activity")
+  func emptyCurrentReportingPeriod() throws {
+    let calendar = utcCalendar()
+    let february2 = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 2, day: 2, hour: 12))
+    )
+    let january31 = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 1, day: 31, hour: 12))
+    )
+    let store = FinanceDataStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      calendar: calendar,
+      now: { february2 },
+      syncInsights: { _ in }
+    )
+    store.transactions = [transaction(id: 31, date: january31)]
+    let reportingDate = try LocalDate(year: 2026, month: 2, day: 2)
+
+    #expect(store.reportingDate == reportingDate)
+    #expect(store.reportingPeriodTransactions.isEmpty)
+    #expect(store.periodIncome.amounts.isEmpty)
+    #expect(store.periodSpending.amounts.isEmpty)
   }
 
   @Test("Period totals remain separated by currency")
@@ -465,6 +614,38 @@ struct FinanceDataStoreTests {
     #expect(store.lastUpdated == nil)
   }
 
+  @Test("A shared refresh survives cancellation of its initiating caller")
+  func overlappingRefreshesAreSingleFlight() async {
+    let client = OverlappingFinanceDataClient()
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy()
+    )
+    let firstRefresh = Task { @MainActor in await store.refresh() }
+    await client.waitUntilFirstInsightsRequest()
+
+    let callerEntry = RefreshCallerEntry()
+    let overlappingRefresh = Task { @MainActor in
+      callerEntry.enter()
+      await store.refresh()
+    }
+    await callerEntry.waitUntilEntered()
+
+    firstRefresh.cancel()
+    await client.completeFirstInsightsRequest()
+    await firstRefresh.value
+    await overlappingRefresh.value
+
+    let calls = await client.recordedCalls()
+    #expect(store.state == .loaded)
+    #expect(store.insights.map(\.id) == ["insight-overlap"])
+    #expect(calls.count == FinanceDataClientStub.Call.allCases.count)
+    for call in FinanceDataClientStub.Call.allCases {
+      #expect(calls.filter { $0 == call }.count == 1)
+    }
+  }
+
   private func makeStore(
     connection: any ConnectionStateProviding,
     client: any FinanceDataClient,
@@ -535,9 +716,20 @@ private func financeTestBalanceSheet(
   let currency = CurrencyCode("USD")!
   return BalanceSheetRecord(
     currency: currency,
-    netWorth: Money(minorUnits: minorUnits, currency: currency),
-    assets: Money(minorUnits: minorUnits + 100_000, currency: currency),
-    liabilities: Money(minorUnits: 100_000, currency: currency)
+    netWorth: financeTestDecimalMoney(minorUnits),
+    assets: financeTestDecimalMoney(minorUnits + 100_000),
+    liabilities: financeTestDecimalMoney(100_000)
+  )
+}
+
+private func financeTestDecimalMoney(
+  _ minorUnits: Int64,
+  currency: String = "USD"
+) -> DecimalMoney {
+  let currencyCode = CurrencyCode(currency)!
+  return DecimalMoney(
+    amount: Decimal(minorUnits) / Decimal(currencyCode.minorUnitConversion),
+    currency: currencyCode
   )
 }
 
@@ -567,6 +759,7 @@ private actor FinanceDataClientStub: FinanceDataClient {
   private var budgetsResult: Result<[BudgetCategory], TestFailure>
   private var insightsResult: Result<[BackendInsight], TestFailure>
   private var calls: [Call] = []
+  private var transactionWindows: [TransactionDateWindow] = []
 
   init(
     balanceSheetResult: Result<BalanceSheetRecord, TestFailure> = .success(financeTestBalanceSheet()),
@@ -592,8 +785,11 @@ private actor FinanceDataClientStub: FinanceDataClient {
     return try accountsResult.get()
   }
 
-  func fetchTransactions() async throws -> [FinanceTransaction] {
+  func fetchTransactions(
+    in dateWindow: TransactionDateWindow
+  ) async throws -> [FinanceTransaction] {
     calls.append(.transactions)
+    transactionWindows.append(dateWindow)
     return try transactionsResult.get()
   }
 
@@ -609,6 +805,14 @@ private actor FinanceDataClientStub: FinanceDataClient {
 
   func recordedCalls() -> [Call] {
     calls
+  }
+
+  func recordedTransactionWindows() -> [TransactionDateWindow] {
+    transactionWindows
+  }
+
+  func setInsightsResult(_ result: Result<[BackendInsight], TestFailure>) {
+    insightsResult = result
   }
 }
 
@@ -628,7 +832,11 @@ private actor PartiallySuccessfulFinanceDataClient: FinanceDataClient {
     )]
   }
 
-  func fetchTransactions() async throws -> [FinanceTransaction] { throw CancellationError() }
+  func fetchTransactions(
+    in dateWindow: TransactionDateWindow
+  ) async throws -> [FinanceTransaction] {
+    throw CancellationError()
+  }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
   func fetchInsights() async throws -> [BackendInsight] { [] }
 }
@@ -660,7 +868,9 @@ private actor SuspendedAccountsFinanceDataClient: FinanceDataClient {
     )]
   }
 
-  func fetchTransactions() async throws -> [FinanceTransaction] { [] }
+  func fetchTransactions(
+    in dateWindow: TransactionDateWindow
+  ) async throws -> [FinanceTransaction] { [] }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
   func fetchInsights() async throws -> [BackendInsight] { [] }
 
@@ -674,6 +884,92 @@ private actor SuspendedAccountsFinanceDataClient: FinanceDataClient {
   func complete() {
     continuation?.resume()
     continuation = nil
+  }
+}
+
+private actor OverlappingFinanceDataClient: FinanceDataClient {
+  private var calls: [FinanceDataClientStub.Call] = []
+  private var insightsRequestCount = 0
+  private var firstInsightsContinuation: CheckedContinuation<Void, Never>?
+  private var firstInsightsWaiters: [CheckedContinuation<Void, Never>] = []
+
+  func fetchBalanceSheet() async throws -> BalanceSheetRecord {
+    calls.append(.balanceSheet)
+    return financeTestBalanceSheet()
+  }
+
+  func fetchAccounts() async throws -> [FinanceAccount] {
+    calls.append(.accounts)
+    return []
+  }
+
+  func fetchTransactions(
+    in dateWindow: TransactionDateWindow
+  ) async throws -> [FinanceTransaction] {
+    calls.append(.transactions)
+    return []
+  }
+
+  func fetchBudgetCategories() async throws -> [BudgetCategory] {
+    calls.append(.budgets)
+    return []
+  }
+
+  func fetchInsights() async throws -> [BackendInsight] {
+    calls.append(.insights)
+    insightsRequestCount += 1
+    guard insightsRequestCount == 1 else { return [] }
+    let waiters = firstInsightsWaiters
+    firstInsightsWaiters.removeAll()
+    waiters.forEach { $0.resume() }
+    await withCheckedContinuation { continuation in
+      firstInsightsContinuation = continuation
+    }
+    return [BackendInsight(
+      id: "insight-overlap",
+      type: "budget_on_track",
+      title: "On track",
+      body: "Spending is within the plan.",
+      priority: "medium",
+      status: "active",
+      generatedAt: nil
+    )]
+  }
+
+  func waitUntilFirstInsightsRequest() async {
+    guard insightsRequestCount == 0 else { return }
+    await withCheckedContinuation { continuation in
+      firstInsightsWaiters.append(continuation)
+    }
+  }
+
+  func completeFirstInsightsRequest() {
+    firstInsightsContinuation?.resume()
+    firstInsightsContinuation = nil
+  }
+
+  func recordedCalls() -> [FinanceDataClientStub.Call] {
+    calls
+  }
+}
+
+@MainActor
+private final class RefreshCallerEntry {
+  private var didEnter = false
+  private var waiters: [CheckedContinuation<Void, Never>] = []
+
+  func enter() {
+    didEnter = true
+    let waiters = waiters
+    self.waiters.removeAll()
+    waiters.forEach { $0.resume() }
+  }
+
+  func waitUntilEntered() async {
+    guard !didEnter else { return }
+    await withCheckedContinuation { continuation in
+      waiters.append(continuation)
+    }
   }
 }
 

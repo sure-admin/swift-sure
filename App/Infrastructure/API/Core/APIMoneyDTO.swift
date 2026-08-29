@@ -5,9 +5,9 @@ struct APIMoneyDTO: Decodable, Equatable {
   var currency: String
   var formatted: String
 
-  func money(expectedCurrency: CurrencyCode? = nil) throws -> Money {
+  func decimalMoney(expectedCurrency: CurrencyCode? = nil) throws -> DecimalMoney {
     guard amount.range(
-      of: #"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$"#,
+      of: #"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$"#,
       options: .regularExpression
     ) != nil,
     let currencyCode = CurrencyCode(currency),
@@ -15,10 +15,9 @@ struct APIMoneyDTO: Decodable, Equatable {
     let decimal = Decimal(
       string: amount,
       locale: Locale(identifier: "en_US_POSIX")
-    ),
-    let money = Money(decimalValue: decimal, currency: currencyCode) else {
+    ) else {
       throw SureAPIError.decoding
     }
-    return money
+    return DecimalMoney(amount: decimal, currency: currencyCode)
   }
 }

@@ -56,7 +56,19 @@ struct AccountsView: View {
       }
       .frame(minHeight: 420)
     case .loaded:
-      if data.accounts.isEmpty {
+      if let message = data.accountsError, data.accounts.isEmpty {
+        ContentUnavailableView {
+          Label("Couldn’t load accounts", systemImage: "exclamationmark.triangle")
+        } description: {
+          Text(message)
+        } actions: {
+          Button("Try again", systemImage: "arrow.clockwise") {
+            Task { await data.refresh() }
+          }
+          .buttonStyle(.borderedProminent)
+        }
+        .frame(minHeight: 420)
+      } else if data.accounts.isEmpty {
         ContentUnavailableView {
           Label("No accounts", systemImage: "building.columns")
         } description: {
@@ -69,11 +81,19 @@ struct AccountsView: View {
         }
         .frame(minHeight: 420)
       } else {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-          ForEach(data.accounts) { account in
-            accountLink(account)
+        VStack(spacing: 16) {
+          if data.accountsError != nil {
+            Label("Accounts couldn’t be refreshed. Showing the last loaded data.", systemImage: "exclamationmark.triangle")
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
-          addAccountCard
+          LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+            ForEach(data.accounts) { account in
+              accountLink(account)
+            }
+            addAccountCard
+          }
         }
       }
     }

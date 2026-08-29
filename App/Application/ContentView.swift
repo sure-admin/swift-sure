@@ -52,7 +52,7 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection, financeData: financeData)
+      ConnectionSettingsView(connection: connection)
     }
   }
 }

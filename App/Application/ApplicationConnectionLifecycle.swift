@@ -14,6 +14,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var financeData: FinanceDataStore?
 
   func didConnect() async {
+    await financeData?.refresh()
     await notificationLifecycle?.didConnect()
   }
 

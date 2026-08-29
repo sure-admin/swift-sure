@@ -144,7 +144,7 @@ final class SureConnection {
       serverURL = context.baseURL.absoluteString
       isSignedOut = false
       status = .connected
-      await lifecycle.didConnect()
+      await activateCommittedSession()
 
       if let previousOAuth, previousOAuth != candidate {
         await revoke(previousOAuth)
@@ -154,7 +154,7 @@ final class SureConnection {
         await revoke(candidateSession)
       }
       if preparedCurrentSession, stableStatus == .connected {
-        await lifecycle.didConnect()
+        await activateCommittedSession()
       }
       if Self.isCancellation(error) {
         status = stableStatus
@@ -210,14 +210,14 @@ final class SureConnection {
       isSignedOut = false
       updateAPIKeyDraftState()
       status = .connected
-      await lifecycle.didConnect()
+      await activateCommittedSession()
 
       if let previousOAuth {
         await revoke(previousOAuth)
       }
     } catch {
       if preparedCurrentSession, stableStatus == .connected {
-        await lifecycle.didConnect()
+        await activateCommittedSession()
       }
       if Self.isCancellation(error) {
         status = stableStatus
@@ -313,6 +313,13 @@ final class SureConnection {
     if let refreshToken = session.credentials.refreshToken {
       await oauth.revoke(token: refreshToken, serverURL: session.serverURL.absoluteString)
     }
+  }
+
+  private func activateCommittedSession() async {
+    let lifecycle = lifecycle
+    await Task { @MainActor in
+      await lifecycle.didConnect()
+    }.value
   }
 
   private static func isCancellation(_ error: Error) -> Bool {
