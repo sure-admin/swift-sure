@@ -8,6 +8,7 @@ on:
       - "Tests/**"
       - "Watch/**"
       - "Project.json"
+      - ".github/scripts/**"
       - ".github/workflows/bitrig-native.yml"
   push:
     branches:
@@ -33,6 +34,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Test CI scripts
+        run: ruby .github/scripts/next_testflight_build_number_test.rb
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -199,11 +203,6 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate --spec Project.json
 
-      - name: Set build number
-        run: |
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" App/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" Watch/Info.plist
-
       - name: Install signing credentials
         env:
           APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
@@ -232,6 +231,24 @@ jobs:
             "$keychain_path"
           security list-keychains -d user -s "$keychain_path"
 
+      - name: Determine next TestFlight build number
+        env:
+          APP_BUNDLE_ID: am.sure.insights
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          BUILD_NUMBER_OFFSET: ${{ github.run_number }}
+        run: |
+          marketing_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' App/Info.plist)"
+          build_number="$(APP_MARKETING_VERSION="$marketing_version" ruby .github/scripts/next_testflight_build_number.rb)"
+          echo "BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
+          echo "Using TestFlight build number $build_number for version $marketing_version."
+
+      - name: Set build number
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Watch/Info.plist
+
       - name: Archive app
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -250,7 +267,7 @@ jobs:
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             clean archive
 
       - name: Upload archive to App Store Connect

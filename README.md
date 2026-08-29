@@ -42,8 +42,9 @@ credentials above.
 
 Every push to `main` (including a merged pull request) runs the complete native
 CI suite. After all tests and platform builds pass, CI archives the iOS app and
-uploads it to App Store Connect for TestFlight processing. GitHub's workflow run
-number is used as the App Store build number.
+uploads it to App Store Connect for TestFlight processing. CI derives a unique
+build number above the latest uploaded build for the current marketing version,
+so existing manual uploads and workflow reruns cannot reuse an older number.
 
 Configure these GitHub Actions secrets before merging the deployment workflow:
 
