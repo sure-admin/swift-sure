@@ -31,7 +31,7 @@ struct SignInView: View {
           Button("Other ways to connect", systemImage: "ellipsis") {
             showConnectionSettings()
           }
-          .buttonStyle(.bordered)
+          .liquidGlassButton(tint: SureTheme.accent.opacity(0.65))
 
           Button {
             showConnectionSettings()
@@ -46,7 +46,7 @@ struct SignInView: View {
                 .lineLimit(1)
             }
           }
-          .buttonStyle(.plain)
+          .liquidGlassButton(tint: SureTheme.highlight.opacity(0.7))
           .accessibilityLabel("Connection settings for \(serverDisplayName)")
           .accessibilityHint("Opens advanced connection settings")
 
@@ -56,7 +56,7 @@ struct SignInView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
       }
-      .background(SureTheme.canvas.ignoresSafeArea())
+      .background(greenGradientBackground)
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
           Button("Connection settings", systemImage: "gearshape") {
@@ -81,23 +81,13 @@ struct SignInView: View {
       }
       .padding(.horizontal, 18)
       .frame(minHeight: 54)
-      .foregroundStyle(
-        provider == .apple
-          ? AnyShapeStyle(.white)
-          : AnyShapeStyle(.primary)
-      )
-      .background(
-        provider == .apple ? Color.black : Color.white,
-        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-      )
-      .overlay {
-        if provider == .google {
-          RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .stroke(.primary.opacity(0.14))
-        }
-      }
+      .foregroundStyle(.primary)
     }
-    .buttonStyle(.plain)
+    .liquidGlassButton(
+      tint: provider == .apple
+        ? Color.black.opacity(0.18)
+        : SureTheme.highlight.opacity(0.75)
+    )
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens \(provider.displayName)’s secure sign-in page")
   }
@@ -142,5 +132,32 @@ struct SignInView: View {
       return connection.serverURL
     }
     return host
+  }
+
+  private var greenGradientBackground: some View {
+    ZStack {
+      LinearGradient(
+        colors: [
+          Color(red: 0.80, green: 0.96, blue: 0.82),
+          Color(red: 0.55, green: 0.84, blue: 0.61),
+          Color(red: 0.25, green: 0.62, blue: 0.39)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+      RadialGradient(
+        colors: [.white.opacity(0.55), .clear],
+        center: .topTrailing,
+        startRadius: 20,
+        endRadius: 360
+      )
+      RadialGradient(
+        colors: [SureTheme.highlight.opacity(0.65), .clear],
+        center: .bottomLeading,
+        startRadius: 10,
+        endRadius: 320
+      )
+    }
+    .ignoresSafeArea()
   }
 }
