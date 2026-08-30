@@ -108,9 +108,16 @@ struct MobileSSOTests {
 
   @Test("Maps provider and untrusted callback errors to safe failures")
   func callbackFailures() throws {
-    #expect(throws: MobileSSOError.providerUnavailable) {
+    for error in ["invalid_provider", "sso_provider_unavailable"] {
+      #expect(throws: MobileSSOError.providerUnavailable) {
+        try MobileSSOCallback.parse(#require(URL(
+          string: "sureapp://oauth/callback?error=\(error)&message=private"
+        )))
+      }
+    }
+    #expect(throws: MobileSSOError.invalidProviderResponse) {
       try MobileSSOCallback.parse(#require(URL(
-        string: "sureapp://oauth/callback?error=invalid_provider&message=private"
+        string: "sureapp://oauth/callback?error=sso_invalid_response&message=private"
       )))
     }
     #expect(throws: MobileSSOError.signInFailed) {

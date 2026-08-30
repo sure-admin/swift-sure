@@ -17,8 +17,11 @@ enum MobileSSOCallback: Equatable, Sendable {
       uniquingKeysWith: { first, _ in first }
     )
     if let error = values["error"] {
-      if error == "invalid_provider" {
+      if error == "invalid_provider" || error == "sso_provider_unavailable" {
         throw MobileSSOError.providerUnavailable
+      }
+      if error == "sso_invalid_response" {
+        throw MobileSSOError.invalidProviderResponse
       }
       throw MobileSSOError.signInFailed
     }
