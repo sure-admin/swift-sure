@@ -4,6 +4,18 @@ import Testing
 
 @Suite("Mobile SSO contract")
 struct MobileSSOTests {
+  @Test("Registers the mobile SSO callback scheme in the app bundle")
+  func callbackSchemeRegistration() throws {
+    let urlTypes = try #require(
+      Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]]
+    )
+    let schemes = urlTypes.flatMap { urlType in
+      urlType["CFBundleURLSchemes"] as? [String] ?? []
+    }
+
+    #expect(schemes.contains("sureapp"))
+  }
+
   @Test("Builds the provider route with required device information")
   @MainActor
   func authorizationURL() throws {
