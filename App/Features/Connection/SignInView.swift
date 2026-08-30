@@ -33,6 +33,7 @@ struct SignInView: View {
             .accessibilityHint("Opens Apple’s secure sign-in page")
 
             googleSSOButton
+            passkeyButton
           }
 
           statusView
@@ -103,6 +104,36 @@ struct SignInView: View {
     .frame(height: 48)
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens Google’s secure sign-in page")
+  }
+
+  private var passkeyButton: some View {
+    Button {
+      Task { await connection.signInWithPasskey() }
+    } label: {
+      HStack(spacing: 10) {
+        Image(systemName: "person.badge.key.fill")
+          .frame(width: 18, height: 18)
+          .accessibilityHidden(true)
+        Text("Continue with Passkey")
+          .font(.headline)
+      }
+      .padding(.horizontal, 18)
+      .frame(maxWidth: .infinity, minHeight: 48)
+      .foregroundStyle(.black)
+      .background(
+        Color.white.opacity(0.94),
+        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .stroke(.black.opacity(0.12))
+      }
+    }
+    .buttonStyle(.plain)
+    .frame(maxWidth: .infinity)
+    .frame(height: 48)
+    .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
+    .accessibilityHint("Opens Sure’s secure passkey sign-in page")
   }
 
   @ViewBuilder
