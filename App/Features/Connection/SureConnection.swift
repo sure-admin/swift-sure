@@ -112,6 +112,7 @@ final class SureConnection {
         tokenSource: .dynamicClient
       )
       candidateSession = candidate
+      pendingSSOOnboarding = nil
       try await commitOAuthCandidate(candidate, stableStatus: stableStatus)
     } catch {
       if let candidateSession {

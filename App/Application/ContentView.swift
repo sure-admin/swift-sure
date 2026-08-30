@@ -15,13 +15,16 @@ struct ContentView: View {
   var body: some View {
     Group {
       #if os(iOS)
-      if let onboarding = connection.pendingSSOOnboarding {
+      if connection.isConfigured {
+        appTabs
+      } else if let onboarding = connection.pendingSSOOnboarding {
         SSOOnboardingHandoffView(
           context: onboarding,
+          signInWithPasskey: {
+            Task { await connection.signInWithPasskey() }
+          },
           goBack: connection.cancelSSOOnboarding
         )
-      } else if connection.isConfigured {
-        appTabs
       } else {
         SignInView(
           connection: connection,

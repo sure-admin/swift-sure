@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SSOOnboardingHandoffView: View {
   var context: MobileSSOOnboardingContext
+  var signInWithPasskey: () -> Void
   var goBack: () -> Void
 
   var body: some View {
@@ -15,20 +16,27 @@ struct SSOOnboardingHandoffView: View {
             .accessibilityHidden(true)
           Text("Let’s set up your Sure account")
             .font(.largeTitle.bold())
+            .foregroundStyle(.black)
             .multilineTextAlignment(.center)
           if let email = context.email {
             Text(email)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(.black.opacity(0.65))
               .textSelection(.enabled)
           }
           Text("Your identity is verified. The short account setup flow is coming next.")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.black.opacity(0.65))
             .multilineTextAlignment(.center)
+          Button("I already have an account", systemImage: "person.badge.key.fill") {
+            signInWithPasskey()
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(.black)
+          .accessibilityHint("Signs in to your existing Sure account with a passkey")
           Button("Back to sign in", systemImage: "chevron.backward") {
             goBack()
           }
-          .buttonStyle(.borderedProminent)
-          .tint(SureTheme.accent)
+          .buttonStyle(.bordered)
+          .tint(.black)
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)

@@ -256,6 +256,33 @@ struct SureConnectionTests {
     #expect(harness.credentials.snapshot.session == nil)
   }
 
+  @Test("Passkey authentication clears an unlinked SSO handoff")
+  func passkeyClearsMobileSSOOnboarding() async throws {
+    let onboarding = MobileSSOOnboardingContext(
+      linkingCode: "link-123",
+      email: "person@example.com",
+      firstName: nil,
+      lastName: nil,
+      allowsAccountCreation: false,
+      hasPendingInvitation: false
+    )
+    let harness = makeHarness(
+      context: nil,
+      oauth: OAuthAuthenticationFake(tokens: PasskeyOAuthTokens(
+        accessToken: "passkey-access",
+        refreshToken: "passkey-refresh"
+      )),
+      mobileSSO: MobileSSOAuthenticationFake(result: .onboarding(onboarding))
+    )
+
+    await harness.connection.signIn(with: .google)
+    await harness.connection.signInWithPasskey()
+
+    #expect(harness.connection.pendingSSOOnboarding == nil)
+    #expect(harness.connection.isConfigured)
+    #expect(harness.connection.status == .connected)
+  }
+
   @Test("Cancellation restores the prior stable state without persisting or reporting failure")
   func cancellation() async throws {
     let context = try requestContext(
