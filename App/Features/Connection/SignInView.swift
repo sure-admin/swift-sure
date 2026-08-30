@@ -30,11 +30,20 @@ struct SignInView: View {
 
           Spacer(minLength: 36)
 
-          Text("Connecting to: \(serverDisplayName)")
-            .font(.caption.monospaced())
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .accessibilityLabel("Connecting to \(serverDisplayName)")
+          HStack(spacing: 4) {
+            Text("Powered by:")
+              .foregroundStyle(.secondary)
+            if let serverWebURL {
+              Link(serverDisplayName, destination: serverWebURL)
+                .foregroundStyle(.blue)
+                .accessibilityHint("Opens the Sure server website")
+            } else {
+              Text(serverDisplayName)
+                .foregroundStyle(.secondary)
+            }
+          }
+          .font(.caption.monospaced())
+          .lineLimit(1)
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
@@ -118,6 +127,10 @@ struct SignInView: View {
       return connection.serverURL
     }
     return host
+  }
+
+  private var serverWebURL: URL? {
+    URL(string: connection.serverURL)
   }
 
   private var greenGradientBackground: some View {
