@@ -90,6 +90,9 @@ struct SignInView: View {
       .foregroundStyle(.primary)
     }
     .liquidGlassButton(tint: SureTheme.highlight.opacity(0.75))
+    .buttonBorderShape(.roundedRectangle(radius: 14))
+    .frame(maxWidth: .infinity)
+    .frame(height: 54)
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens Google’s secure sign-in page")
   }
