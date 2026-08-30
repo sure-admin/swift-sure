@@ -28,33 +28,19 @@ struct SignInView: View {
 
           statusView
 
-          Button("Other ways to connect", systemImage: "ellipsis") {
-            showConnectionSettings()
-          }
-          .liquidGlassButton(tint: SureTheme.accent.opacity(0.65))
+          Spacer(minLength: 36)
 
-          Button {
-            showConnectionSettings()
-          } label: {
-            VStack(spacing: 4) {
-              Text("Connecting to:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-              Text(serverDisplayName)
-                .font(.caption.monospaced())
-                .foregroundStyle(.blue)
-                .lineLimit(1)
-            }
-          }
-          .liquidGlassButton(tint: SureTheme.highlight.opacity(0.7))
-          .accessibilityLabel("Connection settings for \(serverDisplayName)")
-          .accessibilityHint("Opens advanced connection settings")
-
-          Spacer(minLength: 24)
+          Text("Connecting to: \(serverDisplayName)")
+            .font(.caption.monospaced())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .accessibilityLabel("Connecting to \(serverDisplayName)")
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
+        .containerRelativeFrame(.vertical)
         .padding(.horizontal, 24)
+        .padding(.bottom, 20)
       }
       .background(greenGradientBackground)
       .toolbar {
