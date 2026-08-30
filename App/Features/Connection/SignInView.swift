@@ -29,7 +29,7 @@ struct SignInView: View {
               Task { await connection.signIn(with: .apple) }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 48)
             .accessibilityHint("Opens Apple’s secure sign-in page")
 
             googleSSOButton
@@ -86,13 +86,20 @@ struct SignInView: View {
           .font(.headline)
       }
       .padding(.horizontal, 18)
-      .frame(maxWidth: .infinity, minHeight: 54)
-      .foregroundStyle(.primary)
+      .frame(maxWidth: .infinity, minHeight: 48)
+      .foregroundStyle(.black)
+      .background(
+        Color.white.opacity(0.94),
+        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .stroke(.black.opacity(0.12))
+      }
     }
-    .liquidGlassButton(tint: SureTheme.highlight.opacity(0.75))
-    .buttonBorderShape(.roundedRectangle(radius: 14))
+    .buttonStyle(.plain)
     .frame(maxWidth: .infinity)
-    .frame(height: 54)
+    .frame(height: 48)
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens Google’s secure sign-in page")
   }
