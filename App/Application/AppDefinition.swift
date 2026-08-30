@@ -32,10 +32,18 @@ struct AppDefinition: App {
       clientIDStore: UserDefaultsOAuthClientIDStore()
     )
     let oauthService = PasskeyOAuthService(oauthClient: oauthClient)
+    let mobileSSOClient = MobileSSOHTTPClient(dataTransport: dataTransport)
+    let mobileSSOService = MobileSSOAuthService(
+      httpClient: mobileSSOClient,
+      deviceInformation: MobileDeviceInformationProvider()
+    )
     let refreshCoordinator = OAuthRefreshCoordinator(
       session: session,
       credentials: credentials,
-      tokenRefresher: oauthClient
+      tokenRefresher: OAuthTokenRefreshService(
+        oauthClient: oauthClient,
+        mobileClient: mobileSSOClient
+      )
     )
     let lifecycle = ApplicationConnectionLifecycle()
     let connection = SureConnection(
@@ -44,6 +52,7 @@ struct AppDefinition: App {
       credentials: credentials,
       preferences: preferences,
       oauth: oauthService,
+      mobileSSO: mobileSSOService,
       verify: { context in
         let transport = SureAPITransport(
           baseURL: context.baseURL,

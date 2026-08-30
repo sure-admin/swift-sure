@@ -90,7 +90,7 @@ struct SureConnectionTests {
 
     #expect(harness.connection.status == .connected)
     #expect(harness.connection.isConfigured)
-    #expect(!harness.connection.isPasskeyConnected)
+    #expect(!harness.connection.isOAuthConnected)
     #expect(harness.connection.isAPIKeyStored)
     #expect(harness.connection.hasVerifiedAPIKey)
     #expect(harness.credentials.snapshot.apiKey == "candidate-key")
@@ -133,7 +133,7 @@ struct SureConnectionTests {
 
     #expect(harness.connection.status == .failed("Sure rejected the current credentials."))
     #expect(harness.connection.isConfigured)
-    #expect(harness.connection.isPasskeyConnected)
+    #expect(harness.connection.isOAuthConnected)
     #expect(harness.credentials.snapshot.oauthCredentials == oldCredentials)
     #expect(harness.credentials.snapshot.apiKey == nil)
     #expect(try await harness.session.requestContext() == oldContext)
@@ -169,7 +169,7 @@ struct SureConnectionTests {
     await harness.connection.signInWithPasskey()
 
     #expect(harness.connection.status == .connected)
-    #expect(harness.connection.isPasskeyConnected)
+    #expect(harness.connection.isOAuthConnected)
     #expect(harness.credentials.snapshot.oauthCredentials?.accessToken == "new-access")
     #expect(harness.credentials.snapshot.oauthCredentials?.refreshToken == nil)
     #expect(try await harness.session.requestContext().authorization == .bearer("new-access"))
@@ -213,6 +213,47 @@ struct SureConnectionTests {
     #expect(oauth.revocations.map(\.token) == ["candidate-access", "candidate-refresh"])
     #expect(harness.lifecycle.didConnectCount == 1)
     #expect(harness.lifecycle.events == ["prepareForConnectionChange", "didConnect"])
+  }
+
+  @Test("Mobile SSO stores its refresh source and connects the verified session")
+  func mobileSSOSuccess() async throws {
+    let mobileSSO = MobileSSOAuthenticationFake(result: .authenticated(
+      PasskeyOAuthTokens(accessToken: "mobile-access", refreshToken: "mobile-refresh"),
+      deviceID: "device-123"
+    ))
+    let harness = makeHarness(context: nil, mobileSSO: mobileSSO)
+
+    await harness.connection.signIn(with: .google)
+
+    #expect(harness.connection.status == .connected)
+    #expect(harness.connection.isConfigured)
+    #expect(harness.credentials.snapshot.oauthSession?.tokenSource == .mobileDevice(
+      deviceID: "device-123"
+    ))
+    #expect(mobileSSO.providers == [.google])
+  }
+
+  @Test("An unlinked SSO identity hands off to onboarding without inventing a session")
+  func mobileSSOOnboarding() async throws {
+    let context = MobileSSOOnboardingContext(
+      linkingCode: "link-123",
+      email: "person@example.com",
+      firstName: "Taylor",
+      lastName: nil,
+      allowsAccountCreation: true,
+      hasPendingInvitation: false
+    )
+    let harness = makeHarness(
+      context: nil,
+      mobileSSO: MobileSSOAuthenticationFake(result: .onboarding(context))
+    )
+
+    await harness.connection.signIn(with: .apple)
+
+    #expect(harness.connection.pendingSSOOnboarding == context)
+    #expect(harness.connection.status == .notConnected)
+    #expect(!harness.connection.isConfigured)
+    #expect(harness.credentials.snapshot.session == nil)
   }
 
   @Test("Cancellation restores the prior stable state without persisting or reporting failure")
@@ -353,6 +394,7 @@ struct SureConnectionTests {
     isAPIKeyVerified: Bool = false,
     credentialLoadFails: Bool = false,
     oauth: OAuthAuthenticationFake? = nil,
+    mobileSSO suppliedMobileSSO: MobileSSOAuthenticationFake? = nil,
     verifier: VerificationSpy = VerificationSpy(),
     lifecycle suppliedLifecycle: ConnectionLifecycleSpy? = nil,
     beginCredentialChange: @escaping () async -> Void = { },
@@ -361,6 +403,7 @@ struct SureConnectionTests {
     let oauth = oauth ?? OAuthAuthenticationFake(
       tokens: PasskeyOAuthTokens(accessToken: "new-access", refreshToken: "new-refresh")
     )
+    let mobileSSO = suppliedMobileSSO ?? MobileSSOAuthenticationFake()
     let baseURL = context?.baseURL ?? URL(string: "https://sure.example")!
     let storedSession: StoredAuthenticatedSession?
     if let oauthCredentials,
@@ -403,6 +446,7 @@ struct SureConnectionTests {
       credentials: credentials,
       preferences: preferences,
       oauth: oauth,
+      mobileSSO: mobileSSO,
       verify: { context in try await verifier.verify(context) },
       beginCredentialChange: beginCredentialChange,
       endCredentialChange: endCredentialChange,
@@ -513,6 +557,27 @@ private final class OAuthAuthenticationFake: OAuthAuthenticating {
 
   func revoke(token: String, serverURL: String) async {
     revocations.append(Revocation(token: token, serverURL: serverURL))
+  }
+}
+
+@MainActor
+private final class MobileSSOAuthenticationFake: MobileSSOAuthenticating {
+  var result: MobileSSOResult?
+  var error: Error?
+  private(set) var providers: [SSOProvider] = []
+
+  init(result: MobileSSOResult? = nil, error: Error? = nil) {
+    self.result = result
+    self.error = error
+  }
+
+  func signIn(
+    provider: SSOProvider,
+    serverURL: String
+  ) async throws -> MobileSSOResult {
+    providers.append(provider)
+    if let error { throw error }
+    return try #require(result)
   }
 }
 
