@@ -11,10 +11,7 @@ struct SignInView: View {
           Spacer(minLength: 44)
 
           VStack(spacing: 16) {
-            Image(systemName: "checkmark.shield.fill")
-              .font(.system(size: 54, weight: .semibold))
-              .foregroundStyle(SureTheme.accent)
-              .accessibilityHidden(true)
+            SureLogo()
             Text("Your finances, made clear")
               .font(.largeTitle.bold())
               .multilineTextAlignment(.center)
@@ -36,15 +33,22 @@ struct SignInView: View {
           }
           .buttonStyle(.bordered)
 
-          VStack(spacing: 4) {
-            Text("Connecting to")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            Text(serverDisplayName)
-              .font(.caption.monospaced())
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
+          Button {
+            showConnectionSettings()
+          } label: {
+            VStack(spacing: 4) {
+              Text("Connecting to:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Text(serverDisplayName)
+                .font(.caption.monospaced())
+                .foregroundStyle(.blue)
+                .lineLimit(1)
+            }
           }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Connection settings for \(serverDisplayName)")
+          .accessibilityHint("Opens advanced connection settings")
 
           Spacer(minLength: 24)
         }
