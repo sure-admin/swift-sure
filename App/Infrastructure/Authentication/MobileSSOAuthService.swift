@@ -1,4 +1,3 @@
-import AuthenticationServices
 import Foundation
 
 #if os(iOS)
@@ -8,18 +7,20 @@ import AppKit
 #endif
 
 @MainActor
-final class MobileSSOAuthService: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class MobileSSOAuthService {
   private var httpClient: MobileSSOHTTPClient
   private var deviceInformation: MobileDeviceInformationProvider
-  private var authenticationSession: ASWebAuthenticationSession?
+  private var openURL: @MainActor (URL) async -> Bool
+  private var callbackContinuation: CheckedContinuation<URL, Error>?
 
   init(
     httpClient: MobileSSOHTTPClient,
-    deviceInformation: MobileDeviceInformationProvider
+    deviceInformation: MobileDeviceInformationProvider,
+    openURL: @escaping @MainActor (URL) async -> Bool = MobileSSOAuthService.openSystemURL
   ) {
     self.httpClient = httpClient
     self.deviceInformation = deviceInformation
-    super.init()
+    self.openURL = openURL
   }
 
   func signIn(
@@ -63,50 +64,51 @@ final class MobileSSOAuthService: NSObject, ASWebAuthenticationPresentationConte
     return url
   }
 
-  func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-    #if os(iOS)
-    return UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .flatMap(\.windows)
-      .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
-    #elseif os(macOS)
-    return NSApplication.shared.keyWindow
-      ?? NSApplication.shared.windows.first
-      ?? ASPresentationAnchor()
-    #endif
+  func handleOpenURL(_ url: URL) {
+    guard url.scheme == "sureapp",
+          url.host == "oauth",
+          url.path == "/callback" else { return }
+    finishAuthentication(with: .success(url))
   }
 
   private func authenticate(at url: URL) async throws -> URL {
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
-        let session = ASWebAuthenticationSession(
-          url: url,
-          callbackURLScheme: "sureapp"
-        ) { [weak self] callbackURL, error in
-          self?.authenticationSession = nil
-          if let callbackURL {
-            continuation.resume(returning: callbackURL)
-          } else if (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin {
-            continuation.resume(throwing: CancellationError())
-          } else {
-            continuation.resume(throwing: MobileSSOError.signInFailed)
-          }
-        }
-        session.presentationContextProvider = self
-        session.prefersEphemeralWebBrowserSession = false
-        authenticationSession = session
-        guard session.start() else {
-          authenticationSession = nil
+        guard callbackContinuation == nil else {
           continuation.resume(throwing: MobileSSOError.couldNotStart)
           return
+        }
+        callbackContinuation = continuation
+        Task { @MainActor in
+          guard await openURL(url) else {
+            finishAuthentication(with: .failure(MobileSSOError.couldNotStart))
+            return
+          }
         }
       }
     } onCancel: {
       Task { @MainActor [weak self] in
-        self?.authenticationSession?.cancel()
-        self?.authenticationSession = nil
+        self?.finishAuthentication(with: .failure(CancellationError()))
       }
     }
+  }
+
+  private func finishAuthentication(with result: Result<URL, Error>) {
+    let continuation = callbackContinuation
+    callbackContinuation = nil
+    continuation?.resume(with: result)
+  }
+
+  private static func openSystemURL(_ url: URL) async -> Bool {
+    #if os(iOS)
+    await withCheckedContinuation { continuation in
+      UIApplication.shared.open(url, options: [:]) { opened in
+        continuation.resume(returning: opened)
+      }
+    }
+    #elseif os(macOS)
+    NSWorkspace.shared.open(url)
+    #endif
   }
 }
 

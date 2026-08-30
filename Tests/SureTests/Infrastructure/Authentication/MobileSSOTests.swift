@@ -16,6 +16,52 @@ struct MobileSSOTests {
     #expect(schemes.contains("sureapp"))
   }
 
+  @Test("Uses the external browser and receives the app callback")
+  @MainActor
+  func externalBrowserCallback() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"access_token":"access-1","refresh_token":"refresh-1"}"#)
+    ])
+    var service: MobileSSOAuthService!
+    var openedURL: URL?
+    service = MobileSSOAuthService(
+      httpClient: MobileSSOHTTPClient(dataTransport: stub),
+      deviceInformation: testDeviceInformationProvider(),
+      openURL: { url in
+        openedURL = url
+        Task { @MainActor in
+          service.handleOpenURL(URL(string: "sureapp://oauth/callback?code=one-time-code")!)
+        }
+        return true
+      }
+    )
+
+    let result = try await service.signIn(
+      provider: .google,
+      serverURL: "https://sure.example"
+    )
+
+    #expect(openedURL?.path == "/auth/mobile/google_oauth2")
+    #expect(result == .authenticated(
+      PasskeyOAuthTokens(accessToken: "access-1", refreshToken: "refresh-1"),
+      deviceID: "00000000-0000-0000-0000-000000000123"
+    ))
+  }
+
+  @Test("Reports when the system browser cannot open")
+  @MainActor
+  func externalBrowserFailure() async throws {
+    let service = MobileSSOAuthService(
+      httpClient: MobileSSOHTTPClient(dataTransport: HTTPDataTransportStub([])),
+      deviceInformation: testDeviceInformationProvider(),
+      openURL: { _ in false }
+    )
+
+    await #expect(throws: MobileSSOError.couldNotStart) {
+      try await service.signIn(provider: .google, serverURL: "https://sure.example")
+    }
+  }
+
   @Test("Builds the provider route with required device information")
   @MainActor
   func authorizationURL() throws {
@@ -123,6 +169,15 @@ struct MobileSSOTests {
     ).compactMap { item in
       item.value.map { (item.name, $0) }
     })
+  }
+
+  @MainActor
+  private func testDeviceInformationProvider() -> MobileDeviceInformationProvider {
+    let suiteName = "MobileSSOTests.\(UUID().uuidString)"
+    return MobileDeviceInformationProvider(
+      defaults: UserDefaults(suiteName: suiteName)!,
+      makeID: { UUID(uuidString: "00000000-0000-0000-0000-000000000123")! }
+    )
   }
 
   private func jsonObject(_ request: URLRequest) throws -> [String: Any] {

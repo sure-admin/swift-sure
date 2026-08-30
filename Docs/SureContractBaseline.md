@@ -105,7 +105,9 @@ flow. It does use the pinned mobile SSO handoff for the initial Google and Apple
 providers: `google_oauth2` and `apple` respectively. The server redirects through
 `sureapp://oauth/callback`; existing identities return a single-use code for
 `POST /api/v1/auth/sso_exchange`, while unknown identities return a short-lived
-linking code for the future onboarding flow. Mobile refreshes use
+linking code for the future onboarding flow. The provider route opens in the
+system browser, matching Sure's upstream mobile client, and the app resumes the
+pending authentication when iOS or macOS delivers that callback. Mobile refreshes use
 `POST /api/v1/auth/refresh` with the stable per-install device identifier.
 
 The pinned server does not publish enabled SSO providers. Until a discovery

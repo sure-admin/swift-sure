@@ -13,6 +13,7 @@ struct AppDefinition: App {
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
   private var notificationManager: NotificationManager
+  private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -122,6 +123,7 @@ struct AppDefinition: App {
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
     self.notificationManager = notificationManager
+    self.mobileSSOService = mobileSSOService
     remoteAssistant = apiClient
     transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: apiClient,
@@ -146,6 +148,9 @@ struct AppDefinition: App {
         makeAssistantMessageID: { UUID() },
         now: { .now }
       )
+      .onOpenURL { url in
+        mobileSSOService.handleOpenURL(url)
+      }
     }
   }
 }
