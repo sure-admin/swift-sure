@@ -3,6 +3,7 @@ import Foundation
 enum MobileSSOError: Equatable, LocalizedError {
   case invalidCallback
   case invalidProviderResponse
+  case mfaRequired
   case providerUnavailable
   case couldNotStart
   case signInFailed
@@ -13,6 +14,7 @@ enum MobileSSOError: Equatable, LocalizedError {
     switch self {
     case .invalidCallback: "Sure returned an invalid sign-in response."
     case .invalidProviderResponse: "The sign-in provider returned an invalid response to Sure."
+    case .mfaRequired: "This account requires a two-factor authentication code."
     case .providerUnavailable: "This sign-in provider isn’t available on this Sure server."
     case .couldNotStart: "The secure sign-in window couldn’t open."
     case .signInFailed: "Sure’s server couldn’t complete provider sign-in. Check its SSO logs."

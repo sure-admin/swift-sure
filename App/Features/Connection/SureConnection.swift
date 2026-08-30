@@ -12,6 +12,9 @@ final class SureConnection {
     didSet { updateAPIKeyDraftState() }
   }
 
+  var email: String
+  var password: String
+
   private(set) var isAPIKeyStored: Bool
   private(set) var hasVerifiedAPIKey: Bool
   private(set) var isSignedOut: Bool
@@ -35,6 +38,12 @@ final class SureConnection {
 
   var canSignInWithPasskey: Bool {
     (try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))) != nil
+  }
+
+  var canSignInWithPassword: Bool {
+    !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && !password.isEmpty
+      && canSignInWithPasskey
   }
 
   var canLogOut: Bool {
@@ -72,6 +81,8 @@ final class SureConnection {
   ) {
     serverURL = initialState.serverURL
     apiKey = initialState.isExplicitlySignedOut ? "" : initialState.credentials.apiKey ?? ""
+    email = "user@example.com"
+    password = "Password1!"
     storedAPIKeySession = initialState.credentials.apiKeySession
     storedOAuthSession = initialState.credentials.oauthSession
     pendingSSOOnboarding = nil
@@ -123,6 +134,36 @@ final class SureConnection {
       } else {
         status = .failed(Self.safeMessage(for: error))
       }
+    }
+  }
+
+  func signInWithPassword() async {
+    guard status != .connecting else { return }
+    let stableStatus = connectedOrDisconnectedStatus
+    var candidateSession: StoredOAuthSession?
+    status = .connecting
+
+    do {
+      let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
+      let result = try await mobileSSO.signIn(
+        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+        password: password,
+        serverURL: server.url.absoluteString
+      )
+      guard case .authenticated(let tokens, let deviceID) = result else {
+        throw MobileSSOError.invalidCallback
+      }
+      let candidate = try oauthCandidate(
+        tokens: tokens,
+        server: server,
+        tokenSource: .mobileDevice(deviceID: deviceID)
+      )
+      candidateSession = candidate
+      pendingSSOOnboarding = nil
+      try await commitOAuthCandidate(candidate, stableStatus: stableStatus)
+    } catch {
+      if let candidateSession { await revoke(candidateSession) }
+      status = Self.isCancellation(error) ? stableStatus : .failed(Self.safeMessage(for: error))
     }
   }
 

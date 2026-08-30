@@ -15,6 +15,7 @@ struct SignInView: View {
             Text("Your finances, made clear")
               .font(.largeTitle.bold())
               .multilineTextAlignment(.center)
+              .fixedSize(horizontal: false, vertical: true)
             Text("Sign in to connect your Sure account and see your complete financial picture.")
               .font(.body)
               .foregroundStyle(.secondary)
@@ -22,6 +23,37 @@ struct SignInView: View {
           }
 
           VStack(spacing: 12) {
+            VStack(spacing: 10) {
+              TextField("Email", text: $connection.email)
+                .textContentType(.username)
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                #endif
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+              SecureField("Password", text: $connection.password)
+                .textContentType(.password)
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+              Button("Continue", systemImage: "arrow.right") {
+                Task { await connection.signInWithPassword() }
+              }
+              .font(.headline)
+              .frame(maxWidth: .infinity, minHeight: 48)
+              .foregroundStyle(.white)
+              .background(.black, in: RoundedRectangle(cornerRadius: 14))
+              .disabled(!connection.canSignInWithPassword || connection.status == .connecting)
+            }
+
+            HStack {
+              Rectangle().frame(height: 1).foregroundStyle(.black.opacity(0.2))
+              Text("OR").font(.caption.bold()).foregroundStyle(.black.opacity(0.6))
+              Rectangle().frame(height: 1).foregroundStyle(.black.opacity(0.2))
+            }
+
             AppleSSOButton(
               isEnabled: connection.canSignInWithPasskey
                 && connection.status != .connecting

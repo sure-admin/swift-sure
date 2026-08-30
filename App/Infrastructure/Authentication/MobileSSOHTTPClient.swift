@@ -7,6 +7,20 @@ actor MobileSSOHTTPClient {
     self.dataTransport = dataTransport
   }
 
+  func login(
+    email: String,
+    password: String,
+    device: MobileDeviceInformation,
+    server: OAuthServerURL
+  ) async throws -> PasskeyOAuthTokens {
+    try await tokens(
+      request: jsonRequest(
+        url: server.appending(path: "api/v1/auth/login"),
+        body: MobileLoginRequest(email: email, password: password, device: device)
+      )
+    )
+  }
+
   func exchange(code: String, server: OAuthServerURL) async throws -> PasskeyOAuthTokens {
     try await tokens(
       request: jsonRequest(
@@ -57,6 +71,12 @@ actor MobileSSOHTTPClient {
       throw MobileSSOError.invalidCallback
     }
     guard 200..<300 ~= response.statusCode else {
+      if let authenticationError = try? JSONDecoder().decode(
+        MobileAuthenticationErrorResponse.self,
+        from: data
+      ), authenticationError.mfaRequired == true {
+        throw MobileSSOError.mfaRequired
+      }
       throw MobileSSOError.server(response.statusCode)
     }
     do {
@@ -64,6 +84,20 @@ actor MobileSSOHTTPClient {
     } catch {
       throw MobileSSOError.invalidCallback
     }
+  }
+}
+
+private struct MobileLoginRequest: Encodable {
+  var email: String
+  var password: String
+  var device: MobileDeviceInformation
+}
+
+private struct MobileAuthenticationErrorResponse: Decodable {
+  var mfaRequired: Bool?
+
+  enum CodingKeys: String, CodingKey {
+    case mfaRequired = "mfa_required"
   }
 }
 

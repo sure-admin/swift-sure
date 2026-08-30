@@ -8,9 +8,25 @@ enum MobileSSOResult: Equatable, Sendable {
 @MainActor
 protocol MobileSSOAuthenticating {
   func signIn(
+    email: String,
+    password: String,
+    serverURL: String
+  ) async throws -> MobileSSOResult
+
+  func signIn(
     provider: SSOProvider,
     serverURL: String
   ) async throws -> MobileSSOResult
+}
+
+extension MobileSSOAuthenticating {
+  func signIn(
+    email: String,
+    password: String,
+    serverURL: String
+  ) async throws -> MobileSSOResult {
+    throw MobileSSOError.couldNotStart
+  }
 }
 
 @MainActor

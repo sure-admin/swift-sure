@@ -151,6 +151,58 @@ struct MobileSSOTests {
     #expect(try jsonObject(request)["code"] as? String == "private-code")
   }
 
+  @Test("Signs in with email, password, and complete device information")
+  func passwordLogin() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"access_token":"access-1","refresh_token":"refresh-1"}"#)
+    ])
+    let client = MobileSSOHTTPClient(dataTransport: stub)
+    _ = try await client.login(
+      email: "user@example.com",
+      password: "Password1!",
+      device: MobileDeviceInformation(
+        deviceID: "device-123",
+        deviceName: "Test iPhone",
+        deviceType: "ios",
+        osVersion: "26.5",
+        appVersion: "0.7.4"
+      ),
+      server: OAuthServerURL("https://sure.example")
+    )
+
+    let request = try #require(await stub.requests().first)
+    #expect(request.url?.absoluteString == "https://sure.example/api/v1/auth/login")
+    let body = try jsonObject(request)
+    #expect(body["email"] as? String == "user@example.com")
+    #expect(body["password"] as? String == "Password1!")
+    let device = try #require(body["device"] as? [String: Any])
+    #expect(device["device_id"] as? String == "device-123")
+    #expect(device["device_type"] as? String == "ios")
+  }
+
+  @Test("Recognizes a password login MFA challenge")
+  func passwordLoginMFA() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"error":"Two-factor authentication required","mfa_required":true}"#, status: 401)
+    ])
+    let client = MobileSSOHTTPClient(dataTransport: stub)
+
+    await #expect(throws: MobileSSOError.mfaRequired) {
+      try await client.login(
+        email: "user@example.com",
+        password: "Password1!",
+        device: MobileDeviceInformation(
+          deviceID: "device-123",
+          deviceName: "Test iPhone",
+          deviceType: "ios",
+          osVersion: "26.5",
+          appVersion: "0.7.4"
+        ),
+        server: OAuthServerURL("https://sure.example")
+      )
+    }
+  }
+
   @Test("Refreshes mobile tokens with their stable device identifier")
   func refresh() async throws {
     let stub = HTTPDataTransportStub([
