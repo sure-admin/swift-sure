@@ -22,7 +22,16 @@ struct SignInView: View {
           }
 
           VStack(spacing: 12) {
-            providerButton(.apple)
+            AppleSSOButton(
+              isEnabled: connection.canSignInWithPasskey
+                && connection.status != .connecting
+            ) {
+              Task { await connection.signIn(with: .apple) }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .accessibilityHint("Opens Apple’s secure sign-in page")
+
             providerButton(.google)
           }
 
