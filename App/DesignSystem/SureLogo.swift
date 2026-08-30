@@ -2,14 +2,12 @@ import SwiftUI
 
 struct SureLogo: View {
   var body: some View {
-    VStack(alignment: .leading, spacing: -16) {
-      Text("su")
-        .foregroundStyle(.secondary)
-      Text("re")
-        .foregroundStyle(SureTheme.accent)
-    }
-    .font(.system(size: 52, weight: .black, design: .rounded))
-    .accessibilityElement(children: .ignore)
+    Image("SureLogo")
+      .resizable()
+      .scaledToFit()
+      .frame(width: 88, height: 88)
+      .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+      .accessibilityElement(children: .ignore)
     .accessibilityLabel("Sure")
   }
 }
