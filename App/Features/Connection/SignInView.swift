@@ -41,7 +41,8 @@ struct SignInView: View {
 
           HStack(spacing: 4) {
             Text("Powered by:")
-              .foregroundStyle(.secondary)
+              .fontWeight(.bold)
+              .foregroundStyle(.black)
             if let serverWebURL {
               Link(serverDisplayName, destination: serverWebURL)
                 .foregroundStyle(.blue)
