@@ -32,7 +32,7 @@ struct SignInView: View {
             .frame(height: 54)
             .accessibilityHint("Opens Apple’s secure sign-in page")
 
-            providerButton(.google)
+            googleSSOButton
           }
 
           statusView
@@ -72,43 +72,26 @@ struct SignInView: View {
     }
   }
 
-  private func providerButton(_ provider: SSOProvider) -> some View {
+  private var googleSSOButton: some View {
     Button {
-      Task { await connection.signIn(with: provider) }
+      Task { await connection.signIn(with: .google) }
     } label: {
-      HStack(spacing: 12) {
-        providerIcon(provider)
-          .frame(width: 22)
-        Text("Continue with \(provider.displayName)")
+      HStack(spacing: 10) {
+        Image("GoogleLogo")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 18, height: 18)
+          .accessibilityHidden(true)
+        Text("Continue with Google")
           .font(.headline)
-        Spacer()
       }
       .padding(.horizontal, 18)
-      .frame(minHeight: 54)
+      .frame(maxWidth: .infinity, minHeight: 54)
       .foregroundStyle(.primary)
     }
-    .liquidGlassButton(
-      tint: provider == .apple
-        ? Color.black.opacity(0.18)
-        : SureTheme.highlight.opacity(0.75)
-    )
+    .liquidGlassButton(tint: SureTheme.highlight.opacity(0.75))
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
-    .accessibilityHint("Opens \(provider.displayName)’s secure sign-in page")
-  }
-
-  @ViewBuilder
-  private func providerIcon(_ provider: SSOProvider) -> some View {
-    switch provider {
-    case .apple:
-      Image(systemName: "apple.logo")
-        .font(.title3)
-        .accessibilityHidden(true)
-    case .google:
-      Text("G")
-        .font(.system(size: 19, weight: .bold, design: .rounded))
-        .foregroundStyle(.blue)
-        .accessibilityHidden(true)
-    }
+    .accessibilityHint("Opens Google’s secure sign-in page")
   }
 
   @ViewBuilder
