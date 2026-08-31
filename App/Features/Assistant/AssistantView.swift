@@ -47,6 +47,12 @@ struct AssistantView: View {
                 withAnimation(.smooth) { proxy.scrollTo(last.id, anchor: .bottom) }
               }
             }
+            .onChange(of: store.isResponding) { _, isResponding in
+              guard isResponding else { return }
+              withAnimation(.smooth) {
+                proxy.scrollTo(AssistantScrollTarget.thinking, anchor: .bottom)
+              }
+            }
           }
         }
         composer
@@ -85,12 +91,19 @@ struct AssistantView: View {
           .id(message.id)
       }
       if store.isResponding {
-        HStack {
-          ProgressView()
-          Text("Thinking…")
+        HStack(spacing: 10) {
+          ProgressView("Thinking…")
+            .controlSize(.small)
             .foregroundStyle(.secondary)
           Spacer()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .id(AssistantScrollTarget.thinking)
+        .accessibilityIdentifier("assistant-thinking-indicator")
+        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .leading)))
       }
       if let errorMessage = store.errorMessage {
         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -189,4 +202,8 @@ struct AssistantView: View {
     }
     Task { await store.send(to: destination) }
   }
+}
+
+private enum AssistantScrollTarget: Hashable {
+  case thinking
 }
