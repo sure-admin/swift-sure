@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AssistantView: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var connection: SureConnection
   @State private var store: AssistantStore
@@ -44,14 +45,12 @@ struct AssistantView: View {
             }
             .onChange(of: store.messages.count) {
               if let last = store.messages.last {
-                withAnimation(.smooth) { proxy.scrollTo(last.id, anchor: .bottom) }
+                scroll(proxy, to: last.id)
               }
             }
             .onChange(of: store.isResponding) { _, isResponding in
               guard isResponding else { return }
-              withAnimation(.smooth) {
-                proxy.scrollTo(AssistantScrollTarget.thinking, anchor: .bottom)
-              }
+              scroll(proxy, to: AssistantScrollTarget.thinking)
             }
           }
         }
@@ -201,6 +200,12 @@ struct AssistantView: View {
       return
     }
     Task { await store.send(to: destination) }
+  }
+
+  private func scroll<ID: Hashable>(_ proxy: ScrollViewProxy, to id: ID) {
+    withAnimation(reduceMotion ? nil : .smooth) {
+      proxy.scrollTo(id, anchor: .bottom)
+    }
   }
 }
 
