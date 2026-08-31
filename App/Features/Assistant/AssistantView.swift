@@ -91,15 +91,18 @@ struct AssistantView: View {
       }
       if store.isResponding {
         HStack(spacing: 10) {
-          ProgressView("Thinking…")
+          ProgressView()
             .controlSize(.small)
             .foregroundStyle(.secondary)
-          Spacer()
+            .accessibilityHidden(true)
+          Text("Thinking…")
+            .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
         .id(AssistantScrollTarget.thinking)
         .accessibilityIdentifier("assistant-thinking-indicator")
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .leading)))
