@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
   var connection: SureConnection
   var financeData: FinanceDataStore
+  var appleCardConnection: AppleCardConnectionStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -68,6 +69,7 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
+          appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )
         .id(connection.sessionGeneration)

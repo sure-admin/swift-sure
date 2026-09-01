@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountsView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
@@ -17,6 +18,7 @@ struct AccountsView: View {
       .navigationTitle("Accounts")
       .task {
         if data.state == .idle { await data.refresh() }
+        if appleCardConnection.state == .idle { await appleCardConnection.refresh() }
       }
     }
   }
@@ -68,18 +70,6 @@ struct AccountsView: View {
           .buttonStyle(.borderedProminent)
         }
         .frame(minHeight: 420)
-      } else if data.accounts.isEmpty {
-        ContentUnavailableView {
-          Label("No accounts", systemImage: "building.columns")
-        } description: {
-          Text("No accounts are currently available from Sure.")
-        } actions: {
-          Button("Connection settings", systemImage: "gearshape") {
-            showConnectionSettings()
-          }
-          .buttonStyle(.bordered)
-        }
-        .frame(minHeight: 420)
       } else {
         VStack(spacing: 16) {
           if data.accountsError != nil {
@@ -88,6 +78,7 @@ struct AccountsView: View {
               .foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
+          appleCardCard
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
             ForEach(data.accounts) { account in
               accountLink(account)
@@ -96,6 +87,56 @@ struct AccountsView: View {
           }
         }
       }
+    }
+  }
+
+  @ViewBuilder
+  private var appleCardCard: some View {
+    if appleCardConnection.state != .unavailable {
+      VStack(alignment: .leading, spacing: 14) {
+        HStack(spacing: 12) {
+          Image(systemName: "apple.logo")
+            .font(.title2)
+            .frame(width: 44, height: 44)
+            .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityHidden(true)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Apple Card")
+              .font(.headline)
+            Text(appleCardDetail)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+          Spacer()
+        }
+
+        if appleCardConnection.state == .connected {
+          Label("Connected on this device", systemImage: "checkmark.circle.fill")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.green)
+        } else {
+          Button("Connect Apple Card", systemImage: "link") {
+            Task { await appleCardConnection.connect() }
+          }
+          .buttonStyle(.borderedProminent)
+          .disabled(appleCardConnection.state == .checking || appleCardConnection.state == .connecting)
+          .accessibilityHint("Requests permission to access financial data in Apple Wallet")
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .sureCard()
+    }
+  }
+
+  private var appleCardDetail: String {
+    switch appleCardConnection.state {
+    case .idle, .checking: "Checking availability…"
+    case .ready: "Securely access your Apple Card data from Wallet."
+    case .connecting: "Waiting for Wallet permission…"
+    case .connected: "Sure can access Apple Card data you approve in Wallet."
+    case .denied: "Access is off. You can enable Finance access in Settings."
+    case .failed(let message): message
+    case .unavailable: "Apple Card isn’t available on this device."
     }
   }
 
