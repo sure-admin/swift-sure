@@ -12,6 +12,7 @@ struct AppDefinition: App {
 
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
+  @State private var appleCardConnection: AppleCardConnectionStore
   private var notificationManager: NotificationManager
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
@@ -117,11 +118,15 @@ struct AppDefinition: App {
       now: { .now },
       syncInsights: syncInsights
     )
+    let appleCardConnection = AppleCardConnectionStore(
+      connector: FinanceKitAppleCardConnector()
+    )
 
     lifecycle.notificationLifecycle = notificationManager
     lifecycle.financeData = financeData
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
+    _appleCardConnection = State(initialValue: appleCardConnection)
     self.notificationManager = notificationManager
     self.mobileSSOService = mobileSSOService
     remoteAssistant = apiClient
@@ -142,6 +147,7 @@ struct AppDefinition: App {
       ContentView(
         connection: connection,
         financeData: financeData,
+        appleCardConnection: appleCardConnection,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,

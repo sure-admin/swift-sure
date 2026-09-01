@@ -96,7 +96,7 @@ struct SignInView: View {
       }
       .background(greenGradientBackground)
       .toolbar {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .primaryAction) {
           Button("Connection settings", systemImage: "gearshape") {
             showConnectionSettings()
           }

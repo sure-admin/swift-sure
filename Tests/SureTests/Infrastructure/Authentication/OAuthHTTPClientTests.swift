@@ -144,10 +144,9 @@ struct OAuthHTTPClientTests {
     cache.setClientID("client-123", for: server.url)
     let client = OAuthHTTPClient(dataTransport: stub, clientIDStore: cache)
 
-    let refresher: any OAuthTokenRefreshing = client
-    let tokens = try await refresher.refresh(
+    let tokens = try await client.refresh(
       refreshToken: "refresh-1",
-      serverURL: server.url.absoluteString
+      server: server
     )
 
     #expect(tokens.accessToken == "access-2")

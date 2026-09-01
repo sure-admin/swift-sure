@@ -40,6 +40,7 @@
           ],
           "CFBundleVersion" : "1",
           "ITSAppUsesNonExemptEncryption" : false,
+          "NSFinancialDataUsageDescription" : "Sure requests access to financial data you choose to share from Wallet when you select Apple Card in Accounts.",
           "LSApplicationCategoryType" : "public.app-category.finance",
           "UILaunchScreen" : {
 

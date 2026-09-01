@@ -240,8 +240,9 @@ struct MobileSSOTests {
   }
 
   private func jsonObject(_ request: URLRequest) throws -> [String: Any] {
-    try #require(JSONSerialization.jsonObject(
-      with: #require(request.httpBody)
-    ) as? [String: Any])
+    let body = try #require(request.httpBody)
+    return try #require(
+      JSONSerialization.jsonObject(with: body) as? [String: Any]
+    )
   }
 }

@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
@@ -17,6 +19,7 @@ struct AccountsView: View {
       .navigationTitle("Accounts")
       .task {
         if data.state == .idle { await data.refresh() }
+        if appleCardConnection.state == .idle { await appleCardConnection.refresh() }
       }
     }
   }
@@ -68,18 +71,6 @@ struct AccountsView: View {
           .buttonStyle(.borderedProminent)
         }
         .frame(minHeight: 420)
-      } else if data.accounts.isEmpty {
-        ContentUnavailableView {
-          Label("No accounts", systemImage: "building.columns")
-        } description: {
-          Text("No accounts are currently available from Sure.")
-        } actions: {
-          Button("Connection settings", systemImage: "gearshape") {
-            showConnectionSettings()
-          }
-          .buttonStyle(.bordered)
-        }
-        .frame(minHeight: 420)
       } else {
         VStack(spacing: 16) {
           if data.accountsError != nil {
@@ -89,6 +80,7 @@ struct AccountsView: View {
               .frame(maxWidth: .infinity, alignment: .leading)
           }
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+            appleCardCard
             ForEach(data.accounts) { account in
               accountLink(account)
             }
@@ -96,6 +88,83 @@ struct AccountsView: View {
           }
         }
       }
+    }
+  }
+
+  private var appleCardCard: some View {
+    Group {
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 12) {
+          HStack(spacing: 12) {
+            appleCardIcon
+            Text("Apple Card")
+              .font(.headline)
+          }
+          Text(appleCardDetail)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          appleCardAction
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+      } else {
+        HStack(spacing: 12) {
+          appleCardIcon
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Apple Card")
+              .font(.headline)
+            Text(appleCardDetail)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer(minLength: 4)
+          appleCardAction
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, minHeight: 65, alignment: .leading)
+    .sureCard()
+  }
+
+  private var appleCardIcon: some View {
+    Image(systemName: "apple.logo")
+      .font(.title2)
+      .frame(width: 44, height: 44)
+      .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+      .accessibilityHidden(true)
+  }
+
+  @ViewBuilder
+  private var appleCardAction: some View {
+    if appleCardConnection.state == .authorized {
+      Label("Access granted", systemImage: "checkmark.circle.fill")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.green)
+    } else {
+      Button("Allow Access", systemImage: "lock.open") {
+        Task { await appleCardConnection.connect() }
+      }
+      .buttonStyle(.borderedProminent)
+      .fixedSize(horizontal: true, vertical: false)
+      .disabled(
+        appleCardConnection.state == .checking
+          || appleCardConnection.state == .connecting
+          || appleCardConnection.state == .unavailable
+      )
+      .accessibilityLabel("Allow Apple Card access")
+      .accessibilityHint("Requests permission to access financial data in Apple Wallet")
+    }
+  }
+
+  private var appleCardDetail: String {
+    switch appleCardConnection.state {
+    case .idle, .checking: "Checking availability…"
+    case .ready: "Request financial data access from Wallet."
+    case .connecting: "Waiting for Wallet permission…"
+    case .authorized: "Wallet access is approved; no account has been added to Sure."
+    case .denied: "Access is off. You can enable Finance access in Settings."
+    case .failed(let message): message
+    case .unavailable: "Unavailable on this device."
     }
   }
 
@@ -115,37 +184,63 @@ struct AccountsView: View {
   }
 
   private func accountCard(_ account: FinanceAccount) -> some View {
-    VStack(alignment: .leading, spacing: 18) {
+    let accountColor = accountTypeColor(account.kind)
+    return VStack(alignment: .leading, spacing: 14) {
       HStack {
         Image(systemName: account.kind.symbol)
           .frame(width: 42, height: 42)
-          .background(SureTheme.accountColor(account.tintName).opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-          .foregroundStyle(SureTheme.accountColor(account.tintName))
+          .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+          .foregroundStyle(accountColor)
           .accessibilityHidden(true)
-        Spacer()
-        Image(systemName: "chevron.right")
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-      }
-      VStack(alignment: .leading, spacing: 2) {
-        Text(account.name)
-          .font(.headline)
-        Text(account.institution)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
-      HStack(alignment: .firstTextBaseline) {
-        Text(FinanceFormatters.currency(account.balance))
-          .font(.title2.bold())
         Spacer()
         Text(account.kind.rawValue)
           .font(.caption.bold())
-          .foregroundStyle(.secondary)
+          .foregroundStyle(accountColor)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 5)
+          .background(accountColor.opacity(0.14), in: Capsule())
+      }
+
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(account.name)
+            .font(.headline)
+          Text(account.institution)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          Text(FinanceFormatters.currency(account.balance))
+            .font(.title2.bold())
+        }
+      } else {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+          VStack(alignment: .leading, spacing: 2) {
+            Text(account.name)
+              .font(.headline)
+              .lineLimit(1)
+            Text(account.institution)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
+          Spacer(minLength: 4)
+          Text(FinanceFormatters.currency(account.balance))
+            .font(.title2.bold())
+            .fixedSize(horizontal: true, vertical: false)
+        }
       }
     }
-    .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     .sureCard()
     .accessibilityElement(children: .combine)
+  }
+
+  private func accountTypeColor(_ kind: AccountKind) -> Color {
+    switch kind {
+    case .cash: .blue
+    case .credit: .orange
+    case .investment: .purple
+    case .property: .teal
+    }
   }
 
   private var addAccountCard: some View {
