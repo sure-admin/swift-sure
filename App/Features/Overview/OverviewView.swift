@@ -91,7 +91,6 @@ struct OverviewView: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
-      netWorthCard
       ViewThatFits {
         HStack(alignment: .top, spacing: 18) {
           spendingCard
@@ -102,6 +101,7 @@ struct OverviewView: View {
           recentCard
         }
       }
+      netWorthCard
     }
   }
 
