@@ -36,7 +36,12 @@ struct AssistantView: View {
               VStack(spacing: 14) {
                 suggestionCard
                 Spacer(minLength: 32)
-                conversation
+                if store.isLoadingConversation {
+                  ProgressView("Loading conversation…")
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else {
+                  conversation
+                }
               }
               .frame(maxWidth: 760)
               .frame(maxWidth: .infinity)
@@ -59,16 +64,60 @@ struct AssistantView: View {
       .background(SureTheme.canvas.opacity(0.65))
       .navigationTitle("Assistant")
       .toolbar {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+          conversationMenu
           Button("Connection settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
         }
       }
+      .task(id: connection.sessionGeneration) {
+        await store.reloadConversationsForCurrentSession()
+      }
       .onChange(of: connection.hasVerifiedAPIKey, initial: true) { _, hasVerifiedAPIKey in
         store.updateConnectionPrompts(hasVerifiedAPIKey: hasVerifiedAPIKey)
       }
     }
+  }
+
+  private var conversationMenu: some View {
+    Menu {
+      Button("New Conversation", systemImage: "square.and.pencil") {
+        store.startNewConversation()
+      }
+      .disabled(store.isResponding)
+
+      Divider()
+
+      if store.isLoadingConversations {
+        Label("Loading conversations…", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
+      } else if let conversationErrorMessage = store.conversationErrorMessage {
+        Text(conversationErrorMessage)
+        Button("Try Again", systemImage: "arrow.clockwise") {
+          Task { await store.refreshConversations() }
+        }
+      } else if store.conversations.isEmpty {
+        Text(connection.isConfigured ? "No saved conversations" : "Connect to Sure to load conversations")
+      } else {
+        ForEach(store.conversations) { conversation in
+          Button {
+            Task { await store.selectConversation(conversation) }
+          } label: {
+            Label(
+              conversation.abridgedTitle(),
+              systemImage: conversation.id == store.selectedConversationID ? "checkmark" : "bubble.left"
+            )
+          }
+          .disabled(store.isResponding || store.isLoadingConversation)
+          .accessibilityLabel(conversation.title)
+          .help(conversation.title)
+        }
+      }
+    } label: {
+      Label("Conversations", systemImage: "bubble.left.and.bubble.right")
+        .labelStyle(.iconOnly)
+    }
+    .accessibilityHint("Choose a previous Assistant conversation or start a new one")
   }
 
   private var suggestionCard: some View {
@@ -109,6 +158,12 @@ struct AssistantView: View {
       }
       if let errorMessage = store.errorMessage {
         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+          .font(.footnote)
+          .foregroundStyle(.red)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      if let conversationErrorMessage = store.conversationErrorMessage {
+        Label(conversationErrorMessage, systemImage: "exclamationmark.triangle.fill")
           .font(.footnote)
           .foregroundStyle(.red)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -189,7 +244,11 @@ struct AssistantView: View {
             submit(to: .sureServer)
           }
       )
-      .disabled(store.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isResponding)
+      .disabled(
+        store.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          || store.isResponding
+          || store.isLoadingConversation
+      )
       .sensoryFeedback(.impact(weight: .heavy), trigger: sureSendHaptic)
       .accessibilityHint("Tap for an on-device answer. Touch and hold to send to Sure.")
     }

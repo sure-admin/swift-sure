@@ -4,6 +4,77 @@ struct ChatsAPIClient {
   var transport: SureAPITransport
   var pollingPolicy: ChatPollingPolicy
 
+  func fetchAll() async throws -> [ChatSummaryDTO] {
+    var page = 1
+    var records: [ChatSummaryDTO] = []
+    var expectedTotalCount: Int?
+    var expectedTotalPages: Int?
+
+    while true {
+      let request = APIRequest<ChatCollectionDTO>(
+        method: .get,
+        pathComponents: ["api", "v1", "chats"],
+        queryItems: [URLQueryItem(name: "page", value: String(page))],
+        forbiddenResponse: .featureUnavailable
+      )
+      let collection = try await transport.send(request)
+      try validate(
+        collection.pagination,
+        requestedPage: page,
+        itemCount: collection.chats.count,
+        expectedTotalCount: expectedTotalCount,
+        expectedTotalPages: expectedTotalPages
+      )
+      expectedTotalCount = collection.pagination.totalCount
+      expectedTotalPages = collection.pagination.totalPages
+      records.append(contentsOf: collection.chats)
+
+      guard page < collection.pagination.totalPages else {
+        guard records.count == collection.pagination.totalCount else {
+          throw SureAPIError.decoding
+        }
+        return records
+      }
+      page += 1
+    }
+  }
+
+  func fetch(id: UUID) async throws -> ChatDetailDTO {
+    let firstPage = try await fetchChat(chatID: id, page: 1)
+    guard let pagination = firstPage.pagination else { throw SureAPIError.decoding }
+    try validateDetailPage(
+      firstPage,
+      requestedPage: 1,
+      expectedChatID: id,
+      expectedPagination: pagination
+    )
+    var messages = firstPage.messages
+
+    if pagination.totalPages > 1 {
+      for page in 2...pagination.totalPages {
+        let response = try await fetchChat(chatID: id, page: page)
+        try validateDetailPage(
+          response,
+          requestedPage: page,
+          expectedChatID: id,
+          expectedPagination: pagination
+        )
+        messages.append(contentsOf: response.messages)
+      }
+    }
+    guard messages.count == pagination.totalCount else { throw SureAPIError.decoding }
+
+    return ChatDetailDTO(
+      id: firstPage.id,
+      title: firstPage.title,
+      error: firstPage.error,
+      createdAt: firstPage.createdAt,
+      updatedAt: firstPage.updatedAt,
+      messages: messages,
+      pagination: pagination
+    )
+  }
+
   func create(title: String) async throws -> UUID {
     let request = APIRequest<ChatDetailDTO>(
       method: .post,
@@ -89,6 +160,42 @@ struct ChatsAPIClient {
   private func checkBackendError(_ response: ChatDetailDTO) throws {
     if let error = response.error, !error.isEmpty {
       throw SureAPIError.backend
+    }
+  }
+
+  private func validate(
+    _ pagination: PaginationDTO,
+    requestedPage: Int,
+    itemCount: Int,
+    expectedTotalCount: Int?,
+    expectedTotalPages: Int?
+  ) throws {
+    guard pagination.page == requestedPage,
+          pagination.perPage > 0,
+          pagination.totalCount >= 0,
+          pagination.totalPages >= 1,
+          itemCount <= pagination.perPage,
+          expectedTotalCount == nil || pagination.totalCount == expectedTotalCount,
+          expectedTotalPages == nil || pagination.totalPages == expectedTotalPages else {
+      throw SureAPIError.decoding
+    }
+  }
+
+  private func validateDetailPage(
+    _ response: ChatDetailDTO,
+    requestedPage: Int,
+    expectedChatID: UUID,
+    expectedPagination: PaginationDTO
+  ) throws {
+    guard let pagination = response.pagination,
+          response.id == expectedChatID,
+          pagination.page == requestedPage,
+          pagination.perPage > 0,
+          pagination.totalCount == expectedPagination.totalCount,
+          pagination.totalPages == expectedPagination.totalPages,
+          pagination.totalPages >= 1,
+          response.messages.count <= pagination.perPage else {
+      throw SureAPIError.decoding
     }
   }
 }

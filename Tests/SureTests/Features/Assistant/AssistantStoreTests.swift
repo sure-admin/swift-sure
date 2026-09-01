@@ -58,6 +58,64 @@ struct AssistantStoreTests {
     #expect(store.messages.last?.content == "Sure answered: Second question")
   }
 
+  @Test("Loads and switches between saved conversations")
+  func savedConversationSelection() async {
+    let conversation = AssistantConversation(
+      id: deterministicUUID(7),
+      title: "Review unusually high restaurant spending this month",
+      updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
+    )
+    let detail = AssistantConversationDetail(
+      conversation: conversation,
+      messages: [
+        AssistantMessage(
+          id: deterministicUUID(8),
+          role: .user,
+          content: "Why is dining higher?",
+          date: Date(timeIntervalSince1970: 1_700_000_090)
+        ),
+        AssistantMessage(
+          id: deterministicUUID(9),
+          role: .assistant,
+          content: "Three extra restaurant visits drove the increase.",
+          date: Date(timeIntervalSince1970: 1_700_000_100)
+        )
+      ]
+    )
+    let remote = RemoteAssistantSpy(conversations: [conversation], details: [conversation.id: detail])
+    let store = makeStore(
+      connection: AssistantConnectionStub(isConfigured: true),
+      remoteAssistant: remote
+    )
+
+    await store.refreshConversations()
+    await store.selectConversation(conversation)
+
+    #expect(store.conversations == [conversation])
+    #expect(store.selectedConversationID == conversation.id)
+    #expect(store.messages.map(\.content) == [
+      "Why is dining higher?",
+      "Three extra restaurant visits drove the increase."
+    ])
+  }
+
+  @Test("New remote chats use an abbreviated prompt title")
+  func remoteChatTitle() async throws {
+    let remote = RemoteAssistantSpy()
+    let store = makeStore(
+      connection: AssistantConnectionStub(isConfigured: true),
+      remoteAssistant: remote
+    )
+    store.draft = String(repeating: "Long financial question ", count: 8)
+
+    await store.send(to: .sureServer)
+
+    let snapshot = await remote.snapshot()
+    let title = try #require(snapshot.titles.first)
+    #expect(title.count == 80)
+    #expect(title.hasSuffix("…"))
+  }
+
   @Test("Messages use injected identifiers and dates")
   func deterministicMessageMetadata() async {
     let values = AssistantMessageValues()
@@ -230,9 +288,30 @@ private actor RemoteAssistantSpy: RemoteAssistantClient {
   private var createChatCount = 0
   private var messages: [String] = []
   private var chatIDs: [UUID] = []
+  private var titles: [String] = []
+  private var conversations: [AssistantConversation]
+  private var details: [UUID: AssistantConversationDetail]
 
-  func createChat() async throws -> UUID {
+  init(
+    conversations: [AssistantConversation] = [],
+    details: [UUID: AssistantConversationDetail] = [:]
+  ) {
+    self.conversations = conversations
+    self.details = details
+  }
+
+  func fetchConversations() async throws -> [AssistantConversation] {
+    conversations
+  }
+
+  func fetchConversation(id: UUID) async throws -> AssistantConversationDetail {
+    guard let detail = details[id] else { throw AssistantTestFailure.expected }
+    return detail
+  }
+
+  func createChat(title: String) async throws -> UUID {
     createChatCount += 1
+    titles.append(title)
     return deterministicUUID(createChatCount)
   }
 
@@ -246,7 +325,8 @@ private actor RemoteAssistantSpy: RemoteAssistantClient {
     RemoteAssistantSnapshot(
       createChatCount: createChatCount,
       messages: messages,
-      chatIDs: chatIDs
+      chatIDs: chatIDs,
+      titles: titles
     )
   }
 }
@@ -258,7 +338,13 @@ private actor SessionSwitchRemoteAssistant: RemoteAssistantClient {
   private var startWaiters: [CheckedContinuation<Void, Never>] = []
   private var firstMessageStarted = false
 
-  func createChat() async throws -> UUID {
+  func fetchConversations() async throws -> [AssistantConversation] { [] }
+
+  func fetchConversation(id: UUID) async throws -> AssistantConversationDetail {
+    throw AssistantTestFailure.expected
+  }
+
+  func createChat(title: String) async throws -> UUID {
     createCount += 1
     return deterministicUUID(createCount)
   }
@@ -299,7 +385,13 @@ private actor SuspendedChatCreationRemoteAssistant: RemoteAssistantClient {
   private var startWaiters: [CheckedContinuation<Void, Never>] = []
   private var firstCreationStarted = false
 
-  func createChat() async throws -> UUID {
+  func fetchConversations() async throws -> [AssistantConversation] { [] }
+
+  func fetchConversation(id: UUID) async throws -> AssistantConversationDetail {
+    throw AssistantTestFailure.expected
+  }
+
+  func createChat(title: String) async throws -> UUID {
     createCount += 1
     let identifier = deterministicUUID(createCount)
     if createCount == 1 {
@@ -336,7 +428,8 @@ private actor SuspendedChatCreationRemoteAssistant: RemoteAssistantClient {
     RemoteAssistantSnapshot(
       createChatCount: createCount,
       messages: messages,
-      chatIDs: chatIDs
+      chatIDs: chatIDs,
+      titles: []
     )
   }
 }
@@ -345,6 +438,7 @@ private struct RemoteAssistantSnapshot {
   var createChatCount: Int
   var messages: [String]
   var chatIDs: [UUID]
+  var titles: [String]
 }
 
 private final class AssistantMessageValues {

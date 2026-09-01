@@ -5,10 +5,17 @@ import Observation
 @Observable
 final class AssistantStore {
   var messages: [AssistantMessage]
+  var conversations: [AssistantConversation] = []
   var draft = ""
   var isResponding = false
+  var isLoadingConversations = false
+  var isLoadingConversation = false
   var errorMessage: String?
+  var conversationErrorMessage: String?
   private var chatID: UUID?
+  private(set) var selectedConversationID: UUID?
+  private var conversationLoadGeneration = 0
+  private var selectionGeneration = 0
   private let connection: any ConnectionStateProviding
   private let remoteAssistant: any RemoteAssistantClient
   private let localAssistant: any LocalAssistantResponding
@@ -48,6 +55,93 @@ final class AssistantStore {
     }
   }
 
+  func reloadConversationsForCurrentSession() async {
+    conversationLoadGeneration += 1
+    selectionGeneration += 1
+    chatID = nil
+    selectedConversationID = nil
+    conversations = []
+    draft = ""
+    errorMessage = nil
+    conversationErrorMessage = nil
+    isLoadingConversations = false
+    isLoadingConversation = false
+    resetMessages()
+    await refreshConversations()
+  }
+
+  func refreshConversations() async {
+    conversationLoadGeneration += 1
+    let requestGeneration = conversationLoadGeneration
+    let sessionGeneration = connection.sessionGeneration
+    guard connection.isConfigured else {
+      conversations = []
+      conversationErrorMessage = nil
+      isLoadingConversations = false
+      return
+    }
+
+    isLoadingConversations = true
+    conversationErrorMessage = nil
+    do {
+      let fetched = try await remoteAssistant.fetchConversations()
+      guard requestGeneration == conversationLoadGeneration,
+            sessionGeneration == connection.sessionGeneration else { return }
+      conversations = fetched
+    } catch {
+      guard requestGeneration == conversationLoadGeneration,
+            sessionGeneration == connection.sessionGeneration else { return }
+      conversationErrorMessage = error.localizedDescription
+    }
+    if requestGeneration == conversationLoadGeneration {
+      isLoadingConversations = false
+    }
+  }
+
+  func selectConversation(_ conversation: AssistantConversation) async {
+    guard connection.isConfigured, !isResponding else { return }
+    selectionGeneration += 1
+    let requestGeneration = selectionGeneration
+    let sessionGeneration = connection.sessionGeneration
+    isLoadingConversation = true
+    conversationErrorMessage = nil
+    errorMessage = nil
+
+    do {
+      let detail = try await remoteAssistant.fetchConversation(id: conversation.id)
+      guard requestGeneration == selectionGeneration,
+            sessionGeneration == connection.sessionGeneration else { return }
+      chatID = detail.conversation.id
+      selectedConversationID = detail.conversation.id
+      draft = ""
+      if detail.messages.isEmpty {
+        resetMessages()
+      } else {
+        messages = detail.messages
+      }
+      replaceConversation(detail.conversation)
+    } catch {
+      guard requestGeneration == selectionGeneration,
+            sessionGeneration == connection.sessionGeneration else { return }
+      conversationErrorMessage = error.localizedDescription
+    }
+    if requestGeneration == selectionGeneration {
+      isLoadingConversation = false
+    }
+  }
+
+  func startNewConversation() {
+    guard !isResponding else { return }
+    selectionGeneration += 1
+    chatID = nil
+    selectedConversationID = nil
+    draft = ""
+    errorMessage = nil
+    conversationErrorMessage = nil
+    isLoadingConversation = false
+    resetMessages()
+  }
+
   func send(to destination: AssistantDestination) async {
     let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !prompt.isEmpty, !isResponding else { return }
@@ -85,10 +179,15 @@ final class AssistantStore {
     if let chatID {
       identifier = chatID
     } else {
-      identifier = try await remoteAssistant.createChat()
+      let title = conversationTitle(for: prompt)
+      identifier = try await remoteAssistant.createChat(title: title)
       guard connection.isConfigured, connection.sessionGeneration == sessionGeneration else {
         throw CancellationError()
       }
+      selectedConversationID = identifier
+      replaceConversation(
+        AssistantConversation(id: identifier, title: title, updatedAt: now())
+      )
     }
     chatID = identifier
     let response = try await remoteAssistant.sendMessage(prompt, chatID: identifier)
@@ -96,7 +195,30 @@ final class AssistantStore {
       chatID = nil
       throw CancellationError()
     }
+    if let index = conversations.firstIndex(where: { $0.id == identifier }) {
+      var conversation = conversations.remove(at: index)
+      conversation.updatedAt = now()
+      conversations.insert(conversation, at: 0)
+    }
     return response
+  }
+
+  private func resetMessages() {
+    messages = initialMessages()
+    updateConnectionPrompts(hasVerifiedAPIKey: connection.hasVerifiedAPIKey)
+  }
+
+  private func initialMessages() -> [AssistantMessage] {
+    [makeMessage(role: .assistant, content: Self.introduction)]
+  }
+
+  private func replaceConversation(_ conversation: AssistantConversation) {
+    conversations.removeAll { $0.id == conversation.id }
+    conversations.insert(conversation, at: 0)
+  }
+
+  private func conversationTitle(for prompt: String) -> String {
+    AssistantConversation.abridgedTitle(prompt, limit: 80)
   }
 
   private func makeMessage(role: AssistantRole, content: String) -> AssistantMessage {

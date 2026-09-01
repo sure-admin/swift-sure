@@ -25,12 +25,46 @@ struct SureAPIClient {
     try await PushSubscriptionsAPIClient(transport: transport).unregister(id: id)
   }
 
-  func createChat() async throws -> UUID {
+  func fetchConversations() async throws -> [AssistantConversation] {
     try await ChatsAPIClient(
       transport: transport,
       pollingPolicy: chatPollingPolicy
     )
-    .create(title: "Sure for Apple")
+    .fetchAll()
+    .map {
+      AssistantConversation(id: $0.id, title: $0.title, updatedAt: $0.updatedAt)
+    }
+  }
+
+  func fetchConversation(id: UUID) async throws -> AssistantConversationDetail {
+    let response = try await ChatsAPIClient(
+      transport: transport,
+      pollingPolicy: chatPollingPolicy
+    )
+    .fetch(id: id)
+    return AssistantConversationDetail(
+      conversation: AssistantConversation(
+        id: response.id,
+        title: response.title,
+        updatedAt: response.updatedAt
+      ),
+      messages: response.messages.map {
+        AssistantMessage(
+          id: $0.id,
+          role: $0.role == .user ? .user : .assistant,
+          content: $0.content,
+          date: $0.createdAt
+        )
+      }
+    )
+  }
+
+  func createChat(title: String) async throws -> UUID {
+    try await ChatsAPIClient(
+      transport: transport,
+      pollingPolicy: chatPollingPolicy
+    )
+    .create(title: title)
   }
 
   func sendMessage(_ content: String, chatID: UUID) async throws -> String {

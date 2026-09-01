@@ -4,6 +4,40 @@ import Testing
 
 @Suite("Chats and push API clients")
 struct ChatsAndPushAPIClientTests {
+  @Test("Fetches every page of conversation summaries")
+  func conversationIndex() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "chats-page-1"),
+      try .http(fixture: "chats-page-2")
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+
+    let conversations = try await client.fetchAll()
+
+    #expect(conversations.map(\.title) == [
+      "Where did my money go this month?",
+      "Can I afford a trip?",
+      "Find recurring costs"
+    ])
+    #expect((await stub.requests()).compactMap(pageQueryValue) == [1, 2])
+  }
+
+  @Test("Loads every page of an existing conversation")
+  func conversationDetail() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "chat-page-1"),
+      try .http(fixture: "chat-page-2-stale")
+    ])
+    let client = ChatsAPIClient(transport: makeTransport(stub), pollingPolicy: noDelayPolicy)
+    let chatID = try #require(UUID(uuidString: "00000000-0000-4000-8000-000000000701"))
+
+    let conversation = try await client.fetch(id: chatID)
+
+    #expect(conversation.messages.count == 21)
+    #expect(conversation.messages.last?.content == "The previous latest response.")
+    #expect((await stub.requests()).compactMap(pageQueryValue) == [1, 2])
+  }
+
   @Test("Creates a chat with a typed request and documented response")
   func createChat() async throws {
     let stub = HTTPDataTransportStub([
