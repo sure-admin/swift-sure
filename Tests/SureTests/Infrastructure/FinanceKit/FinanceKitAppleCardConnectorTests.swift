@@ -1,11 +1,10 @@
-#if os(iOS) && targetEnvironment(simulator)
 import Testing
 @testable import Sure
 
 @Suite("FinanceKit Apple Card connector")
 struct FinanceKitAppleCardConnectorTests {
-  @Test("The simulator is treated as unavailable without calling FinanceKit")
-  func simulatorUnavailable() async throws {
+  @Test("Builds without FinanceKit enabled stay unavailable")
+  func disabledBuildUnavailable() async throws {
     let connector = FinanceKitAppleCardConnector()
 
     #expect(connector.isAvailable == false)
@@ -13,4 +12,3 @@ struct FinanceKitAppleCardConnectorTests {
     #expect(try await connector.requestAuthorization() == .denied)
   }
 }
-#endif
