@@ -5,6 +5,7 @@ struct InsightCard: View {
   var isLoading: Bool
   var errorMessage: String?
   var notificationManager: any InsightNotificationControlling
+  var statusColumnWidth: CGFloat
 
   @AppStorage("insightNotificationsEnabled") private var notificationsEnabled = false
   @State private var showingNotificationFailure = false
@@ -22,6 +23,7 @@ struct InsightCard: View {
             .padding(.vertical, 5)
             .background(SureTheme.highlight, in: Capsule())
             .foregroundStyle(SureTheme.ink)
+            .frame(width: statusColumnWidth)
         }
       }
 

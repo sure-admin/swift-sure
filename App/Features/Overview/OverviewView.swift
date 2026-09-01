@@ -2,6 +2,9 @@ import Charts
 import SwiftUI
 
 struct OverviewView: View {
+  private static let cardContentInset: CGFloat = 20
+  private static let statusColumnWidth: CGFloat = 56
+
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
   var notificationManager: any InsightNotificationControlling
@@ -76,7 +79,8 @@ struct OverviewView: View {
         insights: data.insights,
         isLoading: data.isLoadingInsights,
         errorMessage: data.insightError,
-        notificationManager: notificationManager
+        notificationManager: notificationManager,
+        statusColumnWidth: Self.statusColumnWidth
       )
       if (data.accountsError != nil && !data.accounts.isEmpty)
           || (data.transactionsError != nil && !data.transactions.isEmpty) {
@@ -120,8 +124,11 @@ struct OverviewView: View {
         Text("Updated \(lastUpdated, format: .relative(presentation: .named))")
           .font(.caption)
           .foregroundStyle(.secondary)
+          .fixedSize(horizontal: true, vertical: false)
+          .frame(width: Self.statusColumnWidth)
       }
     }
+    .padding(.trailing, Self.cardContentInset)
   }
 
   private var netWorthCard: some View {
@@ -147,6 +154,7 @@ struct OverviewView: View {
             .padding(.vertical, 5)
             .background(SureTheme.highlight, in: Capsule())
             .foregroundStyle(SureTheme.ink)
+            .frame(width: Self.statusColumnWidth)
         }
       }
 
