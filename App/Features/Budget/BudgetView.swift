@@ -14,7 +14,10 @@ struct BudgetView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        VStack(spacing: 18) {
+        VStack(alignment: .leading, spacing: 18) {
+          Text("Budget")
+            .font(.largeTitle.bold())
+            .accessibilityAddTraits(.isHeader)
           if data.state == .loading {
             ProgressView("Loading budget…")
               .frame(maxWidth: .infinity, minHeight: 260)
@@ -82,10 +85,15 @@ struct BudgetView: View {
         }
         .frame(maxWidth: 760)
         .frame(maxWidth: .infinity)
-        .padding()
+        .padding(.horizontal)
+        .padding(.bottom)
+        .padding(.top, -9)
       }
       .background(SureTheme.canvas.opacity(0.65))
-      .navigationTitle("Budget")
+      .navigationTitle("")
+      #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+      #endif
       .task {
         if data.state == .idle { await data.refresh() }
       }

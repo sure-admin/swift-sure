@@ -34,6 +34,7 @@ struct AssistantView: View {
           ScrollViewReader { proxy in
             ScrollView {
               VStack(spacing: 14) {
+                assistantHeader
                 suggestionCard
                 Spacer(minLength: 32)
                 if store.isLoadingConversation {
@@ -45,8 +46,10 @@ struct AssistantView: View {
               }
               .frame(maxWidth: 760)
               .frame(maxWidth: .infinity)
-              .frame(minHeight: max(0, geometry.size.height - 32))
-              .padding()
+              .frame(minHeight: max(0, geometry.size.height - 7))
+              .padding(.horizontal)
+              .padding(.bottom)
+              .padding(.top, -9)
             }
             .onChange(of: store.messages.count) {
               if let last = store.messages.last {
@@ -62,7 +65,10 @@ struct AssistantView: View {
         composer
       }
       .background(SureTheme.canvas.opacity(0.65))
-      .navigationTitle("Assistant")
+      .navigationTitle("")
+      #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+      #endif
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           conversationMenu
@@ -74,6 +80,15 @@ struct AssistantView: View {
       .task(id: connection.sessionGeneration) {
         await store.reloadConversationsForCurrentSession()
       }
+    }
+  }
+
+  private var assistantHeader: some View {
+    HStack {
+      Text("Assistant")
+        .font(.largeTitle.bold())
+        .accessibilityAddTraits(.isHeader)
+      Spacer()
     }
   }
 

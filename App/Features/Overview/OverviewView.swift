@@ -19,7 +19,9 @@ struct OverviewView: View {
         }
         .frame(maxWidth: 1100, alignment: .leading)
         .frame(maxWidth: .infinity)
-        .padding()
+        .padding(.horizontal)
+        .padding(.bottom)
+        .padding(.top, -9)
       }
       .background(SureTheme.canvas.opacity(0.65))
       .navigationTitle("")
