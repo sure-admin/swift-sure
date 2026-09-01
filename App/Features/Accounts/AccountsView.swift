@@ -91,41 +91,43 @@ struct AccountsView: View {
   }
 
   private var appleCardCard: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      HStack(spacing: 12) {
-        Image(systemName: "apple.logo")
-          .font(.title2)
-          .frame(width: 44, height: 44)
-          .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-          .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Apple Card")
-            .font(.headline)
-          Text(appleCardDetail)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-        Spacer()
+    HStack(spacing: 12) {
+      Image(systemName: "apple.logo")
+        .font(.title2)
+        .frame(width: 44, height: 44)
+        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Apple Card")
+          .font(.headline)
+        Text(appleCardDetail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
       }
 
+      Spacer(minLength: 4)
+
       if appleCardConnection.state == .connected {
-        Label("Connected on this device", systemImage: "checkmark.circle.fill")
+        Label("Connected", systemImage: "checkmark.circle.fill")
           .font(.subheadline.weight(.semibold))
           .foregroundStyle(.green)
       } else {
-        Button("Connect Apple Card", systemImage: "link") {
+        Button("Connect", systemImage: "link") {
           Task { await appleCardConnection.connect() }
         }
         .buttonStyle(.borderedProminent)
+        .fixedSize(horizontal: true, vertical: false)
         .disabled(
           appleCardConnection.state == .checking
             || appleCardConnection.state == .connecting
             || appleCardConnection.state == .unavailable
         )
+        .accessibilityLabel("Connect Apple Card")
         .accessibilityHint("Requests permission to access financial data in Apple Wallet")
       }
     }
-    .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 65, alignment: .leading)
     .sureCard()
   }
 
