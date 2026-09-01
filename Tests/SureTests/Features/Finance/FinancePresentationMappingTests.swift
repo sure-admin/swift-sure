@@ -23,6 +23,7 @@ struct FinancePresentationMappingTests {
     #expect(first.id == identifier)
     #expect(first.balance == Money(minorUnits: -42_015, currency: currency))
     #expect(first.kind == .credit)
+    #expect(first.institution == "Institution unavailable")
     #expect(first.tintName == second.tintName)
   }
 

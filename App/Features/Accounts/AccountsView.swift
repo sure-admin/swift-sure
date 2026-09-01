@@ -184,7 +184,7 @@ struct AccountsView: View {
   }
 
   private func accountCard(_ account: FinanceAccount) -> some View {
-    let accountColor = SureTheme.accountColor(account.tintName)
+    let accountColor = accountTypeColor(account.kind)
     return VStack(alignment: .leading, spacing: 14) {
       HStack {
         Image(systemName: account.kind.symbol)
@@ -205,14 +205,23 @@ struct AccountsView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(account.name)
             .font(.headline)
+          Text(account.institution)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
           Text(FinanceFormatters.currency(account.balance))
             .font(.title2.bold())
         }
       } else {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-          Text(account.name)
-            .font(.headline)
-            .lineLimit(1)
+          VStack(alignment: .leading, spacing: 2) {
+            Text(account.name)
+              .font(.headline)
+              .lineLimit(1)
+            Text(account.institution)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
           Spacer(minLength: 4)
           Text(FinanceFormatters.currency(account.balance))
             .font(.title2.bold())
@@ -223,6 +232,15 @@ struct AccountsView: View {
     .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     .sureCard()
     .accessibilityElement(children: .combine)
+  }
+
+  private func accountTypeColor(_ kind: AccountKind) -> Color {
+    switch kind {
+    case .cash: .blue
+    case .credit: .orange
+    case .investment: .purple
+    case .property: .teal
+    }
   }
 
   private var addAccountCard: some View {

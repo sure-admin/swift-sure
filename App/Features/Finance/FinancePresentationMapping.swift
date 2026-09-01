@@ -9,7 +9,7 @@ enum FinancePresentationMapping {
     return FinanceAccount(
       id: record.id,
       name: record.name,
-      institution: record.institutionName ?? record.accountType ?? kind.rawValue,
+      institution: record.institutionName ?? "Institution unavailable",
       kind: kind,
       balance: record.balance,
       tintName: tintName(identifier: record.id)
