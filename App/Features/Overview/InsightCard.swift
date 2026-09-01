@@ -61,7 +61,7 @@ struct InsightCard: View {
       }
 
       #if os(iOS)
-      Toggle("Notify me about new insights", isOn: $notificationsEnabled)
+      Toggle("Notify urgent insights", isOn: $notificationsEnabled)
         .onChange(of: notificationsEnabled) { _, enabled in
           Task {
             guard enabled else {

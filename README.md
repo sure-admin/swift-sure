@@ -18,7 +18,7 @@ The app connects to `https://demo.sure.am` by default. In **Connection Settings*
 
 ## AI Insight push notifications
 
-The iOS app requests notification permission when the user enables **Notify me about new insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.
+The iOS app requests notification permission when the user enables **Notify urgent insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.
 
 The Sure deployment must configure these environment variables:
 
