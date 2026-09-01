@@ -119,7 +119,7 @@ struct AssistantView: View {
 
   private var suggestionCard: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Label("Try asking", systemImage: "sparkles")
+      Label("Try asking … (tap samples below!)", systemImage: "sparkles")
         .font(.headline)
       suggestion("💸 Where did my money go?")
       suggestion("✈️ Can I afford a trip?")
