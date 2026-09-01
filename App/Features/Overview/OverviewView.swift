@@ -11,7 +11,7 @@ struct OverviewView: View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
-          welcomeHeader
+          overviewHeader
           content
         }
         .frame(maxWidth: 1100, alignment: .leading)
@@ -19,7 +19,10 @@ struct OverviewView: View {
         .padding()
       }
       .background(SureTheme.canvas.opacity(0.65))
-      .navigationTitle("Overview")
+      .navigationTitle("")
+      #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+      #endif
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           Button("Refresh", systemImage: "arrow.clockwise") {
@@ -107,14 +110,11 @@ struct OverviewView: View {
     .frame(maxWidth: .infinity, minHeight: 320)
   }
 
-  private var welcomeHeader: some View {
-    HStack(alignment: .bottom) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Good afternoon")
-          .font(.title.bold())
-        Text("Here’s your complete financial picture.")
-          .foregroundStyle(.secondary)
-      }
+  private var overviewHeader: some View {
+    HStack(alignment: .lastTextBaseline, spacing: 12) {
+      Text("Overview")
+        .font(.largeTitle.bold())
+        .accessibilityAddTraits(.isHeader)
       Spacer()
       if let lastUpdated = data.lastUpdated {
         Text("Updated \(lastUpdated, format: .relative(presentation: .named))")
@@ -122,7 +122,6 @@ struct OverviewView: View {
           .foregroundStyle(.secondary)
       }
     }
-    .accessibilityElement(children: .combine)
   }
 
   private var netWorthCard: some View {
