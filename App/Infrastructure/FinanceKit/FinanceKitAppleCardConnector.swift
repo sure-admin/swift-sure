@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) && FINANCEKIT_ENABLED
 import FinanceKit
 
 struct FinanceKitAppleCardConnector: AppleCardConnecting {
