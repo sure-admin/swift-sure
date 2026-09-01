@@ -94,25 +94,43 @@ final class FinanceDataStore {
   private let calendar: Calendar
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
+  private let snapshotCache: (any FinanceDataSnapshotCaching)?
+  private let snapshotServerURL: () -> URL?
+  private let snapshotConnectionIdentity: () -> String?
+  private let snapshotCodec = FinanceDataSnapshotCodec()
   private var generation = 0
   private var refreshSequence = 0
   private var activeRefresh: ActiveRefresh?
+  private var hasRequestedSessionRefresh = false
 
   init(
     connection: any ConnectionStateProviding,
     client: any FinanceDataClient,
     calendar: Calendar,
     now: @escaping () -> Date,
-    syncInsights: @escaping ([BackendInsight]) -> Void
+    syncInsights: @escaping ([BackendInsight]) -> Void,
+    snapshotCache: (any FinanceDataSnapshotCaching)? = nil,
+    snapshotServerURL: @escaping () -> URL? = { nil },
+    snapshotConnectionIdentity: @escaping () -> String? = { nil }
   ) {
     self.connection = connection
     self.client = client
     self.calendar = calendar
     self.now = now
     self.syncInsights = syncInsights
+    self.snapshotCache = snapshotCache
+    self.snapshotServerURL = snapshotServerURL
+    self.snapshotConnectionIdentity = snapshotConnectionIdentity
+    restoreSnapshotIfAvailable()
+  }
+
+  func refreshIfNeeded() async {
+    guard !hasRequestedSessionRefresh else { return }
+    await refresh()
   }
 
   func refresh() async {
+    hasRequestedSessionRefresh = true
     if let activeRefresh {
       await activeRefresh.task.value
       return
@@ -137,9 +155,12 @@ final class FinanceDataStore {
       return
     }
     let previousState = state
+    let hasRenderableSnapshot = previousState == .loaded
     let refreshGeneration = generation
     var didPublishFinance = false
-    state = .loading
+    if !hasRenderableSnapshot {
+      state = .loading
+    }
     isLoadingInsights = true
     do {
       let transactionWindow = try TransactionDateWindow(
@@ -244,7 +265,12 @@ final class FinanceDataStore {
       if successfulLoads > 0 {
         state = .loaded
       } else {
-        state = .failed(failureMessages.first ?? "Sure data is unavailable.")
+        state = hasRenderableSnapshot
+          ? .loaded
+          : .failed(failureMessages.first ?? "Sure data is unavailable.")
+      }
+      if successfulLoads > 0 {
+        saveSnapshot()
       }
     } catch {
       guard generation == refreshGeneration else { return }
@@ -253,13 +279,15 @@ final class FinanceDataStore {
         if !didPublishFinance {
           state = previousState
         }
+      } else if hasRenderableSnapshot {
+        state = .loaded
       } else {
         state = .failed(error.localizedDescription)
       }
     }
   }
 
-  func disconnect() {
+  func disconnect(preservingSnapshot: Bool = false) {
     activeRefresh?.task.cancel()
     activeRefresh = nil
     generation += 1
@@ -276,7 +304,70 @@ final class FinanceDataStore {
     insightError = nil
     lastUpdated = nil
     state = .needsConnection
+    hasRequestedSessionRefresh = false
+    if !preservingSnapshot {
+      discardSnapshot()
+    }
     syncInsights([])
+  }
+
+  func restoreSnapshotIfAvailable() {
+    guard connection.isConfigured,
+          let snapshotCache,
+          let serverURL = snapshotServerURL(),
+          let connectionIdentity = snapshotConnectionIdentity() else {
+      return
+    }
+
+    let data: Data
+    do {
+      guard let loadedData = try snapshotCache.loadSnapshotData() else { return }
+      data = loadedData
+    } catch {
+      return
+    }
+
+    do {
+      let snapshot = try snapshotCodec.decode(data)
+      guard snapshot.serverURL == serverURL,
+            snapshot.connectionIdentity == connectionIdentity else {
+        try? snapshotCache.removeSnapshotData()
+        return
+      }
+      balanceSheet = snapshot.balanceSheet
+      accounts = snapshot.accounts
+      transactions = snapshot.transactions
+      budgets = snapshot.budgets
+      insights = snapshot.insights
+      lastUpdated = snapshot.lastUpdated
+      state = .loaded
+    } catch {
+      try? snapshotCache.removeSnapshotData()
+    }
+  }
+
+  func discardSnapshot() {
+    try? snapshotCache?.removeSnapshotData()
+  }
+
+  private func saveSnapshot() {
+    guard let snapshotCache,
+          let serverURL = snapshotServerURL(),
+          let connectionIdentity = snapshotConnectionIdentity() else {
+      return
+    }
+    let snapshot = FinanceDataSnapshot(
+      serverURL: serverURL,
+      connectionIdentity: connectionIdentity,
+      balanceSheet: balanceSheet,
+      accounts: accounts,
+      transactions: transactions,
+      budgets: budgets,
+      insights: insights,
+      lastUpdated: lastUpdated
+    )
+    guard let data = try? snapshotCodec.encode(snapshot) else { return }
+    try? snapshotCache.saveSnapshotData(data)
   }
 
   private func capture<Value>(

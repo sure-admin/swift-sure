@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Observation
 
@@ -28,6 +29,26 @@ final class SureConnection {
   var isOAuthConnected: Bool {
     guard case .some(.bearer) = committedContext?.authorization else { return false }
     return !isSignedOut
+  }
+
+  var connectedServerURL: URL? {
+    guard isConfigured else { return nil }
+    return committedContext?.baseURL
+  }
+
+  var connectedSnapshotIdentity: String? {
+    guard isConfigured,
+          let authorization = committedContext?.authorization else {
+      return nil
+    }
+    let identitySource: String
+    switch authorization {
+    case .apiKey(let apiKey):
+      identitySource = "api-key:\(apiKey)"
+    case .bearer:
+      identitySource = "oauth:\(oauthSnapshotIdentitySource)"
+    }
+    return Data(SHA256.hash(data: Data(identitySource.utf8))).base64EncodedString()
   }
 
   var canConnectWithAPIKey: Bool {
@@ -252,6 +273,7 @@ final class SureConnection {
       isSignedOut = false
       updateAPIKeyDraftState()
       status = .connected
+      lifecycle.didCommitConnectionChange()
       await activateCommittedSession()
 
       if let previousOAuth {
@@ -370,6 +392,7 @@ final class SureConnection {
       serverURL = context.baseURL.absoluteString
       isSignedOut = false
       status = .connected
+      lifecycle.didCommitConnectionChange()
       await activateCommittedSession()
 
       if let previousOAuth, previousOAuth != candidate {
@@ -385,6 +408,14 @@ final class SureConnection {
 
   private var connectedOrDisconnectedStatus: ConnectionStatus {
     committedContext == nil || isSignedOut ? .notConnected : .connected
+  }
+
+  private var oauthSnapshotIdentitySource: String {
+    switch storedOAuthSession?.tokenSource {
+    case .mobileDevice(let deviceID): "mobile-device:\(deviceID)"
+    case .dynamicClient: "dynamic-client"
+    case nil: "unknown"
+    }
   }
 
   private func candidateContext(

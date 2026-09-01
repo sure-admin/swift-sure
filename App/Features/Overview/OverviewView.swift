@@ -39,9 +39,7 @@ struct OverviewView: View {
         }
       }
       .task {
-        if data.state == .idle {
-          await data.refresh()
-        }
+        await data.refreshIfNeeded()
       }
       .refreshable { await data.refresh() }
     }

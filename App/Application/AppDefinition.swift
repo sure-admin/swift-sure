@@ -116,7 +116,14 @@ struct AppDefinition: App {
       client: apiClient,
       calendar: .autoupdatingCurrent,
       now: { .now },
-      syncInsights: syncInsights
+      syncInsights: syncInsights,
+      snapshotCache: FileFinanceDataSnapshotCache(),
+      snapshotServerURL: { [weak connection] in
+        connection?.connectedServerURL
+      },
+      snapshotConnectionIdentity: { [weak connection] in
+        connection?.connectedSnapshotIdentity
+      }
     )
     let appleCardConnection = AppleCardConnectionStore(
       connector: FinanceKitAppleCardConnector()

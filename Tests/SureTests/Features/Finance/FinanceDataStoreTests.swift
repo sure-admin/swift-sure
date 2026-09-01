@@ -263,6 +263,259 @@ struct FinanceDataStoreTests {
     #expect(insightSink.sentInsightIDs == [["insight-cached"]])
   }
 
+  @Test("A protected snapshot restores the complete Overview synchronously")
+  func cachedOverviewRestoresAtLaunch() async throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let snapshot = financeTestSnapshot(serverURL: serverURL)
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: try FinanceDataSnapshotCodec().encode(snapshot)
+    )
+    let client = FinanceDataClientStub()
+    let insightSink = InsightSinkSpy()
+
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: insightSink,
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+
+    #expect(store.state == .loaded)
+    #expect(store.balanceSheet?.netWorth == snapshot.balanceSheet?.netWorth)
+    #expect(store.accounts.map(\.id) == snapshot.accounts.map(\.id))
+    #expect(store.transactions.map(\.id) == snapshot.transactions.map(\.id))
+    #expect(store.budgets.map(\.id) == snapshot.budgets.map(\.id))
+    #expect(store.insights.map(\.id) == ["cached-insight"])
+    #expect(store.lastUpdated == snapshot.lastUpdated)
+    #expect(await client.recordedCalls().isEmpty)
+    #expect(insightSink.sentInsightIDs.isEmpty)
+  }
+
+  @Test("An unreadable snapshot is removed and treated as a first launch")
+  func malformedOverviewSnapshotIsDiscarded() {
+    let cache = FinanceDataSnapshotCacheSpy(data: Data("not-json".utf8))
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { URL(string: "https://sure.example") }
+    )
+
+    #expect(store.state == .idle)
+    #expect(cache.data == nil)
+    #expect(cache.removeCount == 1)
+  }
+
+  @Test("A snapshot for another connection identity is never displayed")
+  func mismatchedOverviewIdentityIsDiscarded() throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: try FinanceDataSnapshotCodec().encode(
+        financeTestSnapshot(serverURL: serverURL)
+      )
+    )
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL },
+      snapshotConnectionIdentity: { "another-account" }
+    )
+
+    #expect(store.state == .idle)
+    #expect(store.insights.isEmpty)
+    #expect(cache.data == nil)
+    #expect(cache.removeCount == 1)
+  }
+
+  @Test("A transient snapshot read failure preserves the last-good file")
+  func snapshotReadFailureDoesNotDeleteCache() throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let cachedData = try FinanceDataSnapshotCodec().encode(
+      financeTestSnapshot(serverURL: serverURL)
+    )
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: cachedData,
+      loadError: .expected
+    )
+
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+
+    #expect(store.state == .idle)
+    #expect(cache.data == cachedData)
+    #expect(cache.removeCount == 0)
+  }
+
+  @Test("A failed connection change can restore the previous cached Overview")
+  func connectionChangeRollbackRestoresCache() async throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: try FinanceDataSnapshotCodec().encode(
+        financeTestSnapshot(serverURL: serverURL)
+      )
+    )
+    let client = FinanceDataClientStub(
+      balanceSheetResult: .failure(.expected),
+      accountsResult: .failure(.expected),
+      transactionsResult: .failure(.expected),
+      budgetsResult: .failure(.expected),
+      insightsResult: .failure(.expected)
+    )
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+    let lifecycle = ApplicationConnectionLifecycle()
+    lifecycle.financeData = store
+
+    await lifecycle.prepareForConnectionChange()
+    #expect(store.state == .needsConnection)
+    #expect(cache.data != nil)
+
+    await lifecycle.didConnect()
+    #expect(store.state == .loaded)
+    #expect(store.insights.map(\.id) == ["cached-insight"])
+
+    lifecycle.didCommitConnectionChange()
+    #expect(cache.data == nil)
+  }
+
+  @Test("The protected file cache round-trips and removes snapshot data")
+  func protectedFileCacheRoundTrip() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory
+      .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    defer { try? fileManager.removeItem(at: directoryURL) }
+    let cache = FileFinanceDataSnapshotCache(
+      fileManager: fileManager,
+      applicationSupportURL: directoryURL,
+      bundleIdentifier: "FinanceDataStoreTests"
+    )
+    let expected = Data("protected snapshot".utf8)
+
+    try cache.saveSnapshotData(expected)
+    #expect(try cache.loadSnapshotData() == expected)
+
+    try cache.removeSnapshotData()
+    #expect(try cache.loadSnapshotData() == nil)
+  }
+
+  @Test("A hydrated Overview remains visible while it refreshes in the background")
+  func cachedOverviewRemainsVisibleDuringRefresh() async throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: try FinanceDataSnapshotCodec().encode(
+        financeTestSnapshot(serverURL: serverURL)
+      )
+    )
+    let client = SuspendedAccountsFinanceDataClient()
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+
+    let refresh = Task { @MainActor in await store.refreshIfNeeded() }
+    await client.waitUntilStarted()
+
+    #expect(store.state == .loaded)
+    #expect(store.insights.map(\.id) == ["cached-insight"])
+    #expect(store.isLoadingInsights)
+
+    await client.complete()
+    await refresh.value
+    #expect(store.state == .loaded)
+    #expect(store.insights.isEmpty)
+  }
+
+  @Test("A live refresh persists an Overview that the next store restores")
+  func refreshPersistsOverview() async throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let insight = BackendInsight(
+      id: "fresh-insight",
+      type: "budget_on_track",
+      title: "On track",
+      body: "Spending is within the plan.",
+      priority: "medium",
+      status: "active",
+      generatedAt: nil
+    )
+    let cache = FinanceDataSnapshotCacheSpy()
+    let firstStore = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(insightsResult: .success([insight])),
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+
+    await firstStore.refresh()
+    let savedData = try #require(cache.data)
+    #expect(cache.saveCount == 1)
+
+    let secondInsightSink = InsightSinkSpy()
+    let secondStore = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(),
+      insightSink: secondInsightSink,
+      snapshotCache: FinanceDataSnapshotCacheSpy(data: savedData),
+      snapshotServerURL: { serverURL }
+    )
+    #expect(secondStore.state == .loaded)
+    #expect(secondStore.insights.map(\.id) == ["fresh-insight"])
+    #expect(secondInsightSink.sentInsightIDs.isEmpty)
+  }
+
+  @Test("A failed background refresh preserves cached data until disconnect")
+  func cachedOverviewSurvivesFailureAndClearsOnDisconnect() async throws {
+    let serverURL = try #require(URL(string: "https://sure.example"))
+    let cache = FinanceDataSnapshotCacheSpy(
+      data: try FinanceDataSnapshotCodec().encode(
+        financeTestSnapshot(serverURL: serverURL)
+      )
+    )
+    let client = FinanceDataClientStub(
+      balanceSheetResult: .failure(.expected),
+      accountsResult: .failure(.expected),
+      transactionsResult: .failure(.expected),
+      budgetsResult: .failure(.expected),
+      insightsResult: .failure(.expected)
+    )
+    let store = makeStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      insightSink: InsightSinkSpy(),
+      snapshotCache: cache,
+      snapshotServerURL: { serverURL }
+    )
+
+    await store.refreshIfNeeded()
+
+    #expect(store.state == .loaded)
+    #expect(store.insights.map(\.id) == ["cached-insight"])
+    #expect(store.insightError == "Expected failure")
+
+    store.disconnect()
+    #expect(store.state == .needsConnection)
+    #expect(store.insights.isEmpty)
+    #expect(cache.removeCount == 1)
+    #expect(cache.data == nil)
+  }
+
   @Test("A partial refresh preserves cached data and its prior timestamp")
   func partialRefreshPreservesFreshness() async {
     let previousTimestamp = Date(timeIntervalSince1970: 1_700_000_000)
@@ -650,14 +903,55 @@ struct FinanceDataStoreTests {
     connection: any ConnectionStateProviding,
     client: any FinanceDataClient,
     insightSink: InsightSinkSpy,
-    now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_800_000_000) }
+    now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_800_000_000) },
+    snapshotCache: (any FinanceDataSnapshotCaching)? = nil,
+    snapshotServerURL: @escaping () -> URL? = { nil },
+    snapshotConnectionIdentity: @escaping () -> String? = { "test-identity" }
   ) -> FinanceDataStore {
     FinanceDataStore(
       connection: connection,
       client: client,
       calendar: utcCalendar(),
       now: now,
-      syncInsights: { insightSink.send($0) }
+      syncInsights: { insightSink.send($0) },
+      snapshotCache: snapshotCache,
+      snapshotServerURL: snapshotServerURL,
+      snapshotConnectionIdentity: snapshotConnectionIdentity
+    )
+  }
+
+  private func financeTestSnapshot(serverURL: URL) -> FinanceDataSnapshot {
+    let updatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    return FinanceDataSnapshot(
+      serverURL: serverURL,
+      connectionIdentity: "test-identity",
+      balanceSheet: financeTestBalanceSheet(),
+      accounts: [FinanceAccount(
+        id: financeTestID(71),
+        name: "Cached checking",
+        institution: "Sure",
+        kind: .cash,
+        balance: financeTestMoney(125_000),
+        tintName: "blue"
+      )],
+      transactions: [transaction(id: 72, date: updatedAt)],
+      budgets: [BudgetCategory(
+        id: financeTestID(73),
+        name: "Cached groceries",
+        symbol: "cart.fill",
+        spent: financeTestMoney(2_500),
+        limit: financeTestMoney(10_000)
+      )],
+      insights: [BackendInsight(
+        id: "cached-insight",
+        type: "budget_on_track",
+        title: "Still on track",
+        body: "This insight was restored locally.",
+        priority: "medium",
+        status: "active",
+        generatedAt: updatedAt
+      )],
+      lastUpdated: updatedAt
     )
   }
 
@@ -977,6 +1271,34 @@ private final class InsightSinkSpy {
 
   func send(_ insights: [BackendInsight]) {
     sentInsightIDs.append(insights.map(\.id))
+  }
+}
+
+@MainActor
+private final class FinanceDataSnapshotCacheSpy: FinanceDataSnapshotCaching {
+  var data: Data?
+  var loadError: TestFailure?
+  private(set) var saveCount = 0
+  private(set) var removeCount = 0
+
+  init(data: Data? = nil, loadError: TestFailure? = nil) {
+    self.data = data
+    self.loadError = loadError
+  }
+
+  func loadSnapshotData() throws -> Data? {
+    if let loadError { throw loadError }
+    return data
+  }
+
+  func saveSnapshotData(_ data: Data) throws {
+    self.data = data
+    saveCount += 1
+  }
+
+  func removeSnapshotData() throws {
+    data = nil
+    removeCount += 1
   }
 }
 
