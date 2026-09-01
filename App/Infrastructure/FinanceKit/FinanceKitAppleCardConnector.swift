@@ -3,15 +3,27 @@ import FinanceKit
 
 struct FinanceKitAppleCardConnector: AppleCardConnecting {
   var isAvailable: Bool {
+    #if targetEnvironment(simulator)
+    false
+    #else
     FinanceStore.isDataAvailable(.financialData)
+    #endif
   }
 
   func authorizationStatus() async throws -> AppleCardAuthorization {
-    try await map(FinanceStore.shared.authorizationStatus())
+    #if targetEnvironment(simulator)
+    return .denied
+    #else
+    return try await map(FinanceStore.shared.authorizationStatus())
+    #endif
   }
 
   func requestAuthorization() async throws -> AppleCardAuthorization {
-    try await map(FinanceStore.shared.requestAuthorization())
+    #if targetEnvironment(simulator)
+    return .denied
+    #else
+    return try await map(FinanceStore.shared.requestAuthorization())
+    #endif
   }
 
   private func map(_ status: AuthorizationStatus) -> AppleCardAuthorization {
