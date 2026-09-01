@@ -12,17 +12,21 @@ final class SureConnection {
     didSet { updateAPIKeyDraftState() }
   }
 
+  var email: String
+  var password: String
+
   private(set) var isAPIKeyStored: Bool
   private(set) var hasVerifiedAPIKey: Bool
   private(set) var isSignedOut: Bool
   private(set) var sessionGeneration = 0
+  private(set) var pendingSSOOnboarding: MobileSSOOnboardingContext?
   var status: ConnectionStatus
 
   var isConfigured: Bool {
     !isSignedOut && committedContext != nil
   }
 
-  var isPasskeyConnected: Bool {
+  var isOAuthConnected: Bool {
     guard case .some(.bearer) = committedContext?.authorization else { return false }
     return !isSignedOut
   }
@@ -36,6 +40,12 @@ final class SureConnection {
     (try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))) != nil
   }
 
+  var canSignInWithPassword: Bool {
+    !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && !password.isEmpty
+      && canSignInWithPasskey
+  }
+
   var canLogOut: Bool {
     hasStoredCredentialIssue
       || storedOAuthSession != nil
@@ -47,6 +57,7 @@ final class SureConnection {
   private var credentials: any CredentialRepository
   private var preferences: any ConnectionPreferences
   private var oauth: any OAuthAuthenticating
+  private var mobileSSO: any MobileSSOAuthenticating
   private var verify: (SureRequestContext) async throws -> Void
   private var beginCredentialChange: () async -> Void
   private var endCredentialChange: () async -> Void
@@ -62,6 +73,7 @@ final class SureConnection {
     credentials: any CredentialRepository,
     preferences: any ConnectionPreferences,
     oauth: any OAuthAuthenticating,
+    mobileSSO: any MobileSSOAuthenticating,
     verify: @escaping (SureRequestContext) async throws -> Void,
     beginCredentialChange: @escaping () async -> Void,
     endCredentialChange: @escaping () async -> Void,
@@ -69,8 +81,11 @@ final class SureConnection {
   ) {
     serverURL = initialState.serverURL
     apiKey = initialState.isExplicitlySignedOut ? "" : initialState.credentials.apiKey ?? ""
+    email = "user@example.com"
+    password = "Password1!"
     storedAPIKeySession = initialState.credentials.apiKeySession
     storedOAuthSession = initialState.credentials.oauthSession
+    pendingSSOOnboarding = nil
     hasStoredCredentialIssue = initialState.initializationError != nil
     committedContext = initialState.requestContext
     isAPIKeyStored = initialState.credentials.apiKey != nil
@@ -86,6 +101,7 @@ final class SureConnection {
     self.credentials = credentials
     self.preferences = preferences
     self.oauth = oauth
+    self.mobileSSO = mobileSSO
     self.verify = verify
     self.beginCredentialChange = beginCredentialChange
     self.endCredentialChange = endCredentialChange
@@ -96,65 +112,22 @@ final class SureConnection {
     guard status != .connecting else { return }
     let stableStatus = connectedOrDisconnectedStatus
     var candidateSession: StoredOAuthSession?
-    var preparedCurrentSession = false
     status = .connecting
 
     do {
       let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
       let tokens = try await oauth.signIn(serverURL: server.url.absoluteString)
-      let storedTokens = try StoredOAuthCredentials(
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken
-      )
-      let candidate = try StoredOAuthSession(
-        serverURL: server.url,
-        credentials: storedTokens,
-        isVerified: true
+      let candidate = try oauthCandidate(
+        tokens: tokens,
+        server: server,
+        tokenSource: .dynamicClient
       )
       candidateSession = candidate
-      let context = try candidate.requestContext()
-
-      try Task.checkCancellation()
-      try await verify(context)
-      try Task.checkCancellation()
-      await lifecycle.prepareForConnectionChange()
-      preparedCurrentSession = true
-      try Task.checkCancellation()
-      await beginCredentialChange()
-      var previousOAuth: StoredOAuthSession?
-      do {
-        try Task.checkCancellation()
-        previousOAuth = (try? credentials.loadCredentials())?.oauthSession
-        try Task.checkCancellation()
-        try credentials.replaceSession(.oauth(candidate))
-        preferences.setServerURL(context.baseURL.absoluteString)
-        preferences.setExplicitlySignedOut(false)
-        await session.replaceContext(with: context)
-      } catch {
-        await endCredentialChange()
-        throw error
-      }
-      await endCredentialChange()
-
-      committedContext = context
-      storedOAuthSession = candidate
-      storedAPIKeySession = nil
-      hasStoredCredentialIssue = false
-      sessionGeneration += 1
-      serverURL = context.baseURL.absoluteString
-      isSignedOut = false
-      status = .connected
-      await activateCommittedSession()
-
-      if let previousOAuth, previousOAuth != candidate {
-        await revoke(previousOAuth)
-      }
+      pendingSSOOnboarding = nil
+      try await commitOAuthCandidate(candidate, stableStatus: stableStatus)
     } catch {
       if let candidateSession {
         await revoke(candidateSession)
-      }
-      if preparedCurrentSession, stableStatus == .connected {
-        await activateCommittedSession()
       }
       if Self.isCancellation(error) {
         status = stableStatus
@@ -162,6 +135,78 @@ final class SureConnection {
         status = .failed(Self.safeMessage(for: error))
       }
     }
+  }
+
+  func signInWithPassword() async {
+    guard status != .connecting else { return }
+    let stableStatus = connectedOrDisconnectedStatus
+    var candidateSession: StoredOAuthSession?
+    status = .connecting
+
+    do {
+      let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
+      let result = try await mobileSSO.signIn(
+        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+        password: password,
+        serverURL: server.url.absoluteString
+      )
+      guard case .authenticated(let tokens, let deviceID) = result else {
+        throw MobileSSOError.invalidCallback
+      }
+      let candidate = try oauthCandidate(
+        tokens: tokens,
+        server: server,
+        tokenSource: .mobileDevice(deviceID: deviceID)
+      )
+      candidateSession = candidate
+      pendingSSOOnboarding = nil
+      try await commitOAuthCandidate(candidate, stableStatus: stableStatus)
+    } catch {
+      if let candidateSession { await revoke(candidateSession) }
+      status = Self.isCancellation(error) ? stableStatus : .failed(Self.safeMessage(for: error))
+    }
+  }
+
+  func signIn(with provider: SSOProvider) async {
+    guard status != .connecting else { return }
+    let stableStatus = connectedOrDisconnectedStatus
+    var candidateSession: StoredOAuthSession?
+    status = .connecting
+
+    do {
+      let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
+      let result = try await mobileSSO.signIn(
+        provider: provider,
+        serverURL: server.url.absoluteString
+      )
+      switch result {
+      case .authenticated(let tokens, let deviceID):
+        let candidate = try oauthCandidate(
+          tokens: tokens,
+          server: server,
+          tokenSource: .mobileDevice(deviceID: deviceID)
+        )
+        candidateSession = candidate
+        pendingSSOOnboarding = nil
+        try await commitOAuthCandidate(candidate, stableStatus: stableStatus)
+      case .onboarding(let context):
+        pendingSSOOnboarding = context
+        status = stableStatus
+      }
+    } catch {
+      if let candidateSession {
+        await revoke(candidateSession)
+      }
+      if Self.isCancellation(error) {
+        status = stableStatus
+      } else {
+        status = .failed(Self.safeMessage(for: error))
+      }
+    }
+  }
+
+  func cancelSSOOnboarding() {
+    pendingSSOOnboarding = nil
   }
 
   func connectWithAPIKey() async {
@@ -233,6 +278,7 @@ final class SureConnection {
     // Persist the user's intent before any suspension so relaunch is fail-closed.
     preferences.setExplicitlySignedOut(true)
     isSignedOut = true
+    pendingSSOOnboarding = nil
     sessionGeneration += 1
     await lifecycle.prepareForLogout()
     await beginCredentialChange()
@@ -272,6 +318,73 @@ final class SureConnection {
 
   private var normalizedAPIKey: String {
     apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func oauthCandidate(
+    tokens: PasskeyOAuthTokens,
+    server: OAuthServerURL,
+    tokenSource: OAuthTokenSource
+  ) throws -> StoredOAuthSession {
+    let credentials = try StoredOAuthCredentials(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    )
+    return try StoredOAuthSession(
+      serverURL: server.url,
+      credentials: credentials,
+      isVerified: true,
+      tokenSource: tokenSource
+    )
+  }
+
+  private func commitOAuthCandidate(
+    _ candidate: StoredOAuthSession,
+    stableStatus: ConnectionStatus
+  ) async throws {
+    let context = try candidate.requestContext()
+    var preparedCurrentSession = false
+    do {
+      try Task.checkCancellation()
+      try await verify(context)
+      try Task.checkCancellation()
+      await lifecycle.prepareForConnectionChange()
+      preparedCurrentSession = true
+      try Task.checkCancellation()
+      await beginCredentialChange()
+      var previousOAuth: StoredOAuthSession?
+      do {
+        try Task.checkCancellation()
+        previousOAuth = (try? credentials.loadCredentials())?.oauthSession
+        try Task.checkCancellation()
+        try credentials.replaceSession(.oauth(candidate))
+        preferences.setServerURL(context.baseURL.absoluteString)
+        preferences.setExplicitlySignedOut(false)
+        await session.replaceContext(with: context)
+      } catch {
+        await endCredentialChange()
+        throw error
+      }
+      await endCredentialChange()
+
+      committedContext = context
+      storedOAuthSession = candidate
+      storedAPIKeySession = nil
+      hasStoredCredentialIssue = false
+      sessionGeneration += 1
+      serverURL = context.baseURL.absoluteString
+      isSignedOut = false
+      status = .connected
+      await activateCommittedSession()
+
+      if let previousOAuth, previousOAuth != candidate {
+        await revoke(previousOAuth)
+      }
+    } catch {
+      if preparedCurrentSession, stableStatus == .connected {
+        await activateCommittedSession()
+      }
+      throw error
+    }
   }
 
   private var connectedOrDisconnectedStatus: ConnectionStatus {
@@ -332,6 +445,8 @@ final class SureConnection {
     case let error as SureAPIError:
       error.localizedDescription
     case let error as PasskeyOAuthError:
+      error.localizedDescription
+    case let error as MobileSSOError:
       error.localizedDescription
     case let error as CredentialRepositoryError:
       error.localizedDescription

@@ -161,7 +161,11 @@ private actor SuspendedOAuthTokenRefresher: OAuthTokenRefreshing {
   private(set) var callCount = 0
   private var continuation: CheckedContinuation<PasskeyOAuthTokens, Error>?
 
-  func refresh(refreshToken: String, serverURL: String) async throws -> PasskeyOAuthTokens {
+  func refresh(
+    refreshToken: String,
+    serverURL: String,
+    source: OAuthTokenSource
+  ) async throws -> PasskeyOAuthTokens {
     callCount += 1
     return try await withCheckedThrowingContinuation { continuation in
       self.continuation = continuation

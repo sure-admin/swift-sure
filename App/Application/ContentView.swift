@@ -13,6 +13,37 @@ struct ContentView: View {
   @State private var showingConnectionSettings = false
 
   var body: some View {
+    Group {
+      #if os(iOS)
+      if connection.isConfigured {
+        appTabs
+      } else if let onboarding = connection.pendingSSOOnboarding {
+        SSOOnboardingHandoffView(
+          context: onboarding,
+          signInWithPasskey: {
+            Task { await connection.signInWithPasskey() }
+          },
+          goBack: connection.cancelSSOOnboarding
+        )
+      } else {
+        SignInView(
+          connection: connection,
+          showConnectionSettings: { showingConnectionSettings = true }
+        )
+      }
+      #else
+      appTabs
+      #endif
+    }
+    .environment(\.showConnectionSettings) {
+      showingConnectionSettings = true
+    }
+    .sheet(isPresented: $showingConnectionSettings) {
+      ConnectionSettingsView(connection: connection)
+    }
+  }
+
+  private var appTabs: some View {
     TabView(selection: $selection) {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
@@ -48,12 +79,6 @@ struct ContentView: View {
       }
     }
     .tabViewStyle(.sidebarAdaptable)
-    .environment(\.showConnectionSettings) {
-      showingConnectionSettings = true
-    }
-    .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection)
-    }
   }
 }
 

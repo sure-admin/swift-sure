@@ -13,6 +13,7 @@ struct AppDefinition: App {
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
   private var notificationManager: NotificationManager
+  private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -32,10 +33,18 @@ struct AppDefinition: App {
       clientIDStore: UserDefaultsOAuthClientIDStore()
     )
     let oauthService = PasskeyOAuthService(oauthClient: oauthClient)
+    let mobileSSOClient = MobileSSOHTTPClient(dataTransport: dataTransport)
+    let mobileSSOService = MobileSSOAuthService(
+      httpClient: mobileSSOClient,
+      deviceInformation: MobileDeviceInformationProvider()
+    )
     let refreshCoordinator = OAuthRefreshCoordinator(
       session: session,
       credentials: credentials,
-      tokenRefresher: oauthClient
+      tokenRefresher: OAuthTokenRefreshService(
+        oauthClient: oauthClient,
+        mobileClient: mobileSSOClient
+      )
     )
     let lifecycle = ApplicationConnectionLifecycle()
     let connection = SureConnection(
@@ -44,6 +53,7 @@ struct AppDefinition: App {
       credentials: credentials,
       preferences: preferences,
       oauth: oauthService,
+      mobileSSO: mobileSSOService,
       verify: { context in
         let transport = SureAPITransport(
           baseURL: context.baseURL,
@@ -113,6 +123,7 @@ struct AppDefinition: App {
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
     self.notificationManager = notificationManager
+    self.mobileSSOService = mobileSSOService
     remoteAssistant = apiClient
     transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: apiClient,
@@ -137,6 +148,9 @@ struct AppDefinition: App {
         makeAssistantMessageID: { UUID() },
         now: { .now }
       )
+      .onOpenURL { url in
+        mobileSSOService.handleOpenURL(url)
+      }
     }
   }
 }

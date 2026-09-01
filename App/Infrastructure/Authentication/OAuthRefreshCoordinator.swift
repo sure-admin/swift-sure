@@ -69,7 +69,8 @@ actor OAuthRefreshCoordinator: UnauthorizedRequestRecovering {
 
       let tokens = try await refresher.refresh(
         refreshToken: refreshToken,
-        serverURL: context.baseURL.absoluteString
+        serverURL: context.baseURL.absoluteString,
+        source: oauthSession.tokenSource
       )
       guard let rotatedRefreshToken = tokens.refreshToken else {
         throw PasskeyOAuthError.invalidResponse
@@ -81,7 +82,8 @@ actor OAuthRefreshCoordinator: UnauthorizedRequestRecovering {
       let rotatedSession = try StoredOAuthSession(
         serverURL: oauthSession.serverURL,
         credentials: rotatedCredentials,
-        isVerified: true
+        isVerified: true,
+        tokenSource: oauthSession.tokenSource
       )
       guard try await session.requestContext() == context else { return nil }
 

@@ -460,7 +460,11 @@ private final class RefreshCredentialRepository: CredentialRepository, @unchecke
 private struct FixedOAuthTokenRefresher: OAuthTokenRefreshing {
   var tokens: PasskeyOAuthTokens
 
-  func refresh(refreshToken: String, serverURL: String) async throws -> PasskeyOAuthTokens {
+  func refresh(
+    refreshToken: String,
+    serverURL: String,
+    source: OAuthTokenSource
+  ) async throws -> PasskeyOAuthTokens {
     tokens
   }
 }
@@ -470,7 +474,11 @@ private actor TransportSuspendedOAuthTokenRefresher: OAuthTokenRefreshing {
   private var startContinuation: CheckedContinuation<Void, Never>?
   private var resultContinuation: CheckedContinuation<PasskeyOAuthTokens, Error>?
 
-  func refresh(refreshToken: String, serverURL: String) async throws -> PasskeyOAuthTokens {
+  func refresh(
+    refreshToken: String,
+    serverURL: String,
+    source: OAuthTokenSource
+  ) async throws -> PasskeyOAuthTokens {
     callCount += 1
     startContinuation?.resume()
     startContinuation = nil

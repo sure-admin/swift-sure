@@ -101,8 +101,18 @@ the app verifies or replaces them. OAuth tokens and API keys are redacted from
 errors and diagnostics.
 
 This client does not use Sure's separate mobile email/password device-token
-flow. Adopting that workflow requires a distinct product decision and contract
-review rather than being inferred from the browser/Passkey OAuth flow.
+flow. It does use the pinned mobile SSO handoff for the initial Google and Apple
+providers: `google_oauth2` and `apple` respectively. The server redirects through
+`sureapp://oauth/callback`; existing identities return a single-use code for
+`POST /api/v1/auth/sso_exchange`, while unknown identities return a short-lived
+linking code for the future onboarding flow. The provider route opens in the
+system browser, matching Sure's upstream mobile client, and the app resumes the
+pending authentication when iOS or macOS delivers that callback. Mobile refreshes use
+`POST /api/v1/auth/refresh` with the stable per-install device identifier.
+
+The pinned server does not publish enabled SSO providers. Until a discovery
+operation is added, administrators must configure the two provider names above;
+the client treats an unavailable provider as a safe, user-visible sign-in error.
 
 ## Financial presentation invariants
 

@@ -24,6 +24,7 @@ struct ApplicationConnectionLifecycleTests {
       credentials: credentials,
       preferences: preferences,
       oauth: LifecycleOAuthStub(),
+      mobileSSO: UnavailableMobileSSOAuthenticator(),
       verify: { context in
         #expect(context.baseURL == serverURL)
         #expect(context.authorization == .apiKey("valid-key"))
@@ -97,6 +98,7 @@ struct ApplicationConnectionLifecycleTests {
       credentials: credentials,
       preferences: preferences,
       oauth: LifecycleOAuthStub(),
+      mobileSSO: UnavailableMobileSSOAuthenticator(),
       verify: { _ in },
       beginCredentialChange: { await gate.begin() },
       endCredentialChange: { gate.end() },
@@ -156,6 +158,7 @@ struct ApplicationConnectionLifecycleTests {
         serverURL: oldSession.serverURL.absoluteString
       ),
       oauth: LifecycleOAuthStub(),
+      mobileSSO: UnavailableMobileSSOAuthenticator(),
       verify: { _ in },
       beginCredentialChange: { },
       endCredentialChange: { },

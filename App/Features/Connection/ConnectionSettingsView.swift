@@ -29,7 +29,7 @@ struct ConnectionSettingsView: View {
           } label: {
             HStack {
               if connection.status == .connecting { ProgressView() }
-              Text(connection.isPasskeyConnected ? "Reconnect with Passkey" : "Continue with Passkey")
+              Text(connection.isOAuthConnected ? "Reconnect with Passkey" : "Continue with Passkey")
               Spacer()
               Image(systemName: "person.badge.key.fill")
             }
@@ -114,7 +114,7 @@ struct ConnectionSettingsView: View {
     switch connection.status {
     case .connected:
       Label(
-        connection.isPasskeyConnected ? "Connected securely with Passkey" : "Connected to Sure",
+        connection.isOAuthConnected ? "Connected securely" : "Connected to Sure",
         systemImage: "checkmark.circle.fill"
       )
         .foregroundStyle(.green)

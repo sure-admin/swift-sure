@@ -29,6 +29,15 @@
         "properties" : {
           "CFBundleDisplayName" : "Sure",
           "CFBundleShortVersionString" : "0.7.4",
+          "CFBundleURLTypes" : [
+            {
+              "CFBundleTypeRole" : "Editor",
+              "CFBundleURLName" : "am.sure.insights.oauth",
+              "CFBundleURLSchemes" : [
+                "sureapp"
+              ]
+            }
+          ],
           "CFBundleVersion" : "1",
           "ITSAppUsesNonExemptEncryption" : false,
           "LSApplicationCategoryType" : "public.app-category.finance",
