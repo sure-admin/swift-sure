@@ -42,17 +42,6 @@ final class AssistantStore {
         date: now()
       )
     ]
-    updateConnectionPrompts(hasVerifiedAPIKey: connection.hasVerifiedAPIKey)
-  }
-
-  func updateConnectionPrompts(hasVerifiedAPIKey: Bool) {
-    messages.removeAll { $0.content == Self.appleCardPrompt }
-    if hasVerifiedAPIKey {
-      messages.insert(
-        makeMessage(role: .assistant, content: Self.appleCardPrompt),
-        at: min(1, messages.endIndex)
-      )
-    }
   }
 
   func reloadConversationsForCurrentSession() async {
@@ -205,7 +194,6 @@ final class AssistantStore {
 
   private func resetMessages() {
     messages = initialMessages()
-    updateConnectionPrompts(hasVerifiedAPIKey: connection.hasVerifiedAPIKey)
   }
 
   private func initialMessages() -> [AssistantMessage] {
@@ -231,5 +219,4 @@ final class AssistantStore {
   }
 
   private static let introduction = "Here you will be able to ask me anything about your money. I can explain spending, compare accounts, find recurring costs, and help you plan."
-  private static let appleCardPrompt = "Want to sync your Apple Card spending with Sure?"
 }

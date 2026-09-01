@@ -74,9 +74,6 @@ struct AssistantView: View {
       .task(id: connection.sessionGeneration) {
         await store.reloadConversationsForCurrentSession()
       }
-      .onChange(of: connection.hasVerifiedAPIKey, initial: true) { _, hasVerifiedAPIKey in
-        store.updateConnectionPrompts(hasVerifiedAPIKey: hasVerifiedAPIKey)
-      }
     }
   }
 

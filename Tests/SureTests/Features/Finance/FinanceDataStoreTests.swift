@@ -735,12 +735,10 @@ private func financeTestDecimalMoney(
 
 private final class ConnectionStateStub: ConnectionStateProviding {
   var isConfigured: Bool
-  var hasVerifiedAPIKey: Bool
   var sessionGeneration = 0
 
-  init(isConfigured: Bool, hasVerifiedAPIKey: Bool = false) {
+  init(isConfigured: Bool) {
     self.isConfigured = isConfigured
-    self.hasVerifiedAPIKey = hasVerifiedAPIKey
   }
 }
 

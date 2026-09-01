@@ -16,7 +16,6 @@ final class SureConnection {
   var password: String
 
   private(set) var isAPIKeyStored: Bool
-  private(set) var hasVerifiedAPIKey: Bool
   private(set) var isSignedOut: Bool
   private(set) var sessionGeneration = 0
   private(set) var pendingSSOOnboarding: MobileSSOOnboardingContext?
@@ -89,8 +88,6 @@ final class SureConnection {
     hasStoredCredentialIssue = initialState.initializationError != nil
     committedContext = initialState.requestContext
     isAPIKeyStored = initialState.credentials.apiKey != nil
-    hasVerifiedAPIKey = initialState.credentials.apiKey != nil
-      && initialState.credentials.isAPIKeyVerified
     isSignedOut = initialState.isExplicitlySignedOut
     if let initializationError = initialState.initializationError {
       status = .failed(initializationError)
@@ -311,7 +308,6 @@ final class SureConnection {
     hasStoredCredentialIssue = persistenceError != nil
     apiKey = ""
     isAPIKeyStored = false
-    hasVerifiedAPIKey = false
     lifecycle.didLogOut()
     status = persistenceError.map { .failed(Self.safeMessage(for: $0)) } ?? .notConnected
   }
@@ -405,9 +401,6 @@ final class SureConnection {
     let matchesStoredKey = !normalizedAPIKey.isEmpty
       && normalizedAPIKey == storedAPIKeySession?.apiKey
     isAPIKeyStored = matchesStoredKey
-    hasVerifiedAPIKey = matchesStoredKey
-      && storedAPIKeySession?.isVerified == true
-      && storedAPIKeySession?.serverURL.absoluteString == normalizedServerURL
   }
 
   private var normalizedServerURL: String? {

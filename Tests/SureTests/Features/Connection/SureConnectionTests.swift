@@ -92,7 +92,6 @@ struct SureConnectionTests {
     #expect(harness.connection.isConfigured)
     #expect(!harness.connection.isOAuthConnected)
     #expect(harness.connection.isAPIKeyStored)
-    #expect(harness.connection.hasVerifiedAPIKey)
     #expect(harness.credentials.snapshot.apiKey == "candidate-key")
     #expect(harness.credentials.snapshot.isAPIKeyVerified)
     #expect(harness.credentials.snapshot.oauthCredentials == nil)

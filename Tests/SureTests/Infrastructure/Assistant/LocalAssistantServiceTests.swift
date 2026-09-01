@@ -133,7 +133,6 @@ struct LocalAssistantServiceTests {
 
 private final class LocalAssistantConnectionStub: ConnectionStateProviding {
   var isConfigured = true
-  var hasVerifiedAPIKey = true
   var sessionGeneration = 0
 }
 

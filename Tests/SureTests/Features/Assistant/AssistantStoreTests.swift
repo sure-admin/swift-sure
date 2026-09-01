@@ -5,18 +5,6 @@ import Testing
 @MainActor
 @Suite("Assistant store")
 struct AssistantStoreTests {
-  @Test("Verified API keys add the Apple Card prompt")
-  func verifiedAPIKeyPrompt() {
-    let store = makeStore(
-      connection: AssistantConnectionStub(
-        isConfigured: true,
-        hasVerifiedAPIKey: true
-      )
-    )
-
-    #expect(store.messages.map(\.content).contains("Want to sync your Apple Card spending with Sure?"))
-  }
-
   @Test("Local messages use the injected on-device responder")
   func localResponse() async {
     let remoteAssistant = RemoteAssistantSpy()
@@ -259,12 +247,10 @@ struct AssistantStoreTests {
 
 private final class AssistantConnectionStub: ConnectionStateProviding {
   var isConfigured: Bool
-  var hasVerifiedAPIKey: Bool
   var sessionGeneration = 0
 
-  init(isConfigured: Bool, hasVerifiedAPIKey: Bool = false) {
+  init(isConfigured: Bool) {
     self.isConfigured = isConfigured
-    self.hasVerifiedAPIKey = hasVerifiedAPIKey
   }
 }
 
