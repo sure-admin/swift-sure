@@ -1,4 +1,5 @@
 import Testing
+@testable import Sure
 
 @MainActor
 @Suite("Apple Card connection")

@@ -1,5 +1,6 @@
 #if os(iOS) && targetEnvironment(simulator)
 import Testing
+@testable import Sure
 
 @Suite("FinanceKit Apple Card connector")
 struct FinanceKitAppleCardConnectorTests {
