@@ -78,8 +78,8 @@ struct AccountsView: View {
               .foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
-          appleCardCard
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+            appleCardCard
             ForEach(data.accounts) { account in
               accountLink(account)
             }
@@ -90,42 +90,43 @@ struct AccountsView: View {
     }
   }
 
-  @ViewBuilder
   private var appleCardCard: some View {
-    if appleCardConnection.state != .unavailable {
-      VStack(alignment: .leading, spacing: 14) {
-        HStack(spacing: 12) {
-          Image(systemName: "apple.logo")
-            .font(.title2)
-            .frame(width: 44, height: 44)
-            .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-            .accessibilityHidden(true)
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Apple Card")
-              .font(.headline)
-            Text(appleCardDetail)
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-          Spacer()
+    VStack(alignment: .leading, spacing: 14) {
+      HStack(spacing: 12) {
+        Image(systemName: "apple.logo")
+          .font(.title2)
+          .frame(width: 44, height: 44)
+          .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+          .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Apple Card")
+            .font(.headline)
+          Text(appleCardDetail)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
-
-        if appleCardConnection.state == .connected {
-          Label("Connected on this device", systemImage: "checkmark.circle.fill")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.green)
-        } else {
-          Button("Connect Apple Card", systemImage: "link") {
-            Task { await appleCardConnection.connect() }
-          }
-          .buttonStyle(.borderedProminent)
-          .disabled(appleCardConnection.state == .checking || appleCardConnection.state == .connecting)
-          .accessibilityHint("Requests permission to access financial data in Apple Wallet")
-        }
+        Spacer()
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .sureCard()
+
+      if appleCardConnection.state == .connected {
+        Label("Connected on this device", systemImage: "checkmark.circle.fill")
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.green)
+      } else {
+        Button("Connect Apple Card", systemImage: "link") {
+          Task { await appleCardConnection.connect() }
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(
+          appleCardConnection.state == .checking
+            || appleCardConnection.state == .connecting
+            || appleCardConnection.state == .unavailable
+        )
+        .accessibilityHint("Requests permission to access financial data in Apple Wallet")
+      }
     }
+    .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)
+    .sureCard()
   }
 
   private var appleCardDetail: String {
