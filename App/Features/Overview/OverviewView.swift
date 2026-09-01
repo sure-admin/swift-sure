@@ -124,8 +124,8 @@ struct OverviewView: View {
         Text("Updated \(lastUpdated, format: .relative(presentation: .named))")
           .font(.caption)
           .foregroundStyle(.secondary)
-          .fixedSize(horizontal: true, vertical: false)
-          .frame(width: Self.statusColumnWidth)
+          .lineLimit(1)
+          .multilineTextAlignment(.trailing)
       }
     }
     .padding(.trailing, Self.cardContentInset)
