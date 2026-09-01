@@ -184,35 +184,43 @@ struct AccountsView: View {
   }
 
   private func accountCard(_ account: FinanceAccount) -> some View {
-    VStack(alignment: .leading, spacing: 18) {
+    let accountColor = SureTheme.accountColor(account.tintName)
+    return VStack(alignment: .leading, spacing: 14) {
       HStack {
         Image(systemName: account.kind.symbol)
           .frame(width: 42, height: 42)
-          .background(SureTheme.accountColor(account.tintName).opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-          .foregroundStyle(SureTheme.accountColor(account.tintName))
+          .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+          .foregroundStyle(accountColor)
           .accessibilityHidden(true)
-        Spacer()
-        Image(systemName: "chevron.right")
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-      }
-      VStack(alignment: .leading, spacing: 2) {
-        Text(account.name)
-          .font(.headline)
-        Text(account.institution)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
-      HStack(alignment: .firstTextBaseline) {
-        Text(FinanceFormatters.currency(account.balance))
-          .font(.title2.bold())
         Spacer()
         Text(account.kind.rawValue)
           .font(.caption.bold())
-          .foregroundStyle(.secondary)
+          .foregroundStyle(accountColor)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 5)
+          .background(accountColor.opacity(0.14), in: Capsule())
+      }
+
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(account.name)
+            .font(.headline)
+          Text(FinanceFormatters.currency(account.balance))
+            .font(.title2.bold())
+        }
+      } else {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+          Text(account.name)
+            .font(.headline)
+            .lineLimit(1)
+          Spacer(minLength: 4)
+          Text(FinanceFormatters.currency(account.balance))
+            .font(.title2.bold())
+            .fixedSize(horizontal: true, vertical: false)
+        }
       }
     }
-    .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     .sureCard()
     .accessibilityElement(children: .combine)
   }
