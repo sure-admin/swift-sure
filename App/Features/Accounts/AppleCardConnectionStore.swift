@@ -9,7 +9,7 @@ final class AppleCardConnectionStore {
     case checking
     case ready
     case connecting
-    case connected
+    case authorized
     case denied
     case unavailable
     case failed(String)
@@ -59,7 +59,7 @@ final class AppleCardConnectionStore {
   private static func state(for authorization: AppleCardAuthorization) -> State {
     switch authorization {
     case .notDetermined: .ready
-    case .authorized: .connected
+    case .authorized: .authorized
     case .denied: .denied
     }
   }

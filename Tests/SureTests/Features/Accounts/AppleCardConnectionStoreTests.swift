@@ -15,14 +15,14 @@ struct AppleCardConnectionStoreTests {
     #expect(connector.statusRequestCount == 0)
   }
 
-  @Test("Existing authorization appears connected")
+  @Test("Existing authorization is not presented as an account connection")
   func existingAuthorization() async {
     let connector = AppleCardConnectorFake(status: .authorized)
     let store = AppleCardConnectionStore(connector: connector)
 
     await store.refresh()
 
-    #expect(store.state == .connected)
+    #expect(store.state == .authorized)
   }
 
   @Test("A connection request publishes denial")

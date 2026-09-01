@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
   var appleCardConnection: AppleCardConnectionStore
@@ -91,55 +92,79 @@ struct AccountsView: View {
   }
 
   private var appleCardCard: some View {
-    HStack(spacing: 12) {
-      Image(systemName: "apple.logo")
-        .font(.title2)
-        .frame(width: 44, height: 44)
-        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityHidden(true)
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Apple Card")
-          .font(.headline)
-        Text(appleCardDetail)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
-
-      Spacer(minLength: 4)
-
-      if appleCardConnection.state == .connected {
-        Label("Connected", systemImage: "checkmark.circle.fill")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.green)
-      } else {
-        Button("Connect", systemImage: "link") {
-          Task { await appleCardConnection.connect() }
+    Group {
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 12) {
+          HStack(spacing: 12) {
+            appleCardIcon
+            Text("Apple Card")
+              .font(.headline)
+          }
+          Text(appleCardDetail)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          appleCardAction
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .buttonStyle(.borderedProminent)
-        .fixedSize(horizontal: true, vertical: false)
-        .disabled(
-          appleCardConnection.state == .checking
-            || appleCardConnection.state == .connecting
-            || appleCardConnection.state == .unavailable
-        )
-        .accessibilityLabel("Connect Apple Card")
-        .accessibilityHint("Requests permission to access financial data in Apple Wallet")
+      } else {
+        HStack(spacing: 12) {
+          appleCardIcon
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Apple Card")
+              .font(.headline)
+            Text(appleCardDetail)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer(minLength: 4)
+          appleCardAction
+        }
       }
     }
     .frame(maxWidth: .infinity, minHeight: 65, alignment: .leading)
     .sureCard()
   }
 
+  private var appleCardIcon: some View {
+    Image(systemName: "apple.logo")
+      .font(.title2)
+      .frame(width: 44, height: 44)
+      .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+      .accessibilityHidden(true)
+  }
+
+  @ViewBuilder
+  private var appleCardAction: some View {
+    if appleCardConnection.state == .authorized {
+      Label("Access granted", systemImage: "checkmark.circle.fill")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.green)
+    } else {
+      Button("Allow Access", systemImage: "lock.open") {
+        Task { await appleCardConnection.connect() }
+      }
+      .buttonStyle(.borderedProminent)
+      .fixedSize(horizontal: true, vertical: false)
+      .disabled(
+        appleCardConnection.state == .checking
+          || appleCardConnection.state == .connecting
+          || appleCardConnection.state == .unavailable
+      )
+      .accessibilityLabel("Allow Apple Card access")
+      .accessibilityHint("Requests permission to access financial data in Apple Wallet")
+    }
+  }
+
   private var appleCardDetail: String {
     switch appleCardConnection.state {
     case .idle, .checking: "Checking availability…"
-    case .ready: "Securely access your Apple Card data from Wallet."
+    case .ready: "Request financial data access from Wallet."
     case .connecting: "Waiting for Wallet permission…"
-    case .connected: "Sure can access Apple Card data you approve in Wallet."
+    case .authorized: "Wallet access is approved; no account has been added to Sure."
     case .denied: "Access is off. You can enable Finance access in Settings."
     case .failed(let message): message
-    case .unavailable: "Apple Card isn’t available on this device."
+    case .unavailable: "Unavailable on this device."
     }
   }
 
