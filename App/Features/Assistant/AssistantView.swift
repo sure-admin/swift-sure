@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AssistantView: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var connection: SureConnection
   @State private var store: AssistantStore
@@ -44,8 +45,12 @@ struct AssistantView: View {
             }
             .onChange(of: store.messages.count) {
               if let last = store.messages.last {
-                withAnimation(.smooth) { proxy.scrollTo(last.id, anchor: .bottom) }
+                scroll(proxy, to: last.id)
               }
+            }
+            .onChange(of: store.isResponding) { _, isResponding in
+              guard isResponding else { return }
+              scroll(proxy, to: AssistantScrollTarget.thinking)
             }
           }
         }
@@ -85,12 +90,22 @@ struct AssistantView: View {
           .id(message.id)
       }
       if store.isResponding {
-        HStack {
+        HStack(spacing: 10) {
           ProgressView()
+            .controlSize(.small)
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
           Text("Thinking…")
             .foregroundStyle(.secondary)
-          Spacer()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .id(AssistantScrollTarget.thinking)
+        .accessibilityIdentifier("assistant-thinking-indicator")
+        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .leading)))
       }
       if let errorMessage = store.errorMessage {
         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -189,4 +204,14 @@ struct AssistantView: View {
     }
     Task { await store.send(to: destination) }
   }
+
+  private func scroll<ID: Hashable>(_ proxy: ScrollViewProxy, to id: ID) {
+    withAnimation(reduceMotion ? nil : .smooth) {
+      proxy.scrollTo(id, anchor: .bottom)
+    }
+  }
+}
+
+private enum AssistantScrollTarget: Hashable {
+  case thinking
 }
