@@ -110,35 +110,19 @@ struct AccountsView: View {
   }
 
   private var appleCardCard: some View {
-    Group {
-      if dynamicTypeSize.isAccessibilitySize {
-        VStack(alignment: .leading, spacing: 12) {
-          HStack(spacing: 12) {
-            appleCardIcon
-            Text("Apple Card")
-              .font(.headline)
-          }
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 12) {
+        appleCardIcon
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Apple Card")
+            .font(.headline)
           Text(appleCardDetail)
             .font(.subheadline)
             .foregroundStyle(.secondary)
-          appleCardAction
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-      } else {
-        HStack(spacing: 12) {
-          appleCardIcon
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Apple Card")
-              .font(.headline)
-            Text(appleCardDetail)
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-
-          Spacer(minLength: 4)
-          appleCardAction
         }
       }
+      appleCardAction
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
     .frame(maxWidth: .infinity, minHeight: 65, alignment: .leading)
     .sureCard()
