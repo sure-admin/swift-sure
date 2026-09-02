@@ -195,8 +195,32 @@ struct OverviewView: View {
 
   private var spendingCard: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text(data.reportingPeriodLabel)
-        .font(.title3.bold())
+      HStack(spacing: 8) {
+        Button("Previous month", systemImage: "chevron.left") {
+          Task { await data.selectPreviousReportingMonth() }
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.plain)
+        .disabled(data.isLoadingReportingPeriod)
+
+        Text(data.reportingPeriodLabel)
+          .font(.title3.bold())
+          .contentTransition(.numericText())
+
+        Button("Next month", systemImage: "chevron.right") {
+          Task { await data.selectNextReportingMonth() }
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.plain)
+        .disabled(!data.canSelectNextReportingMonth || data.isLoadingReportingPeriod)
+
+        Spacer()
+        if data.isLoadingReportingPeriod {
+          ProgressView()
+            .controlSize(.small)
+            .accessibilityLabel("Loading month")
+        }
+      }
       if data.transactionsError != nil && data.transactions.isEmpty {
         Label("Spending activity is currently unavailable", systemImage: "exclamationmark.triangle")
           .foregroundStyle(.secondary)
