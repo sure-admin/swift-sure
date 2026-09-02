@@ -621,8 +621,8 @@ struct FinanceDataStoreTests {
     #expect(store.reportingPeriodTransactions.map(\.id) == [financeTestID(31), financeTestID(1)])
   }
 
-  @Test("Reporting totals stay anchored to the current month when it has no activity")
-  func emptyCurrentReportingPeriod() throws {
+  @Test("The previous month is selected through the third day of a new month")
+  func earlyMonthReportingPeriod() throws {
     let calendar = utcCalendar()
     let february2 = try #require(
       calendar.date(from: DateComponents(year: 2026, month: 2, day: 2, hour: 12))
@@ -638,12 +638,44 @@ struct FinanceDataStoreTests {
       syncInsights: { _ in }
     )
     store.transactions = [transaction(id: 31, date: january31)]
-    let reportingDate = try LocalDate(year: 2026, month: 2, day: 2)
+    let reportingDate = try LocalDate(year: 2026, month: 1, day: 1)
 
     #expect(store.reportingDate == reportingDate)
-    #expect(store.reportingPeriodTransactions.isEmpty)
-    #expect(store.periodIncome.amounts.isEmpty)
-    #expect(store.periodSpending.amounts.isEmpty)
+    #expect(store.reportingPeriodTransactions.map(\.id) == [financeTestID(31)])
+    #expect(store.canSelectNextReportingMonth)
+  }
+
+  @Test("Month navigation loads complete months and does not move beyond the current month")
+  func reportingPeriodNavigation() async throws {
+    let calendar = utcCalendar()
+    let august28 = try #require(
+      calendar.date(from: DateComponents(year: 2026, month: 8, day: 28, hour: 12))
+    )
+    let julyTransaction = transaction(
+      id: 7,
+      date: try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 1)))
+    )
+    let client = FinanceDataClientStub(transactionsResult: .success([julyTransaction]))
+    let store = FinanceDataStore(
+      connection: ConnectionStateStub(isConfigured: true),
+      client: client,
+      calendar: calendar,
+      now: { august28 },
+      syncInsights: { _ in }
+    )
+
+    await store.selectPreviousReportingMonth()
+
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 7, day: 28)))
+    #expect(store.reportingPeriodTransactions.map(\.id) == [financeTestID(7)])
+    #expect(store.canSelectNextReportingMonth)
+
+    await store.selectNextReportingMonth()
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 28)))
+    #expect(!store.canSelectNextReportingMonth)
+
+    await store.selectNextReportingMonth()
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 28)))
   }
 
   @Test("Period totals remain separated by currency")

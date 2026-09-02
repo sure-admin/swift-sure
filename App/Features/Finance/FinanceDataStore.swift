@@ -15,6 +15,7 @@ final class FinanceDataStore {
   var insights: [BackendInsight] = []
   var isLoadingInsights = false
   var insightError: String?
+  var isLoadingReportingPeriod = false
   var state: FinanceDataState = .idle
   var lastUpdated: Date?
 
@@ -81,7 +82,14 @@ final class FinanceDataStore {
   }
 
   var reportingDate: LocalDate? {
-    try? LocalDate(now(), in: calendar)
+    selectedReportingDate
+  }
+
+  var canSelectNextReportingMonth: Bool {
+    guard let selectedReportingDate,
+          let currentDate = try? LocalDate(now(), in: calendar) else { return false }
+    return (selectedReportingDate.year, selectedReportingDate.month)
+      < (currentDate.year, currentDate.month)
   }
 
   var reportingPeriodLabel: String {
@@ -98,6 +106,7 @@ final class FinanceDataStore {
   private let snapshotServerURL: () -> URL?
   private let snapshotConnectionIdentity: () -> String?
   private let snapshotCodec = FinanceDataSnapshotCodec()
+  private var selectedReportingDate: LocalDate?
   private var generation = 0
   private var refreshSequence = 0
   private var activeRefresh: ActiveRefresh?
@@ -121,7 +130,17 @@ final class FinanceDataStore {
     self.snapshotCache = snapshotCache
     self.snapshotServerURL = snapshotServerURL
     self.snapshotConnectionIdentity = snapshotConnectionIdentity
+    self.selectedReportingDate = Self.initialReportingDate(now: now(), calendar: calendar)
     restoreSnapshotIfAvailable()
+  }
+
+  func selectPreviousReportingMonth() async {
+    await selectReportingMonth(offset: -1)
+  }
+
+  func selectNextReportingMonth() async {
+    guard canSelectNextReportingMonth else { return }
+    await selectReportingMonth(offset: 1)
   }
 
   func refreshIfNeeded() async {
@@ -163,11 +182,12 @@ final class FinanceDataStore {
     }
     isLoadingInsights = true
     do {
-      let transactionWindow = try TransactionDateWindow(
+      let recentWindow = try TransactionDateWindow(
         inclusiveDayCount: 31,
         endingAt: now(),
         calendar: calendar
       )
+      let transactionWindow = try combinedTransactionWindow(with: recentWindow)
       async let loadedBalanceSheet = capture { try await client.fetchBalanceSheet() }
       async let loadedAccounts = capture { try await client.fetchAccounts() }
       async let loadedTransactions = capture {
@@ -301,6 +321,7 @@ final class FinanceDataStore {
     budgetError = nil
     insights = []
     isLoadingInsights = false
+    isLoadingReportingPeriod = false
     insightError = nil
     lastUpdated = nil
     state = .needsConnection
@@ -370,6 +391,82 @@ final class FinanceDataStore {
     try? snapshotCache.saveSnapshotData(data)
   }
 
+  private func selectReportingMonth(offset: Int) async {
+    guard !isLoadingReportingPeriod,
+          let selectedReportingDate,
+          let targetDate = monthDate(offset: offset, from: selectedReportingDate),
+          let window = try? reportingMonthWindow(for: targetDate) else { return }
+    isLoadingReportingPeriod = true
+    defer { isLoadingReportingPeriod = false }
+    do {
+      let loadedTransactions = try await client.fetchTransactions(in: window)
+      try Task.checkCancellation()
+      let loadedIDs = Set(loadedTransactions.map(\.id))
+      transactions.removeAll {
+        window.contains($0.date) && !loadedIDs.contains($0.id)
+      }
+      let existingIDs = Set(transactions.map(\.id))
+      transactions.append(contentsOf: loadedTransactions.filter { !existingIDs.contains($0.id) })
+      transactionsError = nil
+      self.selectedReportingDate = targetDate
+      saveSnapshot()
+    } catch is CancellationError {
+      return
+    } catch {
+      transactionsError = error.localizedDescription
+    }
+  }
+
+  private func combinedTransactionWindow(
+    with recentWindow: TransactionDateWindow
+  ) throws -> TransactionDateWindow {
+    guard let selectedReportingDate else { return recentWindow }
+    let reportingWindow = try reportingMonthWindow(for: selectedReportingDate)
+    return try TransactionDateWindow(
+      startDate: min(recentWindow.startDate, reportingWindow.startDate),
+      endDate: max(recentWindow.endDate, reportingWindow.endDate)
+    )
+  }
+
+  private func reportingMonthWindow(for date: LocalDate) throws -> TransactionDateWindow {
+    let startDate = try LocalDate(year: date.year, month: date.month, day: 1)
+    guard let followingMonth = monthDate(offset: 1, from: startDate),
+          let followingMonthDate = calendarDate(for: followingMonth),
+          let finalDate = calendar.date(byAdding: .day, value: -1, to: followingMonthDate) else {
+      throw ReportingPeriodError.calendarCalculationFailed
+    }
+    return try TransactionDateWindow(
+      startDate: startDate,
+      endDate: try LocalDate(finalDate, in: calendar)
+    )
+  }
+
+  private func monthDate(offset: Int, from date: LocalDate) -> LocalDate? {
+    guard let calendarDate = calendarDate(for: date),
+          let shiftedDate = calendar.date(byAdding: .month, value: offset, to: calendarDate) else {
+      return nil
+    }
+    return try? LocalDate(shiftedDate, in: calendar)
+  }
+
+  private func calendarDate(for date: LocalDate) -> Date? {
+    calendar.date(from: DateComponents(year: date.year, month: date.month, day: 1))
+  }
+
+  private static func initialReportingDate(now: Date, calendar: Calendar) -> LocalDate? {
+    guard let currentDate = try? LocalDate(now, in: calendar) else { return nil }
+    guard currentDate.day <= 3,
+          let date = calendar.date(from: DateComponents(
+            year: currentDate.year,
+            month: currentDate.month,
+            day: 1
+          )),
+          let previousMonth = calendar.date(byAdding: .month, value: -1, to: date) else {
+      return currentDate
+    }
+    return try? LocalDate(previousMonth, in: calendar)
+  }
+
   private func capture<Value>(
     _ operation: () async throws -> Value
   ) async -> Result<Value, any Error> {
@@ -396,4 +493,8 @@ final class FinanceDataStore {
     var id: Int
     var task: Task<Void, Never>
   }
+}
+
+private enum ReportingPeriodError: Error {
+  case calendarCalculationFailed
 }
