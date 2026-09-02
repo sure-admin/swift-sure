@@ -27,6 +27,14 @@ struct AccountsView: View {
       #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
       #endif
+      .toolbar {
+        ToolbarItem(placement: .primaryAction) {
+          Button("Connection settings", systemImage: "gearshape") {
+            showConnectionSettings()
+          }
+          .accessibilityHint("Manage your Sure connection")
+        }
+      }
       .task {
         if data.state == .idle { await data.refresh() }
         if appleCardConnection.state == .idle { await appleCardConnection.refresh() }
