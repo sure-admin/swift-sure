@@ -666,16 +666,16 @@ struct FinanceDataStoreTests {
 
     await store.selectPreviousReportingMonth()
 
-    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 7, day: 28)))
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 7, day: 1)))
     #expect(store.reportingPeriodTransactions.map(\.id) == [financeTestID(7)])
     #expect(store.canSelectNextReportingMonth)
 
     await store.selectNextReportingMonth()
-    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 28)))
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 1)))
     #expect(!store.canSelectNextReportingMonth)
 
     await store.selectNextReportingMonth()
-    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 28)))
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 8, day: 1)))
   }
 
   @Test("Period totals remain separated by currency")

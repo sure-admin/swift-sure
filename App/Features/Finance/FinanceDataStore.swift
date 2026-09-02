@@ -435,9 +435,11 @@ final class FinanceDataStore {
           let finalDate = calendar.date(byAdding: .day, value: -1, to: followingMonthDate) else {
       throw ReportingPeriodError.calendarCalculationFailed
     }
+    let monthEndDate = try LocalDate(finalDate, in: calendar)
+    let currentDate = try LocalDate(now(), in: calendar)
     return try TransactionDateWindow(
       startDate: startDate,
-      endDate: try LocalDate(finalDate, in: calendar)
+      endDate: min(monthEndDate, currentDate)
     )
   }
 
