@@ -6,6 +6,7 @@ struct AccountsView: View {
   var data: FinanceDataStore
   var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
     NavigationStack {
@@ -99,6 +100,9 @@ struct AccountsView: View {
           }
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
             appleCardCard
+            ForEach(appleCardConnection.accounts) { account in
+              localAccountLink(account)
+            }
             ForEach(data.accounts) { account in
               accountLink(account)
             }
@@ -114,7 +118,7 @@ struct AccountsView: View {
       HStack(spacing: 12) {
         appleCardIcon
         VStack(alignment: .leading, spacing: 2) {
-          Text("Apple Card")
+          Text("Apple Wallet")
             .font(.headline)
           Text(appleCardDetail)
             .font(.subheadline)
@@ -139,9 +143,12 @@ struct AccountsView: View {
   @ViewBuilder
   private var appleCardAction: some View {
     if appleCardConnection.state == .authorized {
-      Label("Access granted", systemImage: "checkmark.circle.fill")
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.green)
+      Label(
+        appleCardConnection.accounts.isEmpty ? "No accounts shared" : "Local access",
+        systemImage: "checkmark.circle.fill"
+      )
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.green)
     } else {
       Button("Allow Access", systemImage: "lock.open") {
         Task { await appleCardConnection.connect() }
@@ -153,7 +160,7 @@ struct AccountsView: View {
           || appleCardConnection.state == .connecting
           || appleCardConnection.state == .unavailable
       )
-      .accessibilityLabel("Allow Apple Card access")
+      .accessibilityLabel("Allow Apple Wallet financial data access")
       .accessibilityHint("Requests permission to access financial data in Apple Wallet")
     }
   }
@@ -161,13 +168,74 @@ struct AccountsView: View {
   private var appleCardDetail: String {
     switch appleCardConnection.state {
     case .idle, .checking: "Checking availability…"
-    case .ready: "Request financial data access from Wallet."
+    case .ready: "Show eligible accounts from Wallet on this device."
     case .connecting: "Waiting for Wallet permission…"
-    case .authorized: "Wallet access is approved; no account has been added to Sure."
+    case .authorized:
+      appleCardConnection.accounts.isEmpty
+        ? "No accounts are currently shared. Update access in Settings."
+        : "Display only. This data stays on this device and isn’t sent to Sure."
     case .denied: "Access is off. You can enable Finance access in Settings."
     case .failed(let message): message
     case .unavailable: "Unavailable on this device."
     }
+  }
+
+  private func localAccountCard(_ account: LocalFinancialAccount) -> some View {
+    let color: Color = account.kind == .asset ? .blue : .orange
+    return VStack(alignment: .leading, spacing: 14) {
+      HStack {
+        Image(systemName: account.kind == .asset ? "building.columns" : "creditcard")
+          .frame(width: 42, height: 42)
+          .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+          .foregroundStyle(color)
+          .accessibilityHidden(true)
+        Spacer()
+        Label("On Device", systemImage: "iphone")
+          .font(.caption.bold())
+          .foregroundStyle(color)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 5)
+          .background(color.opacity(0.14), in: Capsule())
+      }
+
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(account.name)
+            .font(.headline)
+          Text(account.institutionName)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        Spacer(minLength: 4)
+        if let balance = account.balance {
+          Text(FinanceFormatters.currency(balance))
+            .font(.title2.bold())
+            .fixedSize(horizontal: true, vertical: false)
+        } else {
+          Text("Balance unavailable")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+    .sureCard()
+    .accessibilityElement(children: .combine)
+    .accessibilityHint("Displayed only on this device")
+  }
+
+  private func localAccountLink(_ account: LocalFinancialAccount) -> some View {
+    NavigationLink {
+      TransactionsView(
+        store: localTransactionHistoryStoreFactory.makeStore(
+          for: .account(id: account.id, name: account.name)
+        )
+      )
+    } label: {
+      localAccountCard(account)
+    }
+    .buttonStyle(.plain)
+    .accessibilityHint("Shows on-device transactions from the last 31 days")
   }
 
   @ViewBuilder

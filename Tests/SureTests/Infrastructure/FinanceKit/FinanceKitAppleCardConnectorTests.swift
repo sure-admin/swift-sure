@@ -10,5 +10,6 @@ struct FinanceKitAppleCardConnectorTests {
     #expect(connector.isAvailable == false)
     #expect(try await connector.authorizationStatus() == .denied)
     #expect(try await connector.requestAuthorization() == .denied)
+    #expect(try await connector.fetchAccounts().isEmpty)
   }
 }

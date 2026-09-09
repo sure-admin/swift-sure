@@ -8,6 +8,7 @@ struct ContentView: View {
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
   var makeAssistantMessageID: () -> UUID
   var now: () -> Date
 
@@ -71,7 +72,8 @@ struct ContentView: View {
         AccountsView(
           data: financeData,
           appleCardConnection: appleCardConnection,
-          transactionHistoryStoreFactory: transactionHistoryStoreFactory
+          transactionHistoryStoreFactory: transactionHistoryStoreFactory,
+          localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
         )
         .id(connection.sessionGeneration)
       }

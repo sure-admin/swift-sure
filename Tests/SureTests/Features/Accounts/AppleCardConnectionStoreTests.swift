@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Sure
 
@@ -17,12 +18,21 @@ struct AppleCardConnectionStoreTests {
 
   @Test("Existing authorization is not presented as an account connection")
   func existingAuthorization() async {
-    let connector = AppleCardConnectorFake(status: .authorized)
+    let account = LocalFinancialAccount(
+      id: UUID(),
+      name: "Apple Card",
+      institutionName: "Goldman Sachs",
+      kind: .liability,
+      balance: Money(minorUnits: -12_345, currency: CurrencyCode("USD")!)
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
     let store = AppleCardConnectionStore(connector: connector)
 
     await store.refresh()
 
     #expect(store.state == .authorized)
+    #expect(store.accounts == [account])
+    #expect(connector.accountRequestCount == 1)
   }
 
   @Test("A connection request publishes denial")
@@ -35,23 +45,47 @@ struct AppleCardConnectionStoreTests {
     #expect(store.state == .denied)
     #expect(connector.authorizationRequestCount == 1)
   }
+
+  @Test("Revoked access removes locally displayed accounts")
+  func revokedAccess() async {
+    let account = LocalFinancialAccount(
+      id: UUID(),
+      name: "Savings",
+      institutionName: "Apple",
+      kind: .asset,
+      balance: nil
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
+    let store = AppleCardConnectionStore(connector: connector)
+    await store.refresh()
+
+    connector.status = .denied
+    await store.refresh()
+
+    #expect(store.state == .denied)
+    #expect(store.accounts.isEmpty)
+  }
 }
 
 private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Sendable {
   var isAvailable: Bool
   var status: AppleCardAuthorization
   var requestResult: AppleCardAuthorization
+  var accounts: [LocalFinancialAccount]
   var statusRequestCount = 0
   var authorizationRequestCount = 0
+  var accountRequestCount = 0
 
   init(
     isAvailable: Bool = true,
     status: AppleCardAuthorization = .notDetermined,
-    requestResult: AppleCardAuthorization = .authorized
+    requestResult: AppleCardAuthorization = .authorized,
+    accounts: [LocalFinancialAccount] = []
   ) {
     self.isAvailable = isAvailable
     self.status = status
     self.requestResult = requestResult
+    self.accounts = accounts
   }
 
   func authorizationStatus() async throws -> AppleCardAuthorization {
@@ -62,5 +96,10 @@ private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Send
   func requestAuthorization() async throws -> AppleCardAuthorization {
     authorizationRequestCount += 1
     return requestResult
+  }
+
+  func fetchAccounts() async throws -> [LocalFinancialAccount] {
+    accountRequestCount += 1
+    return accounts
   }
 }
