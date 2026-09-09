@@ -52,7 +52,7 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     _ request: TransactionHistoryRequest
   ) async throws -> [FinanceTransaction] {
     guard let accountID = request.accountID else { return [] }
-    let query = TransactionQuery()
+    let query = FinanceKit.TransactionQuery()
     return try await FinanceStore.shared.transactions(query: query)
       .filter {
         let date = try LocalDate(
