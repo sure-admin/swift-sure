@@ -3,4 +3,5 @@ protocol AppleCardConnecting: Sendable {
 
   func authorizationStatus() async throws -> AppleCardAuthorization
   func requestAuthorization() async throws -> AppleCardAuthorization
+  func fetchAccounts() async throws -> [LocalFinancialAccount]
 }

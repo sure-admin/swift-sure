@@ -16,6 +16,7 @@ final class AppleCardConnectionStore {
   }
 
   private(set) var state: State = .idle
+  private(set) var accounts: [LocalFinancialAccount] = []
 
   private let connector: any AppleCardConnecting
 
@@ -26,33 +27,49 @@ final class AppleCardConnectionStore {
   func refresh() async {
     guard state != .checking && state != .connecting else { return }
     guard connector.isAvailable else {
+      accounts = []
       state = .unavailable
       return
     }
 
     state = .checking
     do {
-      state = Self.state(for: try await connector.authorizationStatus())
+      let authorization = try await connector.authorizationStatus()
+      state = Self.state(for: authorization)
+      if authorization == .authorized {
+        accounts = try await connector.fetchAccounts()
+      } else {
+        accounts = []
+      }
     } catch is CancellationError {
       state = .idle
     } catch {
-      state = .failed("Apple Card access is temporarily unavailable.")
+      accounts = []
+      state = .failed("Wallet accounts are temporarily unavailable.")
     }
   }
 
   func connect() async {
     guard connector.isAvailable else {
+      accounts = []
       state = .unavailable
       return
     }
 
     state = .connecting
     do {
-      state = Self.state(for: try await connector.requestAuthorization())
+      let authorization = try await connector.requestAuthorization()
+      state = Self.state(for: authorization)
+      if authorization == .authorized {
+        accounts = try await connector.fetchAccounts()
+      } else {
+        accounts = []
+      }
     } catch is CancellationError {
       state = .ready
     } catch {
-      state = .failed("Apple Card couldn’t be connected. Please try again.")
+      accounts = []
+      state = .failed("Wallet accounts couldn’t be loaded. Please try again.")
     }
   }
 
