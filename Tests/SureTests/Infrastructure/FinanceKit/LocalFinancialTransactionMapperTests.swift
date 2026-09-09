@@ -6,6 +6,7 @@ import Testing
 struct LocalFinancialTransactionMapperTests {
   @Test("Debit transactions become expenses with positive stored magnitudes")
   func debit() throws {
+    let amount = try #require(Decimal(string: "12.34"))
     let transaction = try LocalFinancialTransactionMapper().map(
       id: UUID(),
       accountID: UUID(),
@@ -13,7 +14,7 @@ struct LocalFinancialTransactionMapperTests {
       description: "CARD PURCHASE",
       category: "Purchase",
       date: Date(timeIntervalSince1970: 1_700_000_000),
-      amount: 12.34,
+      amount: amount,
       currencyCode: "GBP",
       isCredit: false,
       calendar: utcCalendar
@@ -27,6 +28,7 @@ struct LocalFinancialTransactionMapperTests {
 
   @Test("Credits become income and descriptions replace missing merchants")
   func credit() throws {
+    let amount = try #require(Decimal(string: "4.56"))
     let transaction = try LocalFinancialTransactionMapper().map(
       id: UUID(),
       accountID: UUID(),
@@ -34,7 +36,7 @@ struct LocalFinancialTransactionMapperTests {
       description: "INTEREST PAYMENT",
       category: "Interest",
       date: Date(timeIntervalSince1970: 1_700_000_000),
-      amount: -4.56,
+      amount: -amount,
       currencyCode: "USD",
       isCredit: true,
       calendar: utcCalendar
