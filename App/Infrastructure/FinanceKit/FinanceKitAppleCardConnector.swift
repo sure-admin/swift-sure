@@ -52,16 +52,15 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     _ request: TransactionHistoryRequest
   ) async throws -> [FinanceTransaction] {
     guard let accountID = request.accountID else { return [] }
-    let query = TransactionQuery(
-      predicate: TransactionQuery.predicate(forStatuses: [.authorized, .booked, .pending])
-    )
+    let query = TransactionQuery()
     return try await FinanceStore.shared.transactions(query: query)
       .filter {
         let date = try LocalDate(
           $0.postedDate ?? $0.transactionDate,
           in: calendar
         )
-        return $0.accountID == accountID
+        return isDisplayable($0.status)
+          && $0.accountID == accountID
           && request.dateWindow.contains(date)
       }
       .map(mapTransaction)
@@ -120,6 +119,8 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
       balance = booked
     case .booked(let booked):
       balance = booked
+    @unknown default:
+      throw FinanceKitConnectorError.unsupportedBalance
     }
 
     return try LocalFinancialBalanceMapper().map(
@@ -167,13 +168,26 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     }
   }
 
+  private func isDisplayable(_ status: TransactionStatus) -> Bool {
+    switch status {
+    case .authorized, .booked, .pending: true
+    case .memo, .rejected: false
+    @unknown default: false
+    }
+  }
+
   private func balanceDate(_ accountBalance: AccountBalance) -> Date {
     switch accountBalance.currentBalance {
     case .available(let available): available.asOfDate
     case .availableAndBooked(_, let booked): booked.asOfDate
     case .booked(let booked): booked.asOfDate
+    @unknown default: .distantPast
     }
   }
+}
+
+private enum FinanceKitConnectorError: Error {
+  case unsupportedBalance
 }
 #else
 struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient {
