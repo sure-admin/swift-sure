@@ -9,6 +9,7 @@ struct ContentView: View {
   var remoteAssistant: any RemoteAssistantClient
   var makeAssistantServices: () -> AssistantSessionServices
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
   var makeAssistantMessageID: () -> UUID
   var now: () -> Date
 
@@ -72,7 +73,8 @@ struct ContentView: View {
         AccountsView(
           data: financeData,
           appleCardConnection: appleCardConnection,
-          transactionHistoryStoreFactory: transactionHistoryStoreFactory
+          transactionHistoryStoreFactory: transactionHistoryStoreFactory,
+          localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
         )
         .id(connection.sessionGeneration)
       }

@@ -6,6 +6,7 @@ struct AccountsView: View {
   var data: FinanceDataStore
   var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   var body: some View {
     NavigationStack {
@@ -100,7 +101,7 @@ struct AccountsView: View {
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
             appleCardCard
             ForEach(appleCardConnection.accounts) { account in
-              localAccountCard(account)
+              localAccountLink(account)
             }
             ForEach(data.accounts) { account in
               accountLink(account)
@@ -221,6 +222,20 @@ struct AccountsView: View {
     .sureCard()
     .accessibilityElement(children: .combine)
     .accessibilityHint("Displayed only on this device")
+  }
+
+  private func localAccountLink(_ account: LocalFinancialAccount) -> some View {
+    NavigationLink {
+      TransactionsView(
+        store: localTransactionHistoryStoreFactory.makeStore(
+          for: .account(id: account.id, name: account.name)
+        )
+      )
+    } label: {
+      localAccountCard(account)
+    }
+    .buttonStyle(.plain)
+    .accessibilityHint("Shows on-device transactions from the last 31 days")
   }
 
   @ViewBuilder

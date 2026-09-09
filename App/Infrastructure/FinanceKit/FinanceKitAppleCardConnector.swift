@@ -1,8 +1,11 @@
-#if os(iOS) && FINANCEKIT_ENABLED
 import Foundation
+
+#if os(iOS) && FINANCEKIT_ENABLED
 import FinanceKit
 
-struct FinanceKitAppleCardConnector: AppleCardConnecting {
+struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient {
+  var calendar: Calendar = .autoupdatingCurrent
+
   var isAvailable: Bool {
     #if targetEnvironment(simulator)
     false
@@ -35,6 +38,35 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting {
     #endif
   }
 
+  func fetchTransactions(
+    _ request: TransactionHistoryRequest
+  ) async throws -> [FinanceTransaction] {
+    #if targetEnvironment(simulator)
+    return []
+    #else
+    return try await loadTransactions(request)
+    #endif
+  }
+
+  private func loadTransactions(
+    _ request: TransactionHistoryRequest
+  ) async throws -> [FinanceTransaction] {
+    guard let accountID = request.accountID else { return [] }
+    let query = TransactionQuery(
+      predicate: TransactionQuery.predicate(forStatuses: [.authorized, .booked, .pending])
+    )
+    return try await FinanceStore.shared.transactions(query: query)
+      .filter {
+        let date = try LocalDate(
+          $0.postedDate ?? $0.transactionDate,
+          in: calendar
+        )
+        return $0.accountID == accountID
+          && request.dateWindow.contains(date)
+      }
+      .map(mapTransaction)
+  }
+
   private func loadAccounts() async throws -> [LocalFinancialAccount] {
     let store = FinanceStore.shared
     async let accounts = store.accounts(query: AccountQuery())
@@ -51,7 +83,6 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting {
     @unknown default: .denied
     }
   }
-
 
   private func map(
     accounts: [Account],
@@ -98,6 +129,44 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting {
     )
   }
 
+  private func mapTransaction(_ transaction: Transaction) throws -> FinanceTransaction {
+    try LocalFinancialTransactionMapper().map(
+      id: transaction.id,
+      accountID: transaction.accountID,
+      merchantName: transaction.merchantName,
+      description: transaction.transactionDescription,
+      category: categoryName(transaction.transactionType),
+      date: transaction.postedDate ?? transaction.transactionDate,
+      amount: transaction.transactionAmount.amount,
+      currencyCode: transaction.transactionAmount.currencyCode,
+      isCredit: transaction.creditDebitIndicator == .credit,
+      calendar: calendar
+    )
+  }
+
+  private func categoryName(_ type: TransactionType) -> String {
+    switch type {
+    case .adjustment: "Adjustment"
+    case .atm: "ATM"
+    case .billPayment: "Bill Payment"
+    case .check: "Check"
+    case .deposit: "Deposit"
+    case .directDebit: "Direct Debit"
+    case .directDeposit: "Direct Deposit"
+    case .dividend: "Dividend"
+    case .fee: "Fee"
+    case .interest: "Interest"
+    case .loan: "Loan"
+    case .pointOfSale: "Purchase"
+    case .refund: "Refund"
+    case .standingOrder: "Standing Order"
+    case .transfer: "Transfer"
+    case .unknown: "Uncategorized"
+    case .withdrawal: "Withdrawal"
+    @unknown default: "Uncategorized"
+    }
+  }
+
   private func balanceDate(_ accountBalance: AccountBalance) -> Date {
     switch accountBalance.currentBalance {
     case .available(let available): available.asOfDate
@@ -107,11 +176,18 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting {
   }
 }
 #else
-struct FinanceKitAppleCardConnector: AppleCardConnecting {
+struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient {
+  var calendar: Calendar = .autoupdatingCurrent
+
   var isAvailable: Bool { false }
 
   func authorizationStatus() async throws -> AppleCardAuthorization { .denied }
   func requestAuthorization() async throws -> AppleCardAuthorization { .denied }
   func fetchAccounts() async throws -> [LocalFinancialAccount] { [] }
+  func fetchTransactions(
+    _ request: TransactionHistoryRequest
+  ) async throws -> [FinanceTransaction] {
+    []
+  }
 }
 #endif
