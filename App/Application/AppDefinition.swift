@@ -17,6 +17,7 @@ struct AppDefinition: App {
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   init() {
     let preferences = UserDefaultsConnectionPreferences()
@@ -125,9 +126,8 @@ struct AppDefinition: App {
         connection?.connectedSnapshotIdentity
       }
     )
-    let appleCardConnection = AppleCardConnectionStore(
-      connector: FinanceKitAppleCardConnector()
-    )
+    let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
+    let appleCardConnection = AppleCardConnectionStore(connector: financeKitConnector)
 
     lifecycle.notificationLifecycle = notificationManager
     lifecycle.financeData = financeData
@@ -139,6 +139,11 @@ struct AppDefinition: App {
     remoteAssistant = apiClient
     transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: apiClient,
+      calendar: .autoupdatingCurrent,
+      now: { .now }
+    )
+    localTransactionHistoryStoreFactory = TransactionHistoryStoreFactory(
+      client: financeKitConnector,
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
@@ -158,6 +163,7 @@ struct AppDefinition: App {
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,
+        localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory,
         makeAssistantMessageID: { UUID() },
         now: { .now }
       )
