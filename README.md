@@ -16,7 +16,13 @@ types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
 The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
+The proposed [FinanceKit device provider plan](Docs/FinanceKitProviderPlan.md)
+covers opt-in Wallet ingestion into Sure, iOS background delivery, backend
+provider changes, and validation gates. This is planned work; the current
+FinanceKit integration reads Wallet data locally.
+
 ## AI Insight push notifications
+
 
 The iOS app requests notification permission when the user enables **Notify urgent insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.
 
