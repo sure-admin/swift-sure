@@ -3,6 +3,12 @@
 Status: proposed implementation; no runtime behavior changes in this commit.
 Reviewed: 2026-09-09.
 
+Backend prerequisite: [we-promise/sure#3485](https://github.com/we-promise/sure/issues/3485).
+Native provider implementation is deferred until that issue's backend acceptance
+criteria are met: merged implementation, deployed migrations/workers, published
+contract and fixtures, and verified ingestion/recovery behavior. Then adopt the
+implementing Sure revision before beginning the native work below.
+
 Build a family-scoped `financekit` provider in Sure, with the iPhone acting as
 its data collector. After the user explicitly enables server sync, the phone
 collects authorized Wallet changes, durably queues them, and uploads them to
@@ -451,18 +457,22 @@ navigation rules; export scope is independent of these presentation windows.
 
 ## 8. Delivery sequence and acceptance gates
 
-1. **Background feasibility and contract design.** On a provisioned physical
+1. **Backend provider and contract (blocks native implementation).** Complete
+   [Sure #3485](https://github.com/we-promise/sure/issues/3485): ship models,
+   strict intake/receipts, enrollment/revocation, account mapping, provider
+   adapter, ordered processing, status UI/API and tests behind a disabled
+   feature flag. Finalize the interoperable upload protocol and document
+   privacy, cryptography, replacement and deletion behavior. Verify ingestion
+   and recovery with a synthetic client before starting iOS implementation.
+   No native fallback to generic transaction writes if the contract is absent.
+2. **Native background feasibility against the merged contract.** On a provisioned physical
    iPhone with SDK 26.5, validate the extension bundle/entitlements, authorization
    inheritance, locked-device reads, independent extension execution, and file
    uploads after extension exit. Verify host background completion ownership,
    redirects, resource limits and old-iOS host installation. Use sanitized test
-   uploads to a controlled endpoint; publish envelope interoperability vectors.
-   This gates the architecture before large migrations or UI work.
-2. **Backend provider and contract.** Ship models, strict intake/receipts,
-   enrollment/revocation, account mapping, provider adapter, ordered processing,
-   status UI/API and tests behind a disabled feature flag. Document and review
-   privacy, cryptography, replacement and deletion behavior. No native fallback
-   to generic transaction writes if the contract is absent.
+   uploads to the controlled Sure deployment and verify the published envelope
+   interoperability vectors. This gates broader native implementation and UI
+   work; physical-device validation remains required before native release.
 3. **Native durable sync core.** Add typed DTOs, source history adapter, outbox,
    credential/envelope handling and deterministic tests. Adopt the actual merged
    server SHA in `SureContractBaseline.md`, fixtures and compatibility tests.
