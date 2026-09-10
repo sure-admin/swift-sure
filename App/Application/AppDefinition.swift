@@ -16,6 +16,7 @@ struct AppDefinition: App {
   private var notificationManager: NotificationManager
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
+  private var makeAssistantServices: () -> AssistantSessionServices
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   init() {
@@ -137,6 +138,23 @@ struct AppDefinition: App {
     self.notificationManager = notificationManager
     self.mobileSSOService = mobileSSOService
     remoteAssistant = apiClient
+    makeAssistantServices = {
+      #if os(iOS)
+      let access = MCPAccessStore(
+        preferences: UserDefaultsMCPAccessPreferences(defaults: .standard),
+        makeID: { UUID() }
+      )
+      let mcpClient = SureMCPClient(session: session, dataTransport: dataTransport, makeID: { UUID() })
+      let service = LocalAssistantService(financeData: financeData, mcpService: {
+        let boundClient = try await mcpClient.boundToCurrentSession()
+        let context = try await boundClient.session.requestContext()
+        return ConsentedMCPService(client: boundClient, server: context.baseURL, access: access)
+      })
+      return AssistantSessionServices(localAssistant: service, mcpAccess: access)
+      #else
+      return AssistantSessionServices(localAssistant: LocalAssistantService(financeData: financeData))
+      #endif
+    }
     transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: apiClient,
       calendar: .autoupdatingCurrent,
@@ -157,6 +175,7 @@ struct AppDefinition: App {
         appleCardConnection: appleCardConnection,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
+        makeAssistantServices: makeAssistantServices,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,
         makeAssistantMessageID: { UUID() },
         now: { .now }

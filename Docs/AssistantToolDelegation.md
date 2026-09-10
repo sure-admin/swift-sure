@@ -66,23 +66,35 @@ are not included in user-facing errors.
 
 ## Foundation Models integration and privacy
 
-`LocalAssistantService` uses the mirror and router today and remains entirely
-private to the device. Existing explicit server-chat sends are unchanged.
+On iOS, `LocalAssistantService` registers a local snapshot tool plus consent-aware
+`discover_sure_tools` and `call_sure_tool` adapters. Creating a model session only
+binds the current credentials; it does not perform MCP discovery or network I/O.
+Mac local mode continues to use only the local snapshot tool.
 
-For a future hybrid mode, after the user explicitly permits sending generated
-tool arguments to their configured Sure instance, application composition can
-call `SureDelegatedTool.prepare(client:)` and register the resulting adapter in
-that mode's `LanguageModelSession`. Preparation discovers the current schemas,
-filters writes, and pins the adapter to that authenticated context. It supplies
-those schemas in the adapter description; invocation validates arguments as JSON
-objects and delegates through the same router. Results carry `Sure server via
-MCP` provenance. Server schemas and content are untrusted data, never privileged
-instructions. No transcript or local financial snapshot is attached to MCP calls.
+**Allow Automatic MCP Access** is a local device preference, off by default,
+available from the Assistant settings toolbar menu. While it is off, either
+adapter suspends its operation and presents a sheet showing the canonical server,
+operation, and exact arguments. **Allow Once** resumes just that operation without
+changing the preference. **Always Allow on This Device** persists automatic
+read-only access. **Cancel**, dismissal, task cancellation, leaving the Assistant,
+or switching connections cancels a pending approval. Concurrent approval requests
+fail closed instead of overwriting the visible request.
 
-This PR provides the tested adapter and client, but does not expose a hybrid UI
-or grant model-generated remote calls in private local mode. That UI needs a
-clear per-session disclosure of the destination and data handling. Do not simply
-add this adapter to the private local tool list.
+Discovery requires its own approval and returns current read-only schemas to the
+on-device model. The subsequent function call requires another approval while the
+preference remains off. The transport's handshake and capability validation are
+part of that approved operation. No MCP network request is sent before approval.
+Changing the preference does not retroactively cancel an operation already approved
+and in flight; it gates the next operation.
+
+The adapter is bound to the authenticated context before model execution, so an
+approval cannot redirect old arguments to a new connection. The app constructs
+the infrastructure and injects it into the Assistant along with a preferences
+abstraction and the observable approval state. Results carry `Sure server via MCP`
+provenance. Prompt instructions distinguish local snapshots from successful server
+results and tell the model not to retry denied operations. No transcript or local
+financial snapshot is automatically attached to MCP calls. Existing explicit
+server-chat sends remain separate and are unchanged.
 
 MCP accepts OAuth `read_write` bearer tokens or Sure's explicitly configured
 static MCP bearer token. Ordinary `X-Api-Key` authorization is unsupported and is
