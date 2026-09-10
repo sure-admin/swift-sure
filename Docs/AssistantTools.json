@@ -1,0 +1,161 @@
+{
+  "revision": "5594f8bc94c8e659838cac70d826bbcaeaa3bae2",
+  "tools": [
+    {
+      "name": "create_category",
+      "rubyClass": "CreateCategory",
+      "preview": false,
+      "sourceSHA256": "399282d33cedb3d010005dc53dbc967bfd0d5f2077917dee6ade93b7e6a365dd"
+    },
+    {
+      "name": "create_goal",
+      "rubyClass": "CreateGoal",
+      "preview": false,
+      "sourceSHA256": "0c370207d3811d6dbf9a76e7448888c08c3baae5fde1d0cba317ee2f11b08631"
+    },
+    {
+      "name": "create_tag",
+      "rubyClass": "CreateTag",
+      "preview": false,
+      "sourceSHA256": "5db6d412619a147fd435e30944b9051f78202ee5caced43945c1e4c42bcba5ec"
+    },
+    {
+      "name": "get_account_statement",
+      "rubyClass": "GetAccountStatement",
+      "preview": true,
+      "sourceSHA256": "d69033e8dd9c78c32eae47430fe1e48e3fd9882c38c4e966ee466bea8e685074"
+    },
+    {
+      "name": "get_accounts",
+      "rubyClass": "GetAccounts",
+      "preview": false,
+      "sourceSHA256": "ee5743db3a114eba05d7855a12cdc9252f363832ae8d1c45c9041b966acfed79"
+    },
+    {
+      "name": "get_balance_sheet",
+      "rubyClass": "GetBalanceSheet",
+      "preview": false,
+      "sourceSHA256": "bcbd8bd9fed481baeb95b9dc282450b88958b8d9e5acbd424eed579aaffa5526"
+    },
+    {
+      "name": "get_budget",
+      "rubyClass": "GetBudget",
+      "preview": false,
+      "sourceSHA256": "5fd091c586c2570e0bd635ba2fddc534be422c88bdfc917dc1b3510cabf5f4b5"
+    },
+    {
+      "name": "get_categories",
+      "rubyClass": "GetCategories",
+      "preview": false,
+      "sourceSHA256": "aad7497f2f279adce650604d59bfb9641cdcab273ffd10f5b27942f62ce7808a"
+    },
+    {
+      "name": "get_holdings",
+      "rubyClass": "GetHoldings",
+      "preview": false,
+      "sourceSHA256": "8d8cb231d1d365c38d64fe1eba83033c43067b0cf2400b67e272c35ffe7fe99a"
+    },
+    {
+      "name": "get_income_statement",
+      "rubyClass": "GetIncomeStatement",
+      "preview": false,
+      "sourceSHA256": "54b629c2550ce92d29f5bcb9b4810b4819c28b17f1ec58090e6c86628cb24582"
+    },
+    {
+      "name": "get_insights",
+      "rubyClass": "GetInsights",
+      "preview": true,
+      "sourceSHA256": "493a01e10e0b7cb7946286fed1ec1700a0d1183e18b501f62ee628aba54c90df"
+    },
+    {
+      "name": "get_merchants",
+      "rubyClass": "GetMerchants",
+      "preview": false,
+      "sourceSHA256": "eb360b304679c235e45817549eb0a1f20d9d919483078f8018045b916fe15a62"
+    },
+    {
+      "name": "get_recurring_transactions",
+      "rubyClass": "GetRecurringTransactions",
+      "preview": false,
+      "sourceSHA256": "b796f5e86e7896e0bd34a104567b511b88745239951d2fb2cd805a02bbcab248"
+    },
+    {
+      "name": "get_statement_coverage",
+      "rubyClass": "GetStatementCoverage",
+      "preview": true,
+      "sourceSHA256": "8b5df60e06e645ea403ce303fc79c7c67215417f6f9e85c03ec1c8c862d1478b"
+    },
+    {
+      "name": "get_tags",
+      "rubyClass": "GetTags",
+      "preview": false,
+      "sourceSHA256": "58e213ecfa7d583e4d7764f2ad3dbd6392d275c31de133a19c2f9ef7f3fea8ba"
+    },
+    {
+      "name": "get_transactions",
+      "rubyClass": "GetTransactions",
+      "preview": false,
+      "sourceSHA256": "f49a36cc6638f3636e5c55d381ac234cfee2153b117af448cfbbc10df31a9f22"
+    },
+    {
+      "name": "get_valuations",
+      "rubyClass": "GetValuations",
+      "preview": true,
+      "sourceSHA256": "1ea1b4e2126fda2f4f5eeb54daad3feb8a4958bcd66d8ff8a9b74df1d1d7a142"
+    },
+    {
+      "name": "import_bank_statement",
+      "rubyClass": "ImportBankStatement",
+      "preview": false,
+      "sourceSHA256": "eb6a2f2893d4188eb21fd47a1d12b7d4bd62a5440efee9e89514c311ee4e9bda"
+    },
+    {
+      "name": "list_account_statements",
+      "rubyClass": "ListAccountStatements",
+      "preview": true,
+      "sourceSHA256": "188c2f3f70beb96f864f6dc3c1acc54fe7a2d7720b846b86818ab8fcff7101c1"
+    },
+    {
+      "name": "record_valuation",
+      "rubyClass": "RecordValuation",
+      "preview": true,
+      "sourceSHA256": "6a86ab597ca7cfaa067f835a731a3181a35092cfb04a32eae4d4165d371caed5"
+    },
+    {
+      "name": "search_family_files",
+      "rubyClass": "SearchFamilyFiles",
+      "preview": false,
+      "sourceSHA256": "3cf7c75c9c6003a48644cd57e2b0150bb731ed774a38b4e7b58d1d734e32ef8b"
+    },
+    {
+      "name": "update_budget",
+      "rubyClass": "UpdateBudget",
+      "preview": false,
+      "sourceSHA256": "41ba916375345e0dafee0574122c35af756282ce77783e04d3bc53120ab81a03"
+    },
+    {
+      "name": "update_category",
+      "rubyClass": "UpdateCategory",
+      "preview": false,
+      "sourceSHA256": "628aa2720467d7347e273662386d2029855e49a0687e2ab15c29f28cae6faf64"
+    },
+    {
+      "name": "update_tag",
+      "rubyClass": "UpdateTag",
+      "preview": false,
+      "sourceSHA256": "9aa64977bac9f99e2f702fd9c0ce2363ef4324efd3c3407cf13f06d5411ba473"
+    },
+    {
+      "name": "update_transaction",
+      "rubyClass": "UpdateTransaction",
+      "preview": false,
+      "sourceSHA256": "b70caefa6c14a4a792a93bf14f975cff70e5332ab44453bf3a29bb53a0aa1cee"
+    },
+    {
+      "name": "upload_account_statement",
+      "rubyClass": "UploadAccountStatement",
+      "preview": true,
+      "sourceSHA256": "4766f07fddbd723f6fe77bd8526430e91e9c3e6ed3d2750545b590ae95c407c5"
+    }
+  ]
+}

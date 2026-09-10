@@ -18,7 +18,8 @@ struct LocalAssistantService: LocalAssistantResponding {
 
       let session = LanguageModelSession(
         model: model,
-        tools: [LocalGetAccountsTool(financeData: financeData)],
+        tools: SureToolInventory.getAccounts.isAvailableOnMobile
+          ? [LocalGetAccountsTool(financeData: financeData)] : [],
         instructions: """
           You are Sure Assistant, a concise and supportive personal finance assistant.
           Use only the supplied financial context for claims specific to the person's money.

@@ -1,0 +1,29 @@
+{
+  "jsonrpc": "2.0",
+  "id": "00000000-0000-0000-0000-000000000001",
+  "result": {
+    "tools": [
+      {
+        "name": "get_accounts",
+        "description": "Read accounts",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "include_balance_series": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "update_transaction",
+        "description": "Write transaction",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ]
+  }
+}

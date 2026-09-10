@@ -72,3 +72,7 @@ Configure these GitHub Actions secrets before merging the deployment workflow:
 The API key must be able to manage signing assets and upload builds for bundle
 ID `am.sure.insights`. The workflow imports credentials only into an ephemeral
 runner keychain and removes them after the deployment job.
+
+Assistant tool inventory regeneration, mobile availability policy, and the
+explicit MCP delegation boundary are documented in
+[Assistant tool delegation](Docs/AssistantToolDelegation.md).
