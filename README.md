@@ -69,6 +69,17 @@ and the saved overview snapshot. Wallet access must be explicitly re-enabled
 after logout or a Sure connection change, including after relaunch. This clears
 the app’s copies, not the original records or permission in Apple Wallet.
 
+## Local assistant account tool
+
+On an Apple Intelligence device running iOS 26 or macOS 26, select the local
+assistant and ask “What accounts do I have, and what are their balances?”
+The Foundation Models session has a no-argument `get_accounts` tool that reads
+the current synced on-device snapshot. Account records are supplied through
+the tool instead of being embedded in every prompt. The tool makes no network
+requests and returns account IDs, names, exact decimal balances, and currencies.
+It distinguishes unavailable data from an empty loaded collection; balances
+may be out of date. Historical balances and provider details are not included.
+
 ## AI Insight push notifications
 
 The iOS app requests notification permission when the user enables **Notify urgent insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.

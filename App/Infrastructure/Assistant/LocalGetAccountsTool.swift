@@ -5,7 +5,7 @@ import FoundationModels
 
 @available(iOS 26.0, macOS 26.0, *)
 struct LocalGetAccountsTool: Tool {
-  let name = SureToolInventory.getAccounts.rawValue
+  let name = "get_accounts"
   let description = "Get the person's accounts and balances from the synced on-device snapshot. No network access or historical balances."
 
   var financeData: FinanceDataStore
@@ -14,12 +14,6 @@ struct LocalGetAccountsTool: Tool {
   struct Arguments {}
 
   func call(arguments: Arguments) async throws -> String {
-    try await AssistantToolRouter(destination: .localSnapshot).call(
-      name: name, arguments: [:], localAccounts: snapshot
-    )
-  }
-
-  private func snapshot() async throws -> String {
     try Task.checkCancellation()
     return try await MainActor.run {
       try Task.checkCancellation()
