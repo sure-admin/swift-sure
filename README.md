@@ -155,3 +155,6 @@ app's published privacy policy and App Store privacy disclosures for this
 collection before distributing a release.
 
 Reference: https://posthog.com/docs/libraries/ios
+Assistant tool inventory regeneration, mobile availability policy, and the
+explicit MCP delegation boundary are documented in
+[Assistant tool delegation](Docs/AssistantToolDelegation.md).
