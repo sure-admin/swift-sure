@@ -645,6 +645,26 @@ struct FinanceDataStoreTests {
     #expect(store.canSelectNextReportingMonth)
   }
 
+  @Test("A month response from a logged-out session cannot restore transactions")
+  func reportingPeriodLogout() async {
+    let client = SuspendedPeriodFinanceDataClient()
+    let store = FinanceDataStore(
+      connection: ConnectionStateStub(isConfigured: true), client: client,
+      calendar: utcCalendar(), now: { Date(timeIntervalSince1970: 1_800_000_000) },
+      syncInsights: { _ in }
+    )
+    let period = store.reportingDate
+    let request = Task { await store.selectPreviousReportingMonth() }
+    await client.waitUntilStarted()
+    store.disconnect()
+    await client.complete()
+    await request.value
+    #expect(store.transactions.isEmpty)
+    #expect(store.reportingDate == period)
+    #expect(!store.isLoadingReportingPeriod)
+    #expect(store.transactionsError == nil)
+  }
+
   @Test("Month navigation loads complete months and does not move beyond the current month")
   func reportingPeriodNavigation() async throws {
     let calendar = utcCalendar()
@@ -1338,4 +1358,41 @@ private enum TestFailure: LocalizedError {
   case expected
 
   var errorDescription: String? { "Expected failure" }
+}
+
+private actor SuspendedPeriodFinanceDataClient: FinanceDataClient {
+  private var continuation: CheckedContinuation<Void, Never>?
+  private var startedWaiters: [CheckedContinuation<Void, Never>] = []
+  private var didStart = false
+
+  func fetchBalanceSheet() async throws -> BalanceSheetRecord {
+    financeTestBalanceSheet()
+  }
+
+  func fetchTransactions(in dateWindow: TransactionDateWindow) async throws -> [FinanceTransaction] {
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+      didStart = true
+      let waiters = startedWaiters
+      startedWaiters.removeAll()
+      waiters.forEach { $0.resume() }
+    }
+    return []
+  }
+
+  func fetchAccounts() async throws -> [FinanceAccount] { [] }
+  func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
+  func fetchInsights() async throws -> [BackendInsight] { [] }
+
+  func waitUntilStarted() async {
+    guard !didStart else { return }
+    await withCheckedContinuation { continuation in
+      startedWaiters.append(continuation)
+    }
+  }
+
+  func complete() {
+    continuation?.resume()
+    continuation = nil
+  }
 }

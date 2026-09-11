@@ -5,6 +5,25 @@ import Testing
 @MainActor
 @Suite("Transaction history store")
 struct TransactionHistoryStoreTests {
+  @Test("Session cleanup empties retained histories and rejects late responses")
+  func sessionCleanup() async {
+    let client = SuspendedTransactionHistoryClient()
+    let factory = TransactionHistoryStoreFactory(
+      client: client, calendar: Calendar(identifier: .gregorian),
+      now: { Date(timeIntervalSince1970: 1_800_000_000) }
+    )
+    let store = factory.makeStore(for: .recentActivity)
+    let load = Task { await store.load() }
+    await client.waitForRequest()
+    factory.invalidateStores()
+    await client.complete(with: [transaction(id: 1, date: Date(timeIntervalSince1970: 1_800_000_000))])
+    await load.value
+    #expect(store.transactions.isEmpty)
+    #expect(store.state == .idle)
+    await store.load()
+    #expect(await client.requestCount == 1)
+  }
+
   @Test("Account history requests exactly 31 inclusive days for that account")
   func accountRequest() async throws {
     let accountID = try #require(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))

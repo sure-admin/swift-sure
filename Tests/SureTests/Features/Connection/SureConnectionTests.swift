@@ -5,6 +5,20 @@ import Testing
 @MainActor
 @Suite("Sure connection")
 struct SureConnectionTests {
+  @Test("OAuth snapshots are isolated between logins on the same installation")
+  func snapshotIdentityIsolation() throws {
+    let first = makeHarness(
+      context: try requestContext(server: "https://sure.example", authorization: .bearer("first")),
+      oauthCredentials: try StoredOAuthCredentials(accessToken: "first", refreshToken: "refresh-first")
+    )
+    let second = makeHarness(
+      context: try requestContext(server: "https://sure.example", authorization: .bearer("second")),
+      oauthCredentials: try StoredOAuthCredentials(accessToken: "second", refreshToken: "refresh-second")
+    )
+    #expect(first.connection.connectedSnapshotIdentity != nil)
+    #expect(first.connection.connectedSnapshotIdentity != second.connection.connectedSnapshotIdentity)
+  }
+
   @Test("Hydration uses the server bound to verified credentials and honors sign-out")
   func hydration() throws {
     let oauthSession = try StoredOAuthSession(

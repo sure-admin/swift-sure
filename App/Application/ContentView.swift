@@ -19,7 +19,7 @@ struct ContentView: View {
   var body: some View {
     Group {
       #if os(iOS)
-      if connection.isConfigured {
+      if connection.isConfigured || (appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
         appTabs
       } else if let onboarding = connection.pendingSSOOnboarding {
         SSOOnboardingHandoffView(
@@ -38,6 +38,9 @@ struct ContentView: View {
       #else
       appTabs
       #endif
+    }
+    .onChange(of: connection.isConfigured, initial: true) { _, configured in
+      if !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
     .environment(\.showConnectionSettings) {
       showingConnectionSettings = true

@@ -30,7 +30,12 @@ struct AppDefinition: App {
       preferences: preferences
     )
     let session = SureSession(context: initialState.requestContext)
-    let dataTransport = URLSessionHTTPDataTransport(session: .shared)
+    // Financial responses must never survive a credential change in an HTTP cache.
+    URLCache.shared.removeAllCachedResponses()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.urlCache = nil
+    configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+    let dataTransport = URLSessionHTTPDataTransport(session: URLSession(configuration: configuration))
     let oauthClient = OAuthHTTPClient(
       dataTransport: dataTransport,
       clientIDStore: UserDefaultsOAuthClientIDStore()
@@ -128,10 +133,19 @@ struct AppDefinition: App {
       }
     )
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
-    let appleCardConnection = AppleCardConnectionStore(connector: financeKitConnector)
+    let appleCardConnection = AppleCardConnectionStore(
+      connector: financeKitConnector,
+      requiresReconnect: preferences.requiresWalletReconnect(),
+      setRequiresReconnect: preferences.setRequiresWalletReconnect
+    )
 
     lifecycle.notificationLifecycle = notificationManager
     lifecycle.financeData = financeData
+    lifecycle.appleCardConnection = appleCardConnection
+    if initialState.isExplicitlySignedOut {
+      appleCardConnection.disconnect()
+      financeData.disconnect()
+    }
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
     _appleCardConnection = State(initialValue: appleCardConnection)
@@ -165,6 +179,10 @@ struct AppDefinition: App {
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
+
+    lifecycle.transactionHistoryFactories = [
+      transactionHistoryStoreFactory, localTransactionHistoryStoreFactory
+    ]
 
     #if os(iOS)
     appDelegate.notificationEventHandler = notificationManager

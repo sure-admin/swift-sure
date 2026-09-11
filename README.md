@@ -16,16 +16,17 @@ types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
 The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
-## Local assistant account tool
+## On-device Wallet accounts
 
-On an Apple Intelligence device running iOS 26 or macOS 26, select the local
-assistant and ask “What accounts do I have, and what are their balances?”
-The Foundation Models session has a no-argument `get_accounts` tool that reads
-the current synced on-device snapshot. Account records are supplied through
-the tool instead of being embedded in every prompt. The tool makes no network
-requests and returns account IDs, names, exact decimal balances, and currencies.
-It distinguishes unavailable data from an empty loaded collection; balances
-may be out of date. Historical balances and provider details are not included.
+On an iPhone with FinanceKit available, the app opens Accounts without requiring
+Sure sign-in. Allow Access loads the eligible accounts shared through Apple
+Wallet; selecting an account shows its last 31 days of transactions. Wallet data
+stays on the device.
+
+Logging out clears app-held financial data, transaction histories, insights,
+and the saved overview snapshot. Wallet access must be explicitly re-enabled
+after logout or a Sure connection change, including after relaunch. This clears
+the app’s copies, not the original records or permission in Apple Wallet.
 
 ## AI Insight push notifications
 

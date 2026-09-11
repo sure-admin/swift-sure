@@ -5,6 +5,54 @@ import Testing
 @MainActor
 @Suite("Apple Card connection")
 struct AppleCardConnectionStoreTests {
+  @Test("A Wallet response arriving after logout is discarded")
+  func lateWalletResponse() async {
+    let gate = WalletRequestGate()
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [
+      LocalFinancialAccount(id: UUID(), name: "Old account", institutionName: "Wallet", kind: .asset, balance: nil)
+    ])
+    connector.beforeFetch = { await gate.suspend() }
+    let store = AppleCardConnectionStore(connector: connector)
+    let request = Task { await store.refresh() }
+    await gate.waitUntilStarted()
+    store.disconnect()
+    await gate.complete()
+    await request.value
+    #expect(store.accounts.isEmpty)
+    #expect(store.state == .ready)
+  }
+
+  @Test("Logout clears Wallet data and requires an explicit reconnect")
+  func logout() async {
+    let account = LocalFinancialAccount(
+      id: UUID(), name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
+    var requiresReconnect = false
+    let store = AppleCardConnectionStore(connector: connector, setRequiresReconnect: { requiresReconnect = $0 })
+    await store.refresh()
+    let lifecycle = ApplicationConnectionLifecycle()
+    lifecycle.appleCardConnection = store
+    await lifecycle.prepareForLogout()
+    #expect(store.accounts.isEmpty)
+    #expect(store.state == .ready)
+    #expect(requiresReconnect)
+    let relaunched = AppleCardConnectionStore(connector: connector, requiresReconnect: requiresReconnect)
+    #expect(relaunched.state == .ready)
+    await relaunched.refresh()
+    #expect(relaunched.accounts.isEmpty)
+    #expect(connector.accountRequestCount == 1)
+    await store.connect()
+    #expect(store.accounts == [account])
+    #expect(!requiresReconnect)
+  }
+
+  @Test("Available Wallet devices can enter Accounts without Sure credentials")
+  func localAvailability() {
+    #expect(AppleCardConnectionStore(connector: AppleCardConnectorFake()).isAvailable)
+    #expect(!AppleCardConnectionStore(connector: AppleCardConnectorFake(isAvailable: false)).isAvailable)
+  }
+
   @Test("Unavailable devices don't request authorization")
   func unavailable() async {
     let connector = AppleCardConnectorFake(isAvailable: false)
@@ -75,6 +123,7 @@ private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Send
   var statusRequestCount = 0
   var authorizationRequestCount = 0
   var accountRequestCount = 0
+  var beforeFetch: (@Sendable () async -> Void)?
 
   init(
     isAvailable: Bool = true,
@@ -100,6 +149,30 @@ private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Send
 
   func fetchAccounts() async throws -> [LocalFinancialAccount] {
     accountRequestCount += 1
+    await beforeFetch?()
     return accounts
+  }
+}
+
+private actor WalletRequestGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+  private var waiters: [CheckedContinuation<Void, Never>] = []
+
+  func suspend() async {
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+      waiters.forEach { $0.resume() }
+      waiters = []
+    }
+  }
+
+  func waitUntilStarted() async {
+    guard continuation == nil else { return }
+    await withCheckedContinuation { waiters.append($0) }
+  }
+
+  func complete() {
+    continuation?.resume()
+    continuation = nil
   }
 }
