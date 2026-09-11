@@ -18,6 +18,9 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
 
+  weak var appleCardConnection: AppleCardConnectionStore?
+  var transactionHistoryFactories: [TransactionHistoryStoreFactory] = []
+
   func didConnect() async {
     financeData?.restoreSnapshotIfAvailable()
     await financeData?.refresh()
@@ -31,14 +34,22 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
 
   func didCommitConnectionChange() {
     financeData?.discardSnapshot()
+    clearLocalData()
   }
 
   func prepareForLogout() async {
+    clearLocalData()
     financeData?.disconnect()
     await notificationLifecycle?.prepareForLogout()
   }
 
+  private func clearLocalData() {
+    appleCardConnection?.disconnect()
+    transactionHistoryFactories.forEach { $0.invalidateStores() }
+  }
+
   func didLogOut() {
+    clearLocalData()
     financeData?.disconnect()
   }
 }

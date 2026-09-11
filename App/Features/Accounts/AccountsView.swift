@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
@@ -36,15 +37,24 @@ struct AccountsView: View {
           .accessibilityHint("Manage your Sure connection")
         }
       }
-      .task {
+      .task(id: scenePhase) {
+        guard scenePhase == .active else { return }
+        await appleCardConnection.refresh()
         if data.state == .idle { await data.refresh() }
-        if appleCardConnection.state == .idle { await appleCardConnection.refresh() }
       }
     }
   }
 
   @ViewBuilder
   private var content: some View {
+    if appleCardConnection.isAvailable {
+      LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+        appleCardCard
+        ForEach(appleCardConnection.accounts) { account in
+          localAccountLink(account)
+        }
+      }
+    }
     switch data.state {
     case .idle, .loading:
       ProgressView("Loading accounts…")
@@ -60,7 +70,7 @@ struct AccountsView: View {
         }
         .buttonStyle(.borderedProminent)
       }
-      .frame(minHeight: 420)
+      .frame(minHeight: appleCardConnection.isAvailable ? 180 : 420)
     case .failed(let message):
       ContentUnavailableView {
         Label("Couldn’t load accounts", systemImage: "exclamationmark.triangle")
@@ -99,10 +109,6 @@ struct AccountsView: View {
               .frame(maxWidth: .infinity, alignment: .leading)
           }
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-            appleCardCard
-            ForEach(appleCardConnection.accounts) { account in
-              localAccountLink(account)
-            }
             ForEach(data.accounts) { account in
               accountLink(account)
             }

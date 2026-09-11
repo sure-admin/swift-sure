@@ -25,7 +25,16 @@ final class TransactionHistoryStore {
     self.now = now
   }
 
+  private var isInvalidated = false
+
+  func invalidate() {
+    isInvalidated = true
+    transactions = []
+    state = .idle
+  }
+
   func load() async {
+    guard !isInvalidated else { return }
     guard state != .loading else { return }
 
     let previousState = state
@@ -46,12 +55,14 @@ final class TransactionHistoryStore {
       )
       let loadedTransactions = try await client.fetchTransactions(request)
       try Task.checkCancellation()
+      guard !isInvalidated else { return }
       transactions = loadedTransactions.sorted { lhs, rhs in
         if lhs.date == rhs.date { return lhs.id.uuidString < rhs.id.uuidString }
         return lhs.date > rhs.date
       }
       state = .loaded
     } catch {
+      guard !isInvalidated else { return }
       if Self.isCancellation(error) {
         state = previousState
         transactions = previousTransactions

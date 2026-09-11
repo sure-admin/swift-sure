@@ -5,6 +5,48 @@ import Testing
 @MainActor
 @Suite("Transaction history store")
 struct TransactionHistoryStoreTests {
+  @Test("Wallet accounts from other institutions link to their own transaction histories")
+  func otherInstitutionHistory() async {
+    let accountID = UUID(uuidString: "00000000-0000-4000-8000-000000000002")!
+    let account = LocalFinancialAccount(
+      id: accountID, name: "Current Account", institutionName: "Monzo", kind: .asset, balance: nil
+    )
+    var expected = transaction(id: 1, date: Date(timeIntervalSince1970: 1_800_000_000))
+    expected.accountID = accountID
+    let client = TransactionHistoryClientStub(outcome: .success([expected]))
+    let factory = TransactionHistoryStoreFactory(
+      client: client, calendar: Calendar(identifier: .gregorian),
+      now: { Date(timeIntervalSince1970: 1_800_000_000) }
+    )
+    let store = factory.makeStore(for: .account(id: account.id, name: account.name))
+    await store.load()
+
+    #expect(await client.recordedRequests().map(\.accountID) == [accountID])
+    #expect(store.scope.navigationTitle == account.name)
+    #expect(store.scope.dayCount == 31)
+    #expect(store.transactions.map(\.id) == [expected.id])
+    #expect(store.transactions.map(\.accountID) == [accountID])
+  }
+
+  @Test("Session cleanup empties retained histories and rejects late responses")
+  func sessionCleanup() async {
+    let client = SuspendedTransactionHistoryClient()
+    let factory = TransactionHistoryStoreFactory(
+      client: client, calendar: Calendar(identifier: .gregorian),
+      now: { Date(timeIntervalSince1970: 1_800_000_000) }
+    )
+    let store = factory.makeStore(for: .recentActivity)
+    let load = Task { await store.load() }
+    await client.waitForRequest()
+    factory.invalidateStores()
+    await client.complete(with: [transaction(id: 1, date: Date(timeIntervalSince1970: 1_800_000_000))])
+    await load.value
+    #expect(store.transactions.isEmpty)
+    #expect(store.state == .idle)
+    await store.load()
+    #expect(await client.requestCount == 1)
+  }
+
   @Test("Account history requests exactly 31 inclusive days for that account")
   func accountRequest() async throws {
     let accountID = try #require(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
