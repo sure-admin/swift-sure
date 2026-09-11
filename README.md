@@ -16,6 +16,18 @@ types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
 The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
+## On-device Wallet accounts
+
+On an iPhone with FinanceKit available, the app opens Accounts without requiring
+Sure sign-in. Allow Access loads the eligible accounts shared through Apple
+Wallet; selecting an account shows its last 31 days of transactions. Wallet data
+stays on the device.
+
+Logging out clears app-held financial data, transaction histories, insights,
+and the saved overview snapshot. Wallet access must be explicitly re-enabled
+after logout or a Sure connection change, including after relaunch. This clears
+the app’s copies, not the original records or permission in Apple Wallet.
+
 ## AI Insight push notifications
 
 The iOS app requests notification permission when the user enables **Notify urgent insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.

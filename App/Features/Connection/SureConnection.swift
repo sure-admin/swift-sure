@@ -46,7 +46,9 @@ final class SureConnection {
     case .apiKey(let apiKey):
       identitySource = "api-key:\(apiKey)"
     case .bearer:
-      identitySource = "oauth:\(oauthSnapshotIdentitySource)"
+      // Device/client IDs identify an installation, not the signed-in person.
+      // Bind snapshots to this credential so another login cannot restore them.
+      identitySource = "oauth:\(oauthSnapshotIdentitySource):\(storedOAuthSession?.credentials.accessToken ?? "")"
     }
     return Data(SHA256.hash(data: Data(identitySource.utf8))).base64EncodedString()
   }
@@ -298,6 +300,8 @@ final class SureConnection {
     preferences.setExplicitlySignedOut(true)
     isSignedOut = true
     pendingSSOOnboarding = nil
+    email = ""
+    password = ""
     sessionGeneration += 1
     await lifecycle.prepareForLogout()
     await beginCredentialChange()

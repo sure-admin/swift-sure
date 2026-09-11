@@ -326,6 +326,7 @@ final class FinanceDataStore {
     lastUpdated = nil
     state = .needsConnection
     hasRequestedSessionRefresh = false
+    selectedReportingDate = Self.initialReportingDate(now: now(), calendar: calendar)
     if !preservingSnapshot {
       discardSnapshot()
     }
@@ -396,11 +397,16 @@ final class FinanceDataStore {
           let selectedReportingDate,
           let targetDate = monthDate(offset: offset, from: selectedReportingDate),
           let window = try? reportingMonthWindow(for: targetDate) else { return }
+    guard connection.isConfigured else { return }
+    let requestGeneration = generation
     isLoadingReportingPeriod = true
-    defer { isLoadingReportingPeriod = false }
+    defer {
+      if generation == requestGeneration { isLoadingReportingPeriod = false }
+    }
     do {
       let loadedTransactions = try await client.fetchTransactions(in: window)
       try Task.checkCancellation()
+      guard generation == requestGeneration, connection.isConfigured else { return }
       let loadedIDs = Set(loadedTransactions.map(\.id))
       transactions.removeAll {
         window.contains($0.date) && !loadedIDs.contains($0.id)
@@ -413,6 +419,7 @@ final class FinanceDataStore {
     } catch is CancellationError {
       return
     } catch {
+      guard generation == requestGeneration, connection.isConfigured else { return }
       transactionsError = error.localizedDescription
     }
   }

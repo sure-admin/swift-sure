@@ -68,6 +68,17 @@ struct ApplicationConnectionLifecycleTests {
       #expect(calls.filter { $0 == call }.count == 1)
     }
     #expect(notifications.didConnectCount == 1)
+
+    await connection.logOut()
+
+    #expect(financeData.insights.isEmpty)
+    #expect(financeData.accounts.isEmpty)
+    #expect(financeData.transactions.isEmpty)
+    #expect(financeData.budgets.isEmpty)
+    #expect(financeData.balanceSheet == nil)
+    #expect(!connection.isConfigured)
+    #expect(connection.email.isEmpty)
+    #expect(connection.password.isEmpty)
   }
 
   @Test("Cancellation after cleanup restores the prior session data")
