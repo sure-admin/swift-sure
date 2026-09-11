@@ -68,6 +68,8 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
 
   private func loadAccounts() async throws -> [LocalFinancialAccount] {
     let store = FinanceStore.shared
+    // An unfiltered query includes every shared institution, not just Apple products.
+    // A missing balance must not hide an account that can provide transactions.
     async let accounts = store.accounts(query: AccountQuery())
     async let balances = store.accountBalances(query: AccountBalanceQuery())
     let result = try await (accounts, balances)

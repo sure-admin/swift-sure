@@ -21,7 +21,11 @@ The app connects to `https://demo.sure.am` by default. In **Connection Settings*
 On an iPhone with FinanceKit available, the app opens Accounts without requiring
 Sure sign-in. Allow Access loads the eligible accounts shared through Apple
 Wallet; selecting an account shows its last 31 days of transactions. Wallet data
-stays on the device.
+stays on the device. All accounts shared by FinanceKit are included, including
+supported banks outside Apple’s own products, even when no balance is available.
+Accounts refreshes when opened and when the app returns to the foreground.
+Eligibility is controlled by Apple and the institution; card activity visible in
+Wallet alone does not guarantee that FinanceKit exposes it to apps.
 
 Logging out clears app-held financial data, transaction histories, insights,
 and the saved overview snapshot. Wallet access must be explicitly re-enabled
