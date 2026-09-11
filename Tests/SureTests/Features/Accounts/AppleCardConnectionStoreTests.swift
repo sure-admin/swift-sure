@@ -5,6 +5,36 @@ import Testing
 @MainActor
 @Suite("Apple Card connection")
 struct AppleCardConnectionStoreTests {
+  @Test("Newly shared accounts from other institutions appear on refresh")
+  func discoversOtherInstitutions() async {
+    let card = LocalFinancialAccount(
+      id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!,
+      name: "Apple Card", institutionName: "Goldman Sachs", kind: .liability, balance: nil
+    )
+    let bank = LocalFinancialAccount(
+      id: UUID(uuidString: "00000000-0000-4000-8000-000000000002")!,
+      name: "Current Account", institutionName: "Monzo", kind: .asset, balance: nil
+    )
+    let credit = LocalFinancialAccount(
+      id: UUID(uuidString: "00000000-0000-4000-8000-000000000003")!,
+      name: "Credit Card", institutionName: "Barclaycard", kind: .liability, balance: nil
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [card])
+    let store = AppleCardConnectionStore(connector: connector)
+    await store.refresh()
+
+    connector.accounts = [card, bank, credit]
+    await store.refresh()
+
+    #expect(store.accounts == [card, bank, credit])
+    #expect(connector.authorizationRequestCount == 0)
+    #expect(connector.accountRequestCount == 2)
+
+    connector.accounts = [bank, credit]
+    await store.refresh()
+    #expect(store.accounts == [bank, credit])
+  }
+
   @Test("A Wallet response arriving after logout is discarded")
   func lateWalletResponse() async {
     let gate = WalletRequestGate()

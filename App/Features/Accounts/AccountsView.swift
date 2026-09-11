@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AccountsView: View {
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
@@ -36,9 +37,10 @@ struct AccountsView: View {
           .accessibilityHint("Manage your Sure connection")
         }
       }
-      .task {
+      .task(id: scenePhase) {
+        guard scenePhase == .active else { return }
+        await appleCardConnection.refresh()
         if data.state == .idle { await data.refresh() }
-        if appleCardConnection.state == .idle { await appleCardConnection.refresh() }
       }
     }
   }
