@@ -3,6 +3,7 @@ import SwiftUI
 struct BudgetView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var hasSyncAccess: Bool
 
   private var totals: (spent: Money, limit: Money)? {
     let spent = MoneyBreakdown(aggregating: data.budgets.map(\.spent)).singleAmount
@@ -22,17 +23,11 @@ struct BudgetView: View {
             ProgressView("Loading budget…")
               .frame(maxWidth: .infinity, minHeight: 260)
           } else if data.state == .needsConnection {
-            ContentUnavailableView {
-              Label("Connect your Sure account", systemImage: "link.badge.plus")
-            } description: {
-              Text("Sign in with a passkey or connect with an API key to see your budget.")
-            } actions: {
-              Button("Connect to Sure", systemImage: "link") {
-                showConnectionSettings()
-              }
-              .buttonStyle(.borderedProminent)
-            }
+            SureConnectionPrompt(hasSyncAccess: hasSyncAccess)
             .frame(minHeight: 260)
+          } else if case .failed = data.state, !hasSyncAccess {
+            SureConnectionPrompt(hasSyncAccess: false)
+              .frame(minHeight: 260)
           } else if case .failed(let message) = data.state {
             ContentUnavailableView {
               Label("Couldn’t load budget", systemImage: "exclamationmark.triangle")

@@ -20,27 +20,6 @@ struct ContentView: View {
 
   var body: some View {
     appTabs
-    .safeAreaInset(edge: .top) {
-      if !subscriptionAccess.hasAccess || subscriptionAccess.renewalCancelled {
-        Button {
-          showingConnectionSettings = true
-        } label: {
-          VStack(spacing: 4) {
-            if subscriptionAccess.hasAccess, let end = subscriptionAccess.accessEnd {
-              Text("Sync will stop on \(end.formatted(date: .abbreviated, time: .omitted))")
-            } else {
-              Text("Sync paused · Subscription required")
-            }
-            Text("Local features and downloaded data remain available")
-              .font(.caption)
-          }
-          .frame(maxWidth: .infinity)
-          .padding(8)
-          .background(.regularMaterial)
-        }
-        .buttonStyle(.plain)
-      }
-    }
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
@@ -57,6 +36,7 @@ struct ContentView: View {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
           data: financeData,
+          hasSyncAccess: subscriptionAccess.hasAccess,
           spendingComparison: spendingComparison,
           refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
@@ -79,6 +59,7 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
+          hasSyncAccess: subscriptionAccess.hasAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,
           localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
@@ -87,7 +68,7 @@ struct ContentView: View {
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
-        BudgetView(data: financeData)
+        BudgetView(data: financeData, hasSyncAccess: subscriptionAccess.hasAccess)
           .id(connection.sessionGeneration)
       }
     }
