@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  var subscriptionAccess: SubscriptionAccessStore
   var connection: SureConnection
   var financeData: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
@@ -17,27 +18,27 @@ struct ContentView: View {
   @State private var showingConnectionSettings = false
 
   var body: some View {
-    Group {
-      #if os(iOS)
-      if connection.isConfigured || (appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
-        appTabs
-      } else if let onboarding = connection.pendingSSOOnboarding {
-        SSOOnboardingHandoffView(
-          context: onboarding,
-          signInWithPasskey: {
-            Task { await connection.signInWithPasskey() }
-          },
-          goBack: connection.cancelSSOOnboarding
-        )
-      } else {
-        SignInView(
-          connection: connection,
-          showConnectionSettings: { showingConnectionSettings = true }
-        )
+    appTabs
+    .safeAreaInset(edge: .top) {
+      if !subscriptionAccess.hasAccess || subscriptionAccess.renewalCancelled {
+        Button {
+          showingConnectionSettings = true
+        } label: {
+          VStack(spacing: 4) {
+            if subscriptionAccess.hasAccess, let end = subscriptionAccess.accessEnd {
+              Text("Sync will stop on \(end.formatted(date: .abbreviated, time: .omitted))")
+            } else {
+              Text("Sync paused · Subscription required")
+            }
+            Text("Local features and downloaded data remain available")
+              .font(.caption)
+          }
+          .frame(maxWidth: .infinity)
+          .padding(8)
+          .background(.regularMaterial)
+        }
+        .buttonStyle(.plain)
       }
-      #else
-      appTabs
-      #endif
     }
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if !configured && appleCardConnection.isAvailable { selection = .accounts }
@@ -46,7 +47,7 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection)
+      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection)
     }
   }
 

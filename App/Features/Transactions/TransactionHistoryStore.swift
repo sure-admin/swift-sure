@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class TransactionHistoryStore {
+  private(set) var showingDownloadedData = false
+  private var isOffline: () -> Bool
   private(set) var state: TransactionHistoryState = .idle
   private(set) var transactions: [FinanceTransaction] = []
 
@@ -16,11 +18,13 @@ final class TransactionHistoryStore {
   init(
     scope: TransactionHistoryScope,
     client: any TransactionHistoryClient,
+    isOffline: @escaping () -> Bool = { false },
     calendar: Calendar,
     now: @escaping () -> Date
   ) {
     self.scope = scope
     self.client = client
+    self.isOffline = isOffline
     self.calendar = calendar
     self.now = now
   }
@@ -53,7 +57,9 @@ final class TransactionHistoryStore {
         accountID: scope.accountID,
         dateWindow: dateWindow
       )
+      let wasOffline = isOffline()
       let loadedTransactions = try await client.fetchTransactions(request)
+      showingDownloadedData = wasOffline
       try Task.checkCancellation()
       guard !isInvalidated else { return }
       transactions = loadedTransactions.sorted { lhs, rhs in
@@ -66,6 +72,9 @@ final class TransactionHistoryStore {
       if Self.isCancellation(error) {
         state = previousState
         transactions = previousTransactions
+      } else if !previousTransactions.isEmpty {
+        transactions = previousTransactions
+        state = .loaded
       } else {
         state = .failed(error.localizedDescription)
       }

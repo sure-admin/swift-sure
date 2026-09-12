@@ -8,6 +8,7 @@ import AppKit
 
 @MainActor
 final class MobileSSOAuthService {
+  private var accessGate: BackendAccessGate
   private var httpClient: MobileSSOHTTPClient
   private var deviceInformation: MobileDeviceInformationProvider
   private var openURL: @MainActor (URL) async -> Bool
@@ -16,8 +17,10 @@ final class MobileSSOAuthService {
   init(
     httpClient: MobileSSOHTTPClient,
     deviceInformation: MobileDeviceInformationProvider,
+    accessGate: BackendAccessGate = BackendAccessGate(),
     openURL: @escaping @MainActor (URL) async -> Bool = MobileSSOAuthService.openSystemURL
   ) {
+    self.accessGate = accessGate
     self.httpClient = httpClient
     self.deviceInformation = deviceInformation
     self.openURL = openURL
@@ -28,6 +31,7 @@ final class MobileSSOAuthService {
     password: String,
     serverURL: String
   ) async throws -> MobileSSOResult {
+    try accessGate.check()
     let server = try OAuthServerURL(serverURL)
     let device = deviceInformation.information()
     let tokens = try await httpClient.login(
@@ -43,6 +47,7 @@ final class MobileSSOAuthService {
     provider: SSOProvider,
     serverURL: String
   ) async throws -> MobileSSOResult {
+    try accessGate.check()
     let server = try OAuthServerURL(serverURL)
     let device = deviceInformation.information()
     let url = try Self.authorizationURL(
@@ -96,6 +101,10 @@ final class MobileSSOAuthService {
         }
         callbackContinuation = continuation
         Task { @MainActor in
+          guard accessGate.isAllowed else {
+            finishAuthentication(with: .failure(BackendAccessError.subscriptionRequired))
+            return
+          }
           guard await openURL(url) else {
             finishAuthentication(with: .failure(MobileSSOError.couldNotStart))
             return
@@ -108,6 +117,8 @@ final class MobileSSOAuthService {
       }
     }
   }
+
+  func cancelAuthentication() { finishAuthentication(with: .failure(CancellationError())) }
 
   private func finishAuthentication(with result: Result<URL, Error>) {
     let continuation = callbackContinuation

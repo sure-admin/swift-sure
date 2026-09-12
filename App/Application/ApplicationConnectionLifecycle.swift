@@ -15,6 +15,7 @@ extension SureConnectionLifecycleHandling {
 
 @MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
+  var clearOfflineResponses: () async -> Void = {}
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
   weak var spendingComparison: SpendingComparisonStore?
@@ -30,6 +31,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForConnectionChange() async {
+    await clearOfflineResponses()
     spendingComparison?.invalidate()
     financeData?.disconnect(preservingSnapshot: true)
     await notificationLifecycle?.prepareForConnectionChange()
@@ -41,6 +43,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForLogout() async {
+    await clearOfflineResponses()
     clearLocalData()
     financeData?.disconnect()
     await notificationLifecycle?.prepareForLogout()

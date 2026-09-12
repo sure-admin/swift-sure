@@ -1,10 +1,19 @@
 import SwiftUI
 
 struct SignInView: View {
+  var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var showConnectionSettings: () -> Void
 
   var body: some View {
+    if subscriptionAccess.hasAccess {
+      signInContent
+    } else {
+      ScrollView { SubscriptionAccessView(access: subscriptionAccess).padding() }
+    }
+  }
+
+  private var signInContent: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 28) {

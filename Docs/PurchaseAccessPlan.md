@@ -1,7 +1,8 @@
 # Purchase access before Sure connections
 
-Status: product decisions confirmed; ready for implementation planning execution.
-Planning only; no runtime or App Store product changes yet.
+Status: initial runtime implementation and local product definitions completed.
+Remote product setup, visual verification, and device sandbox purchase testing
+remain pending; do not release this build before completing those checks.
 
 ## Objective
 
@@ -169,3 +170,48 @@ subscription. Make that temporary limitation clear in the connection flow.
 
 - https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-introductory-offers-for-auto-renewable-subscriptions
 - https://developer.apple.com/app-store/subscriptions/
+
+## Implementation status (2026-09-11)
+
+Implemented: direct StoreKit 2 service, injected entitlement state and backend gate,
+verified current entitlements and updates, purchase/restore/pending states,
+entitlement expiry scheduling, cancellation-date messaging, and Family Sharing
+entitlements. All credential screens and authentication methods are gated, as
+are API-key verification, OAuth exchanges/refresh, and the shared network path.
+In-flight requests are cancelled/discarded when access is revoked. Local features
+stay reachable from the app tabs; saved connection state is retained on expiry.
+
+Offline finance snapshots remain visible without refreshing their timestamps.
+Authenticated GET responses are archived without credentials/headers in private,
+backup-excluded files; cached responses are never used for authentication.
+Transaction drill-downs retain their last fully fetched window across launches,
+with an explicit downloaded-data label. Unfetched data remains unavailable.
+Mac writes use private permissions; iOS writes retain complete file protection.
+Foreground backend notifications are suppressed while access is suspended; the
+server can still send previously registered pushes until cleanup is possible.
+
+Monthly/yearly products, same service level, Family Sharing, US base pricing,
+English localizations, review notes, and one-week trial offers in all 175 current
+storefronts are staged and pass local App Store listing validation. Storefronts
+were taken from Apple's App Store localization table:
+https://developer.apple.com/help/app-store-connect/reference/app-information/app-store-localizations
+
+Validation: Bitrig iOS/Mac builds passed (including the embedded Watch app).
+Full unit suites passed on iOS (271 tests) and macOS (267 tests). Standalone
+XcodeGen was unavailable, so CLI test validation used a temporary copy of the
+existing generated project with new source membership and Info.plist values
+from Project.json; no generated project is committed. Bitrig performed its own
+project generation for the app builds.
+
+Remaining before release:
+- Resume the paused built-in simulator for visual/VoiceOver/Dynamic Type checks
+  and to capture the required product review screenshots. UI interaction was
+  not performed while the simulator was paused.
+- Apply the staged product definitions to App Store Connect, complete product
+  metadata/screenshots, and verify products reach Ready to Submit and load through
+  StoreKit. The local listing validator does not verify remote readiness.
+- Verify purchase, trial conversion, renewal cancellation, expiry, refund,
+  restoration, and Family Sharing on physical devices using Apple's sandbox.
+- Verify billing-grace configuration with the real product setup; the client
+  already honors verified grace-period entitlement dates.
+- Hosted app.sure.am subscription inclusion remains deferred as agreed.

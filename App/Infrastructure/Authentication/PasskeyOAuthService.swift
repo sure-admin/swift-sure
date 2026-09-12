@@ -15,14 +15,19 @@ final class PasskeyOAuthService: NSObject, ASWebAuthenticationPresentationContex
   private static let callbackPath = "/oauth/callback"
 
   private var authenticationSession: ASWebAuthenticationSession?
+  private var accessGate: BackendAccessGate
   private var oauthClient: OAuthHTTPClient
 
-  init(oauthClient: OAuthHTTPClient) {
+  init(oauthClient: OAuthHTTPClient, accessGate: BackendAccessGate = BackendAccessGate()) {
+    self.accessGate = accessGate
     self.oauthClient = oauthClient
     super.init()
   }
 
+  func cancelAuthentication() { authenticationSession?.cancel() }
+
   func signIn(serverURL: String) async throws -> PasskeyOAuthTokens {
+    try accessGate.check()
     let server = try OAuthServerURL(serverURL)
     let loopbackServer = try OAuthLoopbackServer(
       port: Self.callbackPort,
@@ -50,6 +55,7 @@ final class PasskeyOAuthService: NSObject, ASWebAuthenticationPresentationContex
       state: state
     )
 
+    try accessGate.check()
     let session = ASWebAuthenticationSession(
       url: authorizationURL,
       callbackURLScheme: nil
