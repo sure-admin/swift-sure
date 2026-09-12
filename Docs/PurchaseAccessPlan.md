@@ -204,9 +204,9 @@ from Project.json; no generated project is committed. Bitrig performed its own
 project generation for the app builds.
 
 Remaining before release:
-- Resume the paused built-in simulator for visual/VoiceOver/Dynamic Type checks
-  and to capture the required product review screenshots. UI interaction was
-  not performed while the simulator was paused.
+- Complete on-device VoiceOver navigation and verify the loaded purchase plans
+  after the staged products are applied. The simulator checks below cover the
+  locked/unavailable state, not a completed purchase.
 - Apply the staged product definitions to App Store Connect, complete product
   metadata/screenshots, and verify products reach Ready to Submit and load through
   StoreKit. The local listing validator does not verify remote readiness.
@@ -215,3 +215,27 @@ Remaining before release:
 - Verify billing-grace configuration with the real product setup; the client
   already honors verified grace-period entitlement dates.
 - Hosted app.sure.am subscription inclusion remains deferred as agreed.
+
+## Simulator follow-up (2026-09-11)
+
+The resumed iPhone simulator confirmed that the locked connection sheet exposes
+no credential fields. Its controls and explanatory copy were inspected in light
+and dark appearance and at the largest accessibility text size; the bottom
+restoration and legal controls remain reachable by scrolling. Accessibility labels
+were inspected. Enabling VoiceOver itself is unsupported by this simulator tool,
+so spoken traversal remains a physical-device check. The free Assistant tab is
+reachable without a subscription; no model request or financial data was sent.
+
+This check found an idle/loading Overview on a locked cold start. `suspendSync()`
+now cancels ongoing refreshes, ends loading indicators, and displays setup or the
+subscription-required error when no snapshot exists, while preserving already
+loaded snapshots and timestamps. The focused Mac finance suite passed (32 tests),
+and Bitrig's iOS and Mac builds passed. The running simulator confirmed the
+startup loading message was replaced by the setup state.
+
+Initial review screenshots and manifests are prepared for both products. They
+show the actual locked subscription screen with unavailable products; replace
+these initial images with the loaded plans after remote product setup propagates.
+The listing validates with the screenshot files present locally. Assets remain
+excluded from git under the listing's standard policy. No App Store Connect
+changes have been applied or submitted for review in this follow-up.
