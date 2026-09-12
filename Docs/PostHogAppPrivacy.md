@@ -26,7 +26,6 @@ the existing app-wide label.
 
 | Category → Type | Purpose | Linked to identity | Used for tracking |
 | --- | --- | --- | --- |
-| Location → Coarse Location | Analytics | Yes, via the persistent installation identifier | No |
 | Identifiers → Device ID | Analytics | Yes, via the persistent installation identifier | No |
 | Usage Data → Product Interaction | Analytics | Yes, via that identifier | No |
 | Usage Data → Other Usage Data | Analytics | Yes, via that identifier | No |
@@ -40,21 +39,19 @@ actual use of a persistent installation ID must be assessed separately.
 Tracking is not enabled by this integration: it does not combine these events
 with third-party data for advertising or share them with a data broker.
 
-### Confirmed server-side settings
+### Server-side settings to verify before publishing
 
-The project owner confirmed that IP capture and GeoIP enrichment are enabled.
-PostHog captures IP addresses and derives approximate location for analytics.
-The Coarse Location row above is required for this configuration, not conditional.
-Apple directs developers to classify retained IP addresses by their actual use;
-IP-derived approximate location is covered by Coarse Location. No additional
-IP-specific checkbox exists. If IP addresses are later used for identification,
-security, or diagnostics, reassess the corresponding categories and purposes.
+The app code cannot establish the PostHog project's IP capture or GeoIP enrichment
+settings. Verify them in PostHog. If approximate location is derived and retained,
+add Location → Coarse Location, purpose Analytics, linked Yes, tracking No. An IP
+address used for a different retained purpose needs classification according to
+that actual use; do not infer that IP capture is disabled from SDK anonymity.
 No GPS location permission or precise location capture is added by this integration.
 
 ## Publishing status and policy
 
 The iOS App Store description was updated through the listing sync to explain
-PostHog collection, IP capture and approximate location, the US destination, and the opt-out. This does not update the
+PostHog collection, the US destination, and the opt-out. This does not update the
 App Privacy label. The label must be reviewed on the page above and **Publish**
 must be clicked; saving a draft is insufficient.
 
