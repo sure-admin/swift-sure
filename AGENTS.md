@@ -185,6 +185,18 @@ protocols are for meaningful seams and alternate implementations.
   not scrape prose or prompt the chat assistant to emulate an API when a
   first-class operation is available.
 
+## Usage analytics
+
+- iOS usage analytics uses PostHog and is enabled by default with a persisted
+  in-app opt-out. Mac and Watch must not initialize the SDK.
+- Keep the SDK behind injected analytics protocols. Use the closed usage-event
+  vocabulary; never attach financial data, Sure identifiers, server URLs,
+  credentials, chat content, or free-form error messages.
+- Preserve anonymous identity, reset it after logout or a committed connection
+  change, and keep automatic capture, session replay, and person profiles off.
+- A missing or invalid project token/HTTPS ingestion host disables analytics.
+  Test hosts and offline tests must not initialize the live SDK.
+
 ## State, concurrency, and persistence
 
 - Use `@Observable` for app-owned observable models. Put UI-facing mutable

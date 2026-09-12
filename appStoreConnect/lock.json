@@ -8,6 +8,22 @@
       "automaticPrices": [
 
       ]
+    },
+    "subscriptionReviewScreenshots": {
+      "am.sure.insights.sync.monthly": {
+        "fileName": "SOURCE",
+        "fileSize": 355265,
+        "id": "ef3a7401-b0c4-477f-ba83-4bf4d5db0843",
+        "renditionChecksum": "ad13514d156e34d68cc502bc13e72bee",
+        "sourceFileChecksum": "2ebd8d9a3f9e17d08d2a026b4a0770c0"
+      },
+      "am.sure.insights.sync.yearly": {
+        "fileName": "SOURCE",
+        "fileSize": 355265,
+        "id": "22c80336-4ade-417c-a5f3-905a34a4a85c",
+        "renditionChecksum": "26fdd0612f0ee9551fa84a213bb4b6ec",
+        "sourceFileChecksum": "2ebd8d9a3f9e17d08d2a026b4a0770c0"
+      }
     }
   },
   "formatVersion": 1,
@@ -15,14 +31,39 @@
   "resources": {
     "ageRatingDeclaration": {
       "fields": {
+        "advertising": false,
+        "ageAssurance": false,
         "ageRatingOverrideV2": "NONE",
-        "koreaAgeRatingOverride": "NONE"
+        "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+        "contests": "NONE",
+        "gambling": false,
+        "gamblingSimulated": "NONE",
+        "gunsOrOtherWeapons": "NONE",
+        "healthOrWellnessTopics": false,
+        "horrorOrFearThemes": "NONE",
+        "koreaAgeRatingOverride": "NONE",
+        "lootBox": false,
+        "matureOrSuggestiveThemes": "NONE",
+        "medicalOrTreatmentInformation": "NONE",
+        "messagingAndChat": false,
+        "parentalControls": false,
+        "profanityOrCrudeHumor": "NONE",
+        "sexualContentGraphicAndNudity": "NONE",
+        "sexualContentOrNudity": "NONE",
+        "socialMedia": false,
+        "socialMediaAgeRestricted": false,
+        "unrestrictedWebAccess": false,
+        "userGeneratedContent": false,
+        "violenceCartoonOrFantasy": "NONE",
+        "violenceRealistic": "NONE",
+        "violenceRealisticProlongedGraphicOrSadistic": "NONE"
       },
       "id": "dfacd01a-5017-45ae-a573-78a0664c9e08",
       "type": "ageRatingDeclarations"
     },
     "app": {
       "fields": {
+        "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT",
         "primaryLocale": "en-US"
       },
       "id": "6804843427",
@@ -30,7 +71,7 @@
     },
     "appInfo": {
       "fields": {
-
+        "primaryCategory": "FINANCE"
       },
       "id": "dfacd01a-5017-45ae-a573-78a0664c9e08",
       "type": "appInfos"
@@ -53,7 +94,7 @@
     },
     "appStoreVersionLocalization:IOS:1.0:en-US": {
       "fields": {
-        "description": "Sure Insights is the native companion for your Sure personal finance server.\n\nConnect securely with an API key to review your net worth, accounts, budgets, and proactive financial insights. Continue conversations with Sure Assistant wherever you are, and optionally receive notifications when new insights are ready.\n\nYour API key is stored securely in the device Keychain. Sure Insights connects directly to the Sure server you choose.",
+        "description": "Sure Insights is the native companion for your Sure personal finance server.\n\nConnect securely with an API key to review your net worth, accounts, budgets, and proactive financial insights. Continue conversations with Sure Assistant wherever you are, and optionally receive notifications when new insights are ready.\n\nYour API key is stored securely in the device Keychain. Sure Insights connects directly to the Sure server you choose.\n\nUsage analytics\nTo improve the app, Sure Insights sends app-open and screen-view events, an anonymous installation identifier, and app and device information to PostHog in the United States. PostHog also captures your IP address and uses it to derive approximate location for analytics. Analytics is enabled by default. You can turn it off at any time under Sure connection → Usage analytics → Share usage analytics. Financial data, credentials, server addresses, and conversation content are not included in these analytics events. Session recording is disabled.",
         "keywords": "personal finance,net worth,budgets,accounts,financial insights",
         "supportUrl": "https://github.com/we-promise/sure/issues"
       },
@@ -69,6 +110,2228 @@
       },
       "id": "6804843427",
       "type": "appPriceSchedules"
+    },
+    "subscription:am.sure.insights.sync.monthly": {
+      "fields": {
+        "familySharable": true,
+        "groupLevel": 1,
+        "name": "Sure Sync Monthly",
+        "reviewNote": "Unlocks backend connectivity on all supported devices and servers, with Family Sharing. Local Wallet and on-device Assistant remain free. Credentials cannot be entered until a verified trial or subscription is active. Cancellation stops sync at the end of the entitlement period and preserves downloaded data.",
+        "subscriptionPeriod": "ONE_MONTH"
+      },
+      "id": "6811268727",
+      "type": "subscriptions"
+    },
+    "subscription:am.sure.insights.sync.yearly": {
+      "fields": {
+        "familySharable": true,
+        "groupLevel": 1,
+        "name": "Sure Sync Yearly",
+        "reviewNote": "Unlocks backend connectivity on all supported devices and servers, with Family Sharing. Local Wallet and on-device Assistant remain free. Credentials cannot be entered until a verified trial or subscription is active. Cancellation stops sync at the end of the entitlement period and preserves downloaded data.",
+        "subscriptionPeriod": "ONE_YEAR"
+      },
+      "id": "6811268972",
+      "type": "subscriptions"
+    },
+    "subscriptionGracePeriod": {
+      "fields": {
+        "optIn": false,
+        "sandboxOptIn": false
+      },
+      "id": "6804843427",
+      "type": "subscriptionGracePeriods"
+    },
+    "subscriptionGroup:Sure Sync": {
+      "fields": {
+        "referenceName": "Sure Sync"
+      },
+      "id": "22378706",
+      "type": "subscriptionGroups"
+    },
+    "subscriptionGroupLocalization:Sure Sync:en-US": {
+      "fields": {
+        "name": "Sure Sync"
+      },
+      "id": "f9c3e50b-0d2a-4964-ad21-236ee78e5dc7",
+      "type": "subscriptionGroupLocalizations"
+    },
+    "subscriptionIntroductoryOffers:am.sure.insights.sync.monthly": {
+      "fields": {
+        "offers": [
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AFG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AGO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AIA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ALB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ATG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AUT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AZE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BEL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BFA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BGR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BHR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BHS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BIH"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BLR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BLZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BMU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BOL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BTN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BWA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CAN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CIV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CMR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CPV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CRI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CYM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CYP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CZE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DEU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DMA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DNK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DOM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DZA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ECU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "EGY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ESP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "EST"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FIN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FJI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FRA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FSM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GAB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GBR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GEO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GHA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GMB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GNB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GRC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GRD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GTM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GUY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HKG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HND"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HRV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HUN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IDN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IND"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IRL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IRQ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ISL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ISR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ITA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JAM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JPN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KAZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KGZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KHM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KNA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KWT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LAO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LCA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LKA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LTU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LUX"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LVA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MAC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MAR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MEX"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MKD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MLI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MLT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MMR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MNE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MNG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MOZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MRT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MSR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MWI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MYS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NAM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NER"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NGA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NIC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NLD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NPL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NRU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NZL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "OMN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PAK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PAN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PER"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PHL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PLW"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PNG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "POL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PRT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PRY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "QAT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ROU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "RUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "RWA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SAU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SGP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SRB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "STP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SUR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SVK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SVN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SWE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SWZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SYC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TCA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TCD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "THA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TJK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TKM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TON"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TTO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TUN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TUR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TWN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TZA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UGA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UKR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "URY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "USA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UZB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VCT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VGB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VNM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VUT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "XKS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "YEM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZAF"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZMB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZWE"
+          }
+        ]
+      },
+      "id": "6811268727",
+      "type": "subscriptionIntroductoryOffers"
+    },
+    "subscriptionIntroductoryOffers:am.sure.insights.sync.yearly": {
+      "fields": {
+        "offers": [
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AFG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AGO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AIA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ALB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ARM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ATG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AUT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "AZE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BEL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BFA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BGR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BHR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BHS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BIH"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BLR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BLZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BMU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BOL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BRN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BTN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "BWA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CAN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CHN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CIV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CMR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "COL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CPV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CRI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CYM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CYP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "CZE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DEU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DMA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DNK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DOM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "DZA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ECU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "EGY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ESP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "EST"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FIN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FJI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FRA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "FSM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GAB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GBR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GEO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GHA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GMB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GNB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GRC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GRD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GTM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "GUY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HKG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HND"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HRV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "HUN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IDN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IND"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IRL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "IRQ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ISL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ISR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ITA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JAM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "JPN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KAZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KGZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KHM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KNA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "KWT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LAO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LBY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LCA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LKA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LTU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LUX"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "LVA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MAC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MAR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MDV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MEX"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MKD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MLI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MLT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MMR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MNE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MNG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MOZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MRT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MSR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MWI"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "MYS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NAM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NER"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NGA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NIC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NLD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NOR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NPL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NRU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "NZL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "OMN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PAK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PAN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PER"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PHL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PLW"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PNG"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "POL"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PRT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "PRY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "QAT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ROU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "RUS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "RWA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SAU"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SGP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SLV"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SRB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "STP"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SUR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SVK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SVN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SWE"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SWZ"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "SYC"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TCA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TCD"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "THA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TJK"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TKM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TON"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TTO"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TUN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TUR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TWN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "TZA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UGA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UKR"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "URY"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "USA"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "UZB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VCT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VEN"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VGB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VNM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "VUT"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "XKS"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "YEM"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZAF"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZMB"
+          },
+          {
+            "duration": "ONE_WEEK",
+            "numberOfPeriods": 1,
+            "offerMode": "FREE_TRIAL",
+            "territory": "ZWE"
+          }
+        ]
+      },
+      "id": "6811268972",
+      "type": "subscriptionIntroductoryOffers"
+    },
+    "subscriptionLocalization:am.sure.insights.sync.monthly:en-US": {
+      "fields": {
+        "description": "Sync every backend. Family Sharing included.",
+        "name": "Sure Sync Monthly"
+      },
+      "id": "4b9bfdab-e468-4447-a5aa-7b101d9c673c",
+      "type": "subscriptionLocalizations"
+    },
+    "subscriptionLocalization:am.sure.insights.sync.yearly:en-US": {
+      "fields": {
+        "description": "Sync every backend. Family Sharing included.",
+        "name": "Sure Sync Yearly"
+      },
+      "id": "611970ad-3cbe-4b0f-a9ca-4c11bd5e27a9",
+      "type": "subscriptionLocalizations"
+    },
+    "subscriptionPricing:am.sure.insights.sync.monthly": {
+      "fields": {
+        "baseTerritory": "USA",
+        "prices": [
+          {
+            "customerPrice": "0.99",
+            "territory": "USA"
+          }
+        ]
+      },
+      "id": "6811268727",
+      "type": "subscriptionPrices"
+    },
+    "subscriptionPricing:am.sure.insights.sync.yearly": {
+      "fields": {
+        "baseTerritory": "USA",
+        "prices": [
+          {
+            "customerPrice": "9.99",
+            "territory": "USA"
+          }
+        ]
+      },
+      "id": "6811268972",
+      "type": "subscriptionPrices"
+    },
+    "subscriptionReviewScreenshot:am.sure.insights.sync.monthly": {
+      "fields": {
+        "screenshot": {
+          "fileSize": 355265,
+          "sourceFileChecksum": "2ebd8d9a3f9e17d08d2a026b4a0770c0"
+        }
+      },
+      "id": "ef3a7401-b0c4-477f-ba83-4bf4d5db0843",
+      "type": "subscriptionAppStoreReviewScreenshots"
+    },
+    "subscriptionReviewScreenshot:am.sure.insights.sync.yearly": {
+      "fields": {
+        "screenshot": {
+          "fileSize": 355265,
+          "sourceFileChecksum": "2ebd8d9a3f9e17d08d2a026b4a0770c0"
+        }
+      },
+      "id": "22c80336-4ade-417c-a5f3-905a34a4a85c",
+      "type": "subscriptionAppStoreReviewScreenshots"
     }
   }
 }
