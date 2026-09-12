@@ -1,0 +1,1 @@
+Unlocks backend connectivity on all supported devices and servers, with Family Sharing. Local Wallet and on-device Assistant remain free. Credentials cannot be entered until a verified trial or subscription is active. Cancellation stops sync at the end of the entitlement period and preserves downloaded data.
