@@ -66,6 +66,18 @@ Buying client access does not create a Sure account or purchase server hosting.
 - No Sure discovery or compatibility traffic before an active trial or paid/shared
   entitlement. No production bypass for development/TestFlight; test with injected
   fakes and real sandbox entitlements.
+- Credential entry itself is gated, not just the Connect action. Before Apple
+  verifies an active trial, paid subscription, or Family Sharing entitlement, do
+  not present API-key, email/password, passkey, or provider-SSO entry points. Do
+  not accept credentials through paste/import, deep links, or another window.
+  Starting checkout, a pending purchase, and an unverified transaction do not
+  unlock authentication. Existing paid/shared access does not require a new trial.
+- Guard authentication services as well as UI navigation. Stored credentials must
+  not activate a session while locked. Block browser authentication launch, OAuth
+  registration/token exchange, SSO callbacks, API-key verification, and token
+  refresh until entitled. Recheck access after asynchronous work before committing
+  any session; dismiss credential entry and discard uncommitted drafts if access
+  ends. Keep free local features reachable without entering this flow.
 - Defer server cleanup requests after entitlement loss under the strict no-backend
   rule. Suppress backend notification processing and registration, retain pending
   unsubscription cleanup for entitled access, and always permit local logout.
@@ -76,9 +88,11 @@ Buying client access does not create a Sure account or purchase server hosting.
 
 Add an independently verified hosted entitlement source behind the same access
 policy later. Inspect the pinned upstream contract before designing that flow;
-do not invent a billing-status endpoint. This will require a narrow pre-purchase
-hosted authentication/entitlement-check exception so existing subscribers can
-prove access without paying twice. Define expiry, offline validity, family scope,
+do not invent a billing-status endpoint. The strict pre-entitlement authentication
+gate has no hosted-login exception. Before implementing hosted inclusion, resolve
+how existing subscribers can prove entitlement without violating that gate or
+paying twice; any exception requires an explicit future product decision.
+Define expiry, offline validity, family scope,
 and cross-server scope for this source then. Until shipped, do not claim hosted
 subscriptions already unlock the app or silently enroll those users in another
 subscription. Make that temporary limitation clear in the connection flow.
@@ -122,6 +136,11 @@ subscription. Make that temporary limitation clear in the connection flow.
 
 ## Validation and acceptance
 
+- Verify locked users cannot reach or enter any backend credentials through
+  navigation, accessibility actions, another window, paste/import, or deep links.
+  Test trial checkout pending/cancelled/failed states remain locked; only verified
+  trial or paid/shared entitlement exposes authentication. Test stale auth
+  callbacks and saved sessions cannot bypass the gate.
 - Deterministic Swift Testing fakes prove zero Sure requests before access is
   granted, including restored credentials, callbacks, refresh, and background work.
 - Test success, cancellation, pending approval, unverified transactions, restore,
