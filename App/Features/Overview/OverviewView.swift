@@ -7,6 +7,7 @@ struct OverviewView: View {
 
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var spendingComparison: SpendingComparisonStore
   var notificationManager: any InsightNotificationControlling
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -31,7 +32,7 @@ struct OverviewView: View {
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           Button("Refresh", systemImage: "arrow.clockwise") {
-            Task { await data.refresh() }
+            Task { await refresh() }
           }
           .disabled(data.state == .loading)
           Button("Connection settings", systemImage: "gearshape") {
@@ -43,8 +44,14 @@ struct OverviewView: View {
       .task {
         await data.refreshIfNeeded()
       }
-      .refreshable { await data.refresh() }
+      .refreshable { await refresh() }
     }
+  }
+
+  private func refresh() async {
+    async let finance: () = data.refresh()
+    async let spending: () = spendingComparison.refresh()
+    _ = await (finance, spending)
   }
 
   @ViewBuilder
@@ -82,6 +89,7 @@ struct OverviewView: View {
         notificationManager: notificationManager,
         statusColumnWidth: Self.statusColumnWidth
       )
+      SpendingComparisonCard(store: spendingComparison)
       if (data.accountsError != nil && !data.accounts.isEmpty)
           || (data.transactionsError != nil && !data.transactions.isEmpty) {
         Label(

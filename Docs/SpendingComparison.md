@@ -2,11 +2,21 @@
 
 ## Integration status
 
-The requested placement is immediately after Insights in Overview. Exact PWA
+The native card is placed immediately after Insights in Overview. Exact PWA
 parity requires an upstream read-only API for the server's spending series.
 Neither the pinned OpenAPI contract nor upstream `main` inspected on September
 11, 2026 exposes this data. No endpoint or runtime fallback has been invented.
-The existing contract pin remains unchanged.
+The existing contract pin remains unchanged. Production uses
+`UnavailableSpendingComparisonClient`, so the card explains that the totals are
+not available instead of drawing estimated data. The chart is implemented and
+can receive validated data through the injected `SpendingComparisonClient`.
+
+`SpendingComparison` is a domain input, not a proposed wire schema. It requires
+unfurled cumulative daily values (including zero-spend days), a server-local
+as-of date, and a currency. It validates completeness, date ordering, and
+nonnegative cumulative amounts before exposing header totals and chart points.
+Decimal values are preserved through financial calculations and formatting;
+conversion to Double is confined to chart coordinates and axis tick labels.
 
 Sources inspected:
 
@@ -58,13 +68,23 @@ adding a client endpoint. It needs to supply:
   distinction between the comparison cutoff and the full previous curve).
 - Documented authorization scopes, month validation, empty responses, and errors.
 
-Once available, update the contract pin and fixtures together, inject a narrow
-spending service, and build the Swift Charts card using the existing card style.
-Keep month loading independent of Overview's income/spending month selection.
-Protect against stale requests after a month switch or disconnect.
+Once available, update the contract pin and fixtures together and replace the
+unavailable service at `AppDefinition` with a typed API adapter. Use the existing
+transport for authorization and error handling. Do not add the path to the client
+before upstream documents it. Month loading already remains independent of
+Overview's income/spending month selection, and the store discards stale
+responses after selection changes or session invalidation. Spending series are
+not persisted in the existing Overview snapshot.
 
-Validation should cover current and historical months, January/year changes,
+The focused domain and state tests cover current and historical months, January/year changes,
 February/leap years, longer previous months, zero-spend days, empty periods,
 currency precision, comparison deltas, failures, cancellation, and session
 changes. Build and test on iOS and macOS, then inspect month selection, daily
 values, Dynamic Type, and VoiceOver in the running interface.
+
+Preparation validation: all 13 focused Swift Testing tests passed on iOS 27
+Simulator and macOS 27, and both app targets built successfully. Native chart
+renders were inspected at narrow and wide widths. Bitrig reported a successful
+build and a running simulator, but its inspection tool returned that the
+simulator does not support state, so touch and VoiceOver interaction remain
+unverified. Live server parity and wire contract tests require the upstream API.

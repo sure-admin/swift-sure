@@ -12,6 +12,7 @@ struct AppDefinition: App {
 
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
+  @State private var spendingComparison: SpendingComparisonStore
   @State private var appleCardConnection: AppleCardConnectionStore
   private var notificationManager: NotificationManager
   private var mobileSSOService: MobileSSOAuthService
@@ -132,6 +133,12 @@ struct AppDefinition: App {
         connection?.connectedSnapshotIdentity
       }
     )
+    let spendingComparison = SpendingComparisonStore(
+      client: UnavailableSpendingComparisonClient(),
+      connection: connection,
+      calendar: .autoupdatingCurrent,
+      now: { .now }
+    )
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector,
@@ -141,6 +148,7 @@ struct AppDefinition: App {
 
     lifecycle.notificationLifecycle = notificationManager
     lifecycle.financeData = financeData
+    lifecycle.spendingComparison = spendingComparison
     lifecycle.appleCardConnection = appleCardConnection
     if initialState.isExplicitlySignedOut {
       appleCardConnection.disconnect()
@@ -148,6 +156,7 @@ struct AppDefinition: App {
     }
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
+    _spendingComparison = State(initialValue: spendingComparison)
     _appleCardConnection = State(initialValue: appleCardConnection)
     self.notificationManager = notificationManager
     self.mobileSSOService = mobileSSOService
@@ -195,6 +204,7 @@ struct AppDefinition: App {
       ContentView(
         connection: connection,
         financeData: financeData,
+        spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,

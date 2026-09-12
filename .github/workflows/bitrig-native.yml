@@ -6,6 +6,7 @@ on:
       - "App/**"
       - "Shared/**"
       - "Tests/**"
+      - "Docs/SpendingComparison.md"
       - "Watch/**"
       - "Project.json"
       - "Docs/AssistantTools.json"

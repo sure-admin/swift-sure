@@ -27,6 +27,10 @@ enum FinanceFormatters {
     currency(amount: money.decimalValue, code: money.currency, compact: true)
   }
 
+  static func compactCurrency(_ money: DecimalMoney) -> String {
+    currency(amount: money.amount, code: money.currency, compact: true)
+  }
+
   static func currency(
     _ breakdown: MoneyBreakdown,
     compact: Bool,
