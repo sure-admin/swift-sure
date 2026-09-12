@@ -57,7 +57,12 @@ Buying client access does not create a Sure account or purchase server hosting.
   verified subscription state; do not invent a date if it is unavailable. Refund/revocation and loss of shared access
   suspend connectivity when verified by StoreKit. Honor verified billing grace;
   billing-grace configuration will be made explicit during product setup.
-- Use direct StoreKit 2 initially; no new billing server or RevenueCat dependency.
+- Use Apple's StoreKit 2 directly. This is an open-source client: do not add
+  RevenueCat or another third-party purchase SDK, billing service, account, or
+  credential requirement. Purchase verification and restoration use Apple APIs;
+  no new billing server is required. This is a product constraint, not a temporary
+  implementation choice. The deferred app.sure.am entitlement integration remains
+  separate and must not introduce RevenueCat into the client.
 - No Sure discovery or compatibility traffic before an active trial or paid/shared
   entitlement. No production bypass for development/TestFlight; test with injected
   fakes and real sandbox entitlements.
