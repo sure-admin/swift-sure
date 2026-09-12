@@ -52,12 +52,17 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
+      ConnectionSettingsView(connection: connection, analytics: analytics)
     }
   }
 
   private var visibleScreen: UsageScreen {
     if showingConnectionSettings { return .connectionSettings }
+    #if os(iOS)
+    if !connection.isConfigured && !(appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
+      return connection.pendingSSOOnboarding == nil ? .signIn : .onboarding
+    }
+    #endif
     switch selection {
     case .overview: return .overview
     case .assistant: return .assistant
