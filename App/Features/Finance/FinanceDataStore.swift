@@ -100,6 +100,7 @@ final class FinanceDataStore {
   private let connection: any ConnectionStateProviding
   private let client: any FinanceDataClient
   private let calendar: Calendar
+  private let canSync: () -> Bool
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
   private let snapshotCache: (any FinanceDataSnapshotCaching)?
@@ -117,6 +118,7 @@ final class FinanceDataStore {
     client: any FinanceDataClient,
     calendar: Calendar,
     now: @escaping () -> Date,
+    canSync: @escaping () -> Bool = { true },
     syncInsights: @escaping ([BackendInsight]) -> Void,
     snapshotCache: (any FinanceDataSnapshotCaching)? = nil,
     snapshotServerURL: @escaping () -> URL? = { nil },
@@ -126,6 +128,7 @@ final class FinanceDataStore {
     self.client = client
     self.calendar = calendar
     self.now = now
+    self.canSync = canSync
     self.syncInsights = syncInsights
     self.snapshotCache = snapshotCache
     self.snapshotServerURL = snapshotServerURL
@@ -149,6 +152,7 @@ final class FinanceDataStore {
   }
 
   func refresh() async {
+    guard canSync() else { return }
     hasRequestedSessionRefresh = true
     if let activeRefresh {
       await activeRefresh.task.value

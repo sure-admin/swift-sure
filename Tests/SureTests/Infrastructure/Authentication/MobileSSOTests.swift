@@ -27,6 +27,7 @@ struct MobileSSOTests {
     service = MobileSSOAuthService(
       httpClient: MobileSSOHTTPClient(dataTransport: stub),
       deviceInformation: testDeviceInformationProvider(),
+      accessGate: entitledTestGate(),
       openURL: { url in
         openedURL = url
         Task { @MainActor in
@@ -54,6 +55,7 @@ struct MobileSSOTests {
     let service = MobileSSOAuthService(
       httpClient: MobileSSOHTTPClient(dataTransport: HTTPDataTransportStub([])),
       deviceInformation: testDeviceInformationProvider(),
+      accessGate: entitledTestGate(),
       openURL: { _ in false }
     )
 

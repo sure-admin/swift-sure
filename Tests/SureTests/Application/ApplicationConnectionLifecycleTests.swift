@@ -31,7 +31,8 @@ struct ApplicationConnectionLifecycleTests {
       },
       beginCredentialChange: { },
       endCredentialChange: { },
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      accessGate: entitledTestGate()
     )
     let expectedContext = try SureRequestContext(
       baseURL: serverURL,
@@ -113,7 +114,8 @@ struct ApplicationConnectionLifecycleTests {
       verify: { _ in },
       beginCredentialChange: { await gate.begin() },
       endCredentialChange: { gate.end() },
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      accessGate: entitledTestGate()
     )
     let client = LifecycleFinanceDataClient(
       session: session,
@@ -173,7 +175,8 @@ struct ApplicationConnectionLifecycleTests {
       verify: { _ in },
       beginCredentialChange: { },
       endCredentialChange: { },
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      accessGate: entitledTestGate()
     )
     let client = LifecycleFinanceDataClient(
       session: session,

@@ -14,7 +14,31 @@ and feature state, `App/Infrastructure` implements external boundaries, and
 `App/DesignSystem` contains reusable presentation code. Cross-target value
 types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
-The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
+The default server address is `https://demo.sure.am`; no backend connection or credential entry is allowed until Apple verifies an active trial, paid subscription, or Family Sharing entitlement. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
+
+## Subscription access
+
+Sure Sync uses Apple StoreKit 2 directly, with no RevenueCat or billing server.
+Monthly ($0.99 USD) and yearly ($9.99 USD) plans unlock the same backend features
+across devices and servers, with Family Sharing. Both products have a one-week
+introductory trial for eligible users. Prices displayed in the app come from
+StoreKit and follow the customer's storefront.
+
+Local Wallet features and on-device Assistant calls are always free. Cancelling
+renewal preserves access through Apple's entitlement end date; the app warns
+when sync will stop. Expiry or revocation blocks authentication, token refresh,
+and backend reads/writes, while retained local data stays available. Restoring a
+subscription re-enables sync without deleting credentials. Previously downloaded
+transaction windows are labeled when viewed offline; data never fetched is not
+invented. Explicit logout removes the local archives. Hosted app.sure.am
+subscription recognition is deferred and does not bypass the authentication gate.
+
+Product definitions are staged under `appStoreConnect/subscriptionGroups/Sure Sync`.
+Before testing real purchases, apply the listing and finish the required product
+review screenshots. Use a physical device through Bitrig's Run on… or TestFlight
+with a Sandbox Apple Account. Unit tests use injected entitlement services;
+there is no production bypass and no StoreKit configuration file. See
+[the subscription plan and implementation status](Docs/PurchaseAccessPlan.md).
 
 ## Spending comparison
 
