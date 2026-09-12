@@ -127,8 +127,9 @@ binary floating-point presentation bridge:
   invent exchange rates or label a mixed-currency total as one currency.
 
 `Double` conversions are confined to Swift Charts geometry and axis ticks.
-Account charts require one reporting currency; the prepared spending comparison
-uses one server-provided currency. Monetary summaries remain lossless Decimal
+Account charts require one reporting currency; each spending comparison
+uses one currency from its explicitly labeled source. Local Wallet spending is
+calculated separately on-device and is never combined with Sure data. Monetary summaries remain lossless Decimal
 values. The spending comparison has no live API adapter yet; see
 [its integration status](SpendingComparison.md).
 

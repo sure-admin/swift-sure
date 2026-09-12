@@ -1,6 +1,6 @@
 import Foundation
 
-/// Presentation data mapped from Sure's authoritative, unfurled cumulative series.
+/// Validated, unfurled cumulative series from the explicitly selected spending source.
 /// This is deliberately not a wire DTO until an upstream API contract exists.
 struct SpendingComparison: Equatable, Sendable {
   let month: SpendingMonth

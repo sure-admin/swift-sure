@@ -5,9 +5,11 @@ struct OverviewView: View {
   private static let cardContentInset: CGFloat = 20
   private static let statusColumnWidth: CGFloat = 56
 
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
+  var refreshWalletAccess: () async -> Void
   var notificationManager: any InsightNotificationControlling
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -42,13 +44,23 @@ struct OverviewView: View {
         }
       }
       .task {
+        await refreshWalletAccess()
         await data.refreshIfNeeded()
       }
       .refreshable { await refresh() }
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .active {
+          Task {
+            await refreshWalletAccess()
+            if spendingComparison.source == .wallet { await spendingComparison.refresh() }
+          }
+        }
+      }
     }
   }
 
   private func refresh() async {
+    await refreshWalletAccess()
     async let finance: () = data.refresh()
     async let spending: () = spendingComparison.refresh()
     _ = await (finance, spending)
@@ -60,6 +72,7 @@ struct OverviewView: View {
     case .idle, .loading:
       loadingView
     case .needsConnection:
+      if spendingComparison.source == .wallet { SpendingComparisonCard(store: spendingComparison) }
       ContentUnavailableView {
         Label("Connect your Sure account", systemImage: "link.badge.plus")
       } description: {
@@ -71,6 +84,7 @@ struct OverviewView: View {
         .buttonStyle(.borderedProminent)
       }
     case .failed(let message):
+      if spendingComparison.source == .wallet { SpendingComparisonCard(store: spendingComparison) }
       ContentUnavailableView {
         Label("Couldn’t load Sure", systemImage: "exclamationmark.triangle")
       } description: {

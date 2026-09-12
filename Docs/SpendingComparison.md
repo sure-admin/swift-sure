@@ -6,9 +6,11 @@ The native card is placed immediately after Insights in Overview. Exact PWA
 parity requires an upstream read-only API for the server's spending series.
 Neither the pinned OpenAPI contract nor upstream `main` inspected on September
 11, 2026 exposes this data. No endpoint or runtime fallback has been invented.
-The existing contract pin remains unchanged. Production uses
-`UnavailableSpendingComparisonClient`, so the card explains that the totals are
-not available instead of drawing estimated data. The chart is implemented and
+The existing contract pin remains unchanged. The Sure source uses
+`UnavailableSpendingComparisonClient`, so its totals remain unavailable.
+Authorized local Wallet accounts can independently populate the card through
+`WalletSpendingComparisonClient`; this source is labeled explicitly and never
+merged with Sure records. The chart is implemented and
 can receive validated data through the injected `SpendingComparisonClient`.
 
 `SpendingComparison` is a domain input, not a proposed wire schema. It requires
@@ -88,3 +90,36 @@ renders were inspected at narrow and wide widths. Bitrig reported a successful
 build and a running simulator, but its inspection tool returned that the
 simulator does not support state, so touch and VoiceOver interaction remain
 unverified. Live server parity and wire contract tests require the upstream API.
+
+## Local Wallet source
+
+When Wallet access has been explicitly enabled in Accounts, the card prefers
+that source, including with no Sure connection. Overview refreshes Wallet access
+on appearance, foregrounding, and manual refresh. Revocation, logout, account
+changes, and reconnect invalidate displayed and in-flight spending snapshots.
+
+`WalletSpendingAccessProviding` exposes authorized account IDs and known balance
+currencies without coupling Overview to the Accounts view model. The injected
+transaction provider obtains a complete local FinanceKit snapshot. The domain
+builder filters by authorized account, inclusive date window, booked status,
+debit direction, and non-transfer type, then aggregates integer minor units into
+Decimal cumulative totals. Credits and refunds are not deducted, and the card's
+information popover states that policy. No local records leave the device.
+
+If currencies differ, the card displays an explicit unsupported comparison state
+instead of inventing FX rates. A known balance currency permits an empty period
+to display zero. With neither spending nor a known balance currency, it explains
+that currency data is unavailable. Accounts without balances remain usable when
+their transactions provide a currency.
+
+Offline tests exercise source routing without Sure credentials, revocation,
+query windows and account scope, debit/transfer/status filtering, duplicates,
+empty and unknown-currency states, mixed currencies, and Decimal precision.
+FinanceKit access itself requires an eligible physical iPhone; the simulator
+cannot supply real Wallet accounts.
+
+Wallet-source validation: the focused domain, service, state, and connection
+suites passed on iOS Simulator and macOS. The final overlapping-refresh state
+suite was rerun and passed on both platforms. An unsigned physical-iPhone build
+also passed, compiling the FinanceKit implementation excluded by simulator
+builds. Real Wallet data and permission interactions were not tested on a device.

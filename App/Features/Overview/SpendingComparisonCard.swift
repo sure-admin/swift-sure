@@ -7,6 +7,11 @@ struct SpendingComparisonCard: View {
   var body: some View {
     DisclosureGroup(isExpanded: $expanded) {
       VStack(alignment: .leading, spacing: 16) {
+        if store.source == .wallet {
+          Label("Wallet spending · On this device", systemImage: "wallet.bifold")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
         if let month = store.selectedMonth {
           Picker("Spending month", selection: Binding(
             get: { month },
@@ -29,10 +34,21 @@ struct SpendingComparisonCard: View {
               .foregroundStyle(.secondary)
           }
         case .unavailable:
-          Label("Spending comparison isn’t available yet", systemImage: "chart.xyaxis.line")
+          Label(store.source == .wallet ? LocalizedStringKey("Wallet spending is unavailable") : LocalizedStringKey("Spending comparison isn’t available yet"), systemImage: "chart.xyaxis.line")
             .font(.headline)
-          Text("The spending totals used by Sure’s web dashboard aren’t available to this app yet.")
+          Text(store.source == .wallet
+            ? LocalizedStringKey("Wallet spending is unavailable. Check Wallet access in Accounts.")
+            : LocalizedStringKey("The spending totals used by Sure’s web dashboard aren’t available to this app yet."))
             .font(.subheadline)
+            .foregroundStyle(.secondary)
+        case .noWalletAccounts:
+          Text("No shared Wallet accounts. Manage Wallet access in Accounts.")
+            .foregroundStyle(.secondary)
+        case .multipleCurrencies:
+          Text("Wallet accounts use multiple currencies. A combined spending comparison is unavailable without currency conversion.")
+            .foregroundStyle(.secondary)
+        case .unknownCurrency:
+          Text("No Wallet spending or balance currency is available for this period yet.")
             .foregroundStyle(.secondary)
         case .failed:
           Label("Couldn’t load spending comparison", systemImage: "exclamationmark.triangle")
@@ -41,7 +57,7 @@ struct SpendingComparisonCard: View {
           }
           .buttonStyle(.bordered)
         case .loaded(let comparison):
-          SpendingComparisonChart(comparison: comparison)
+          SpendingComparisonChart(comparison: comparison, isWallet: store.source == .wallet)
             .id(comparison.month)
         }
       }
@@ -54,6 +70,6 @@ struct SpendingComparisonCard: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .sureCard()
-    .task { await store.refreshIfNeeded() }
+    .task(id: store.accessIdentity) { await store.refreshIfNeeded() }
   }
 }
