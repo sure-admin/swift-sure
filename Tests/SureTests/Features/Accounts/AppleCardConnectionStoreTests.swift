@@ -5,6 +5,41 @@ import Testing
 @MainActor
 @Suite("Apple Card connection")
 struct AppleCardConnectionStoreTests {
+  @Test("Wallet approval survives a signed-out cold launch")
+  func walletApprovalSurvivesRelaunch() async {
+    let account = LocalFinancialAccount(
+      id: UUID(), name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
+    var requiresReconnect = true
+    let firstLaunch = AppleCardConnectionStore(
+      connector: connector, requiresReconnect: requiresReconnect,
+      setRequiresReconnect: { requiresReconnect = $0 }
+    )
+    await firstLaunch.connect()
+    #expect(!requiresReconnect)
+
+    let relaunched = AppleCardConnectionStore(
+      connector: connector, requiresReconnect: requiresReconnect,
+      setRequiresReconnect: { requiresReconnect = $0 }
+    )
+    let lifecycle = ApplicationConnectionLifecycle()
+    lifecycle.appleCardConnection = relaunched
+    lifecycle.restoreInitialState(isExplicitlySignedOut: true)
+    await relaunched.refresh()
+
+    #expect(!requiresReconnect)
+    #expect(relaunched.state == .authorized)
+    #expect(relaunched.accounts == [account])
+    #expect(connector.authorizationRequestCount == 1)
+
+    // The stored app decision never overrides revoked system permission.
+    connector.status = .denied
+    await relaunched.refresh()
+    #expect(relaunched.state == .denied)
+    #expect(relaunched.accounts.isEmpty)
+  }
+
   @Test("Newly shared accounts from other institutions appear on refresh")
   func discoversOtherInstitutions() async {
     let card = LocalFinancialAccount(
@@ -69,6 +104,9 @@ struct AppleCardConnectionStoreTests {
     #expect(requiresReconnect)
     let relaunched = AppleCardConnectionStore(connector: connector, requiresReconnect: requiresReconnect)
     #expect(relaunched.state == .ready)
+    let startup = ApplicationConnectionLifecycle()
+    startup.appleCardConnection = relaunched
+    startup.restoreInitialState(isExplicitlySignedOut: true)
     await relaunched.refresh()
     #expect(relaunched.accounts.isEmpty)
     #expect(connector.accountRequestCount == 1)

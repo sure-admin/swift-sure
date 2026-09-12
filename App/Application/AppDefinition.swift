@@ -179,10 +179,7 @@ struct AppDefinition: App {
     lifecycle.financeData = financeData
     lifecycle.spendingComparison = spendingComparison
     lifecycle.appleCardConnection = appleCardConnection
-    if initialState.isExplicitlySignedOut {
-      appleCardConnection.disconnect()
-      financeData.disconnect()
-    }
+    lifecycle.restoreInitialState(isExplicitlySignedOut: initialState.isExplicitlySignedOut)
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
     _spendingComparison = State(initialValue: spendingComparison)
