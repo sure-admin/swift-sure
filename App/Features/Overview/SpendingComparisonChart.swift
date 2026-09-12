@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SpendingComparisonChart: View {
   var comparison: SpendingComparison
+  var isWallet = false
   @State private var selectedDay: Int?
   @State private var showingExplanation = false
 
@@ -18,7 +19,9 @@ struct SpendingComparisonChart: View {
         }
         .labelStyle(.iconOnly)
         .popover(isPresented: $showingExplanation) {
-          Text("Spending totals come from Sure. The current month compares spending through the same day of the previous month. Past months compare full totals. The previous month’s line always shows its full total; extra days in a longer previous month are included in the final point.")
+          Text(isWallet
+            ? LocalizedStringKey("Wallet spending stays on this device. It includes posted debits, excluding transfers. Credits and refunds aren’t deducted. Current-month totals compare the same elapsed days; past months compare full totals. The previous line shows its full month, folding any extra days into the final point.")
+            : LocalizedStringKey("Spending totals come from Sure. The current month compares spending through the same day of the previous month. Past months compare full totals. The previous month’s line always shows its full total; extra days in a longer previous month are included in the final point."))
             .padding()
             .frame(idealWidth: 320)
             .presentationCompactAdaptation(.popover)

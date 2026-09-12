@@ -4,22 +4,36 @@ import Observation
 @MainActor
 @Observable
 final class SpendingComparisonStore {
-  private(set) var state: State = .idle
+  private var storedState: State = .idle
+  private var activeAccess: AccessIdentity?
+  var state: State { activeAccess == accessIdentity ? storedState : .idle }
+  var source: Source { walletClient != nil && walletAccess?.walletSpendingAccess.isAuthorized == true ? .wallet : .sure }
+  var accessIdentity: AccessIdentity {
+    AccessIdentity(wallet: walletAccess?.walletSpendingAccess, serverConfigured: connection.isConfigured, serverGeneration: connection.sessionGeneration)
+  }
   private(set) var months: [SpendingMonth] = []
   private(set) var selectedMonth: SpendingMonth?
 
+  private let walletClient: (any WalletSpendingComparisonProviding)?
+  private let walletAccess: (any WalletSpendingAccessProviding)?
   private let client: any SpendingComparisonClient
   private let now: () -> Date
   private let calendar: Calendar
   private let connection: any ConnectionStateProviding
   private var generation = 0
+  private var loadingMonth: SpendingMonth?
+  private var refreshWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
 
   init(
     client: any SpendingComparisonClient,
     connection: any ConnectionStateProviding,
     calendar: Calendar,
-    now: @escaping () -> Date
+    now: @escaping () -> Date,
+    walletClient: (any WalletSpendingComparisonProviding)? = nil,
+    walletAccess: (any WalletSpendingAccessProviding)? = nil
   ) {
+    self.walletClient = walletClient
+    self.walletAccess = walletAccess
     self.client = client
     self.connection = connection
     self.calendar = calendar
@@ -34,43 +48,73 @@ final class SpendingComparisonStore {
   }
 
   func refreshIfNeeded() async {
-    if state == .idle { await refresh() }
+    if state == .idle || state == .loading { await refresh() }
   }
 
   func refresh() async {
     updateMonths()
-    generation += 1
-    let requestGeneration = generation
-    guard connection.isConfigured, let month = selectedMonth else {
-      state = .idle
+    if state == .loading && loadingMonth == selectedMonth {
+      let waitingGeneration = generation
+      await withCheckedContinuation { continuation in
+        refreshWaiters[waitingGeneration, default: []].append(continuation)
+      }
+      if generation == waitingGeneration && state == .idle && !Task.isCancelled {
+        await refresh()
+      }
       return
     }
-    state = .loading
+    generation += 1
+    let requestGeneration = generation
+    defer {
+      refreshWaiters.removeValue(forKey: requestGeneration)?.forEach { $0.resume() }
+    }
+    let requestAccess = accessIdentity
+    activeAccess = requestAccess
+    let requestSource = source
+    guard (requestSource == .wallet || connection.isConfigured), let month = selectedMonth else {
+      storedState = .idle
+      return
+    }
+    loadingMonth = month
+    storedState = .loading
     do {
-      let comparison = try await client.fetchComparison(for: month)
+      let comparison: SpendingComparison
+      if requestSource == .wallet, let walletClient, let access = requestAccess.wallet {
+        comparison = try await walletClient.fetchComparison(for: month, access: access)
+      } else {
+        comparison = try await client.fetchComparison(for: month)
+      }
       try Task.checkCancellation()
-      guard generation == requestGeneration, connection.isConfigured else { return }
+      guard generation == requestGeneration, accessIdentity == requestAccess else { return }
       guard comparison.month == month else {
-        state = .failed
+        storedState = .failed
         return
       }
-      state = .loaded(comparison)
+      storedState = .loaded(comparison)
     } catch {
-      guard generation == requestGeneration, connection.isConfigured else { return }
+      guard generation == requestGeneration, accessIdentity == requestAccess else { return }
       if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
-        state = .idle
+        storedState = .idle
       } else if let error = error as? SpendingComparisonServiceError, error == .unavailable {
-        state = .unavailable
+        storedState = .unavailable
+      } else if let error = error as? WalletSpendingComparisonBuilder.Failure {
+        switch error {
+        case .noAccounts: storedState = .noWalletAccounts
+        case .multipleCurrencies: storedState = .multipleCurrencies
+        case .unknownCurrency: storedState = .unknownCurrency
+        case .invalidData: storedState = .failed
+        }
       } else {
         // Never expose raw service errors, which could include financial data.
-        state = .failed
+        storedState = .failed
       }
     }
   }
 
   func invalidate() {
     generation += 1
-    state = .idle
+    storedState = .idle
+    loadingMonth = nil
     selectedMonth = nil
     updateMonths()
   }
@@ -85,8 +129,16 @@ final class SpendingComparisonStore {
     }
   }
 
+  enum Source { case sure, wallet }
+
+  struct AccessIdentity: Equatable {
+    var wallet: WalletSpendingAccess?
+    var serverConfigured: Bool
+    var serverGeneration: Int
+  }
+
   enum State: Equatable {
-    case idle, loading, unavailable, failed
+    case idle, loading, unavailable, failed, noWalletAccounts, multipleCurrencies, unknownCurrency
     case loaded(SpendingComparison)
   }
 }

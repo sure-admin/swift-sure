@@ -132,17 +132,22 @@ struct AppDefinition: App {
         connection?.connectedSnapshotIdentity
       }
     )
-    let spendingComparison = SpendingComparisonStore(
-      client: UnavailableSpendingComparisonClient(),
-      connection: connection,
-      calendar: .autoupdatingCurrent,
-      now: { .now }
-    )
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector,
       requiresReconnect: preferences.requiresWalletReconnect(),
       setRequiresReconnect: preferences.setRequiresWalletReconnect
+    )
+
+    let spendingComparison = SpendingComparisonStore(
+      client: UnavailableSpendingComparisonClient(),
+      connection: connection,
+      calendar: .autoupdatingCurrent,
+      now: { .now },
+      walletClient: WalletSpendingComparisonClient(
+        transactions: financeKitConnector, calendar: .autoupdatingCurrent, now: { .now }
+      ),
+      walletAccess: appleCardConnection
     )
 
     lifecycle.notificationLifecycle = notificationManager

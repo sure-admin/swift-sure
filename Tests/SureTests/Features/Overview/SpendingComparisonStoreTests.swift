@@ -88,14 +88,71 @@ struct SpendingComparisonStoreTests {
     #expect(store.state == .failed)
   }
 
+  @Test("Repeated refreshes do not duplicate an in-flight month query")
+  func coalescedRefresh() async throws {
+    let client = ControlledSpendingClient()
+    let store = makeStore(client: client)
+    var events = client.requests.makeAsyncIterator()
+    let task = Task { await store.refresh() }
+    let month = try #require(await events.next())
+    let started = AsyncStream<Void>.makeStream()
+    var startedEvents = started.stream.makeAsyncIterator()
+    let second = Task {
+      started.continuation.yield(())
+      await store.refresh()
+    }
+    _ = await startedEvents.next()
+    #expect(await client.count == 1)
+    await client.complete(month, result: .success(try comparison(month)))
+    await task.value
+    await second.value
+    guard case .loaded = store.state else { Issue.record("Expected loaded data"); return }
+  }
+
+  @Test("Local-only Wallet access loads without contacting Sure and hides data immediately on revocation")
+  func walletOnly() async throws {
+    let remote = ControlledSpendingClient()
+    let local = ControlledSpendingClient()
+    let access = WalletAccessStub()
+    let store = makeStore(client: remote, connection: SpendingConnectionStub(isConfigured: false), walletClient: local, walletAccess: access)
+    var events = local.requests.makeAsyncIterator()
+    let task = Task { await store.refresh() }
+    let month = try #require(await events.next())
+    await local.complete(month, result: .success(try comparison(month)))
+    await task.value
+    #expect(store.source == .wallet)
+    #expect(await remote.count == 0)
+    guard case .loaded = store.state else { Issue.record("Expected local spending"); return }
+    access.walletSpendingAccess.isAuthorized = false
+    #expect(store.state == .idle)
+    #expect(store.source == .sure)
+  }
+
+  @Test("Wallet access revoked during loading cannot publish an old response")
+  func walletRevokedInFlight() async throws {
+    let local = ControlledSpendingClient()
+    let access = WalletAccessStub()
+    let store = makeStore(connection: SpendingConnectionStub(isConfigured: false), walletClient: local, walletAccess: access)
+    var events = local.requests.makeAsyncIterator()
+    let task = Task { await store.refresh() }
+    let month = try #require(await events.next())
+    access.walletSpendingAccess.generation += 1
+    access.walletSpendingAccess.isAuthorized = false
+    await local.complete(month, result: .success(try comparison(month)))
+    await task.value
+    #expect(store.state == .idle)
+  }
+
   private func makeStore(
     client: any SpendingComparisonClient = UnavailableSpendingComparisonClient(),
-    connection: SpendingConnectionStub? = nil
+    connection: SpendingConnectionStub? = nil,
+    walletClient: (any WalletSpendingComparisonProviding)? = nil,
+    walletAccess: (any WalletSpendingAccessProviding)? = nil
   ) -> SpendingComparisonStore {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 2))!
-    return SpendingComparisonStore(client: client, connection: connection ?? SpendingConnectionStub(), calendar: calendar, now: { now })
+    return SpendingComparisonStore(client: client, connection: connection ?? SpendingConnectionStub(), calendar: calendar, now: { now }, walletClient: walletClient, walletAccess: walletAccess)
   }
 
   private func comparison(_ month: SpendingMonth) throws -> SpendingComparison {
@@ -118,7 +175,10 @@ private final class SpendingConnectionStub: ConnectionStateProviding {
   init(isConfigured: Bool = true) { self.isConfigured = isConfigured }
 }
 
-private actor ControlledSpendingClient: SpendingComparisonClient {
+private actor ControlledSpendingClient: SpendingComparisonClient, WalletSpendingComparisonProviding {
+  func fetchComparison(for month: SpendingMonth, access: WalletSpendingAccess) async throws -> SpendingComparison {
+    try await fetchComparison(for: month)
+  }
   nonisolated let requests: AsyncStream<SpendingMonth>
   private let eventContinuation: AsyncStream<SpendingMonth>.Continuation
   private var pending: [SpendingMonth: CheckedContinuation<SpendingComparison, any Error>] = [:]
@@ -141,4 +201,9 @@ private actor ControlledSpendingClient: SpendingComparisonClient {
   func complete(_ month: SpendingMonth, result: Result<SpendingComparison, any Error>) {
     pending.removeValue(forKey: month)?.resume(with: result)
   }
+}
+
+@MainActor
+private final class WalletAccessStub: WalletSpendingAccessProviding {
+  var walletSpendingAccess = WalletSpendingAccess(isAuthorized: true, accountIDs: [UUID(uuidString: "00000000-0000-0000-0000-000000000001")!], currencies: [CurrencyCode("USD")!], generation: 0)
 }

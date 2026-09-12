@@ -56,6 +56,7 @@ struct ContentView: View {
         OverviewView(
           data: financeData,
           spendingComparison: spendingComparison,
+          refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )

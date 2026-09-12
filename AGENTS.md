@@ -34,6 +34,9 @@ idiomatic Swift and SwiftUI architecture.
   carrying speculative compatibility for older self-hosted instances. Update
   the pin, fixtures, and affected contract tests together when adopting a newer
   `main`. Never infer compatibility from the demo server alone.
+- Explicitly authorized FinanceKit accounts may supply a separate, on-device
+  Wallet spending comparison. Label its source, keep it separate from Sure totals,
+  and never upload local financial records as part of the comparison.
 - Sure is the system of record for financial data. The client may derive
   presentation summaries, but it must not invent server data or reimplement a
   server-owned workflow when a documented API exists.

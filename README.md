@@ -18,12 +18,16 @@ The app connects to `https://demo.sure.am` by default. In **Connection Settings*
 
 ## Spending comparison
 
-Overview includes a Spending card directly after Insights. Its native chart and
-month comparison are prepared for Sure's authoritative daily spending totals.
-The public API does not expose those totals yet, so production shows an explicit
-unavailable state. It never substitutes transaction sums. See
+Overview includes a Spending card directly after Insights. With Wallet access
+enabled in Accounts, it shows local spending even without a Sure connection.
+Wallet totals stay on the device and include posted debits, excluding transfers;
+credits and refunds are not deducted. Mixed currencies are not combined.
+
+The card labels this source as Wallet spending. Sure's authoritative spending
+API is still pending; without authorized Wallet access, the server comparison
+continues to show an unavailable state. See
 [Spending comparison integration](Docs/SpendingComparison.md) for the upstream
-requirements and adapter boundary.
+requirements and adapter boundaries.
 
 ## On-device Wallet accounts
 
