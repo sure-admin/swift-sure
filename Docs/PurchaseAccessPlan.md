@@ -239,3 +239,22 @@ these initial images with the loaded plans after remote product setup propagates
 The listing validates with the screenshot files present locally. Assets remain
 excluded from git under the listing's standard policy. No App Store Connect
 changes have been applied or submitted for review in this follow-up.
+
+## Approved apply attempt (2026-09-11)
+
+The user explicitly approved applying the two subscriptions to App Store Connect.
+Local listing validation passed with both review screenshots present. The
+`asc_update_app_store_listing` request then timed out after 300 seconds without
+returning an apply result. No local sync record or listing-file changes were
+written. This does not establish whether Apple received partial changes.
+
+Authentication setup still reports the existing Sure Insights app as configured,
+and the read-only app-list tool successfully reaches the Apple account. A bounded
+read-only subscription-group lookup through the authenticated bundled CLI also
+timed out after 35 seconds. Remote product state could not be verified, so the
+products must not yet be described as applied or ready for purchase testing.
+
+Next recovery step: inspect the timed-out listing sync and remote subscription
+state through Bitrig, then resume the already-authorized apply operation. Do not
+ask again for permission to apply this same setup. No app build was uploaded or
+submitted for review. Runtime code did not change during this attempt.
