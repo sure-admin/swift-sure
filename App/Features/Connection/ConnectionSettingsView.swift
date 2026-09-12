@@ -4,6 +4,7 @@ struct ConnectionSettingsView: View {
   @Environment(\.dismiss) private var dismiss
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
+  var analytics: (any UsageAnalyticsControlling)? = nil
 
   var body: some View {
     NavigationStack {
@@ -93,9 +94,18 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
-          NavigationLink("Password or provider sign-in") {
-            SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
+          #if os(iOS)
+          if let analytics {
+            NavigationLink {
+              AnalyticsSettingsView(analytics: analytics)
+            } label: {
+              Label("Usage analytics", systemImage: "chart.bar.xaxis")
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
           }
+          #endif
+
           statusView
           }
 
