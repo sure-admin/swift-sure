@@ -152,7 +152,10 @@ final class FinanceDataStore {
   }
 
   func refresh() async {
-    guard canSync() else { return }
+    guard canSync() else {
+      suspendSync()
+      return
+    }
     hasRequestedSessionRefresh = true
     if let activeRefresh {
       await activeRefresh.task.value
@@ -308,6 +311,20 @@ final class FinanceDataStore {
       } else {
         state = .failed(error.localizedDescription)
       }
+    }
+  }
+
+  func suspendSync() {
+    activeRefresh?.task.cancel()
+    activeRefresh = nil
+    generation += 1
+    hasRequestedSessionRefresh = false
+    isLoadingInsights = false
+    isLoadingReportingPeriod = false
+    if state == .idle || state == .loading {
+      state = connection.isConfigured
+        ? .failed(BackendAccessError.subscriptionRequired.localizedDescription)
+        : .needsConnection
     }
   }
 
