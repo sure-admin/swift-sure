@@ -1,6 +1,7 @@
 # Purchase access before Sure connections
 
-Status: draft for product decisions; implementation is not authorized yet.
+Status: product decisions confirmed; ready for implementation planning execution.
+Planning only; no runtime or App Store product changes yet.
 
 ## Objective
 
@@ -17,24 +18,65 @@ Buying client access does not create a Sure account or purchase server hosting.
 - `ApplicationConnectionLifecycle` starts finance refresh and notification work
   after connection. Watch insights originate from the phone.
 
-## Decisions needed before implementation
+## Agreed product decisions
 
-1. Permanent non-consumable unlock or auto-renewable subscription? Specify price,
-   subscription periods, and any introductory trial.
-2. Does one purchase cover all supported Sure servers and Apple devices? Proposed:
-   yes, including self-hosted servers, with no per-server charge. Decide Family
-   Sharing separately. This does not add simultaneous multi-server support.
-3. What remains free: local Wallet features, local assistant, cached financial
-   data, or a preview? Should even server discovery/compatibility checks wait for
-   purchase? Proposed: no Sure network contact until entitled.
-4. Must existing users purchase immediately, or receive grandfathered access?
-   Decide how development and TestFlight testing should work without a production
-   bypass. Existing local credentials alone are not proof of purchase.
-5. On expiration/refund, should cached data remain readable? Proposed: preserve
-   credentials, suspend backend access, and permit local sign-out/data removal.
-   Subscription grace-period access follows Apple's verified entitlement state.
-6. Use direct StoreKit 2 or RevenueCat? Proposed: direct StoreKit 2 for an Apple-only
-   client unlock, without a new billing server or sending purchase data to Sure.
+- Auto-renewable monthly subscription at $0.99 and annual subscription at $9.99.
+  Treat these as US-dollar base prices pending any correction; display Apple's
+  localized prices. Both products belong to one subscription group at the same
+  service level and unlock identical functionality.
+- Enable Family Sharing on both products. Access covers supported Apple devices,
+  all supported Sure backends, and all paid client functionality. No per-server
+  charge; this does not add simultaneous multi-server support. Family members
+  retain separate Sure credentials and financial data; sharing access never
+  shares financial records automatically.
+- Local Apple Wallet features and on-device Assistant calls remain free always.
+  Purchase presentation must not block those paths.
+- Offer a one-week free introductory trial on both plans so users can test their
+  backend. An eligible user starts the trial through Apple's subscription flow
+  before backend access begins. Display renewal price and trial eligibility;
+  do not promise another trial when switching plans, devices, or servers.
+  Apple limits introductory offers to one redemption per subscription group
+  per eligible person. Family-shared entitlement grants access without requiring
+  another purchase; use Apple's eligibility for anyone starting their own trial.
+- After entitlement ends, previously synchronized data remains usable locally,
+  including after relaunch. Stop all backend reads and writes in both directions,
+  including future Apple Card uploads. Preserve credentials and local records;
+  this is a suspended connection, not logout or cache deletion. Missing uncached
+  data must be identified as unavailable offline rather than fetched or invented.
+- Any app.sure.am subscription should eventually include client access, regardless
+  of plan. This entitlement integration may be delivered later. Do not infer paid
+  status from login success, a server URL, or an API key.
+
+## Confirmed cancellation policy and implementation defaults
+
+- Cancellation follows Apple subscription semantics: stop backend access when
+  Apple's entitlement expires, not when auto-renewal is turned off. Paid/trial
+  time remains usable while entitled. When renewal is cancelled, warn: "Sync will
+  stop on [localized access end date]. Your downloaded data, local Apple Wallet
+  features, and on-device Assistant will remain available." Derive the date from
+  verified subscription state; do not invent a date if it is unavailable. Refund/revocation and loss of shared access
+  suspend connectivity when verified by StoreKit. Honor verified billing grace;
+  billing-grace configuration will be made explicit during product setup.
+- Use direct StoreKit 2 initially; no new billing server or RevenueCat dependency.
+- No Sure discovery or compatibility traffic before an active trial or paid/shared
+  entitlement. No production bypass for development/TestFlight; test with injected
+  fakes and real sandbox entitlements.
+- Defer server cleanup requests after entitlement loss under the strict no-backend
+  rule. Suppress backend notification processing and registration, retain pending
+  unsubscription cleanup for entitled access, and always permit local logout.
+  Previously registered server pushes may still arrive until registration is
+  removed; local suspension cannot guarantee the server stops sending them.
+
+## Deferred hosted-subscription entitlement
+
+Add an independently verified hosted entitlement source behind the same access
+policy later. Inspect the pinned upstream contract before designing that flow;
+do not invent a billing-status endpoint. This will require a narrow pre-purchase
+hosted authentication/entitlement-check exception so existing subscribers can
+prove access without paying twice. Define expiry, offline validity, family scope,
+and cross-server scope for this source then. Until shipped, do not claim hosted
+subscriptions already unlock the app or silently enroll those users in another
+subscription. Make that temporary limitation clear in the connection flow.
 
 ## Implementation sequence after decisions
 
@@ -52,10 +94,15 @@ Buying client access does not create a Sure account or purchase server hosting.
    password/passkey/SSO, callback completion, token refresh, finance, transactions,
    remote assistant, and push work. Cancel in-flight work and discard stale results
    when access is lost. Keep credential state separate from access state.
-4. Define push cleanup on entitlement loss: either allow narrowly scoped
-   unsubscription/revocation traffic or defer server cleanup if absolutely no
-   backend traffic is permitted. Local logout must always work. Stop new Watch
-   insight delivery and apply the agreed cached-data policy to Watch state.
+4. Audit persistence before enforcing suspension: current snapshot caching is not
+   assumed to preserve every previously synchronized feature. Persist the domain
+   data needed for existing local behavior (including fetched transaction history
+   and remote conversation history where applicable), isolated by server/user.
+   Preserve synchronized Watch data. Keep free local Wallet and on-device
+   Assistant functionality working independently of backend access. Do not call
+   logout/disconnect paths that clear these records on entitlement loss. Gate
+   future upload workers through the same policy; adding uploads remains out of
+   scope. Apply the notification cleanup policy above.
 5. Design the purchase screen using the native-app-design and Apple HIG skills.
    Explain that purchase unlocks the client and a separate Sure server/account is
    required. Show localized StoreKit prices, restoration, retry, and subscription
@@ -64,7 +111,8 @@ Buying client access does not create a Sure account or purchase server hosting.
    on the companion app and explain access state on Watch.
 6. Configure real products through `appStoreConnect/` using the App Store Connect
    skill; verify bundle identity, platform availability, metadata, and review
-   notes. Submit the first products with an app binary. No StoreKit configuration
+   notes. Configure both same-level plans, Family Sharing, and one-week trial
+   offers. Submit the first products with an app binary. No StoreKit configuration
    files, external-service setup, or product publication during planning.
 
 ## Validation and acceptance
@@ -74,6 +122,13 @@ Buying client access does not create a Sure account or purchase server hosting.
 - Test success, cancellation, pending approval, unverified transactions, restore,
   relaunch, expiry/refund, grace, offline state, account changes, and racing access
   loss against authentication/requests. Verify resumption without double requests.
+- Test that cancelling renewal preserves access while still entitled; test
+  expiration separately. Verify the end-of-period sync warning and date.
+  Cover shared access grants/revocations, trial eligibility and conversion,
+  switching plans without a second introductory offer, and restored purchases
+  across devices. Verify retained data after relaunch and that free Wallet and
+  on-device Assistant work without a subscription. Prove both upload and download
+  entry points reject backend work when suspended (uploads when introduced).
 - Build affected iOS, macOS, and Watch targets; run relevant iOS/macOS tests and
   Watch tests for changed Watch state. Inspect paywall interactions/accessibility.
 - Exercise real sandbox purchases/restoration on a device through Run on… or
@@ -87,3 +142,6 @@ Buying client access does not create a Sure account or purchase server hosting.
 - https://developer.apple.com/app-store/review/guidelines/
 - https://developer.apple.com/help/app-store-connect/configure-in-app-purchase-settings/overview-for-configuring-in-app-purchases
 - https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase
+
+- https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-introductory-offers-for-auto-renewable-subscriptions
+- https://developer.apple.com/app-store/subscriptions/
