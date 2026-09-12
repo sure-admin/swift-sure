@@ -3,3 +3,6 @@ Sure Insights is the native companion for your Sure personal finance server.
 Connect securely with an API key to review your net worth, accounts, budgets, and proactive financial insights. Continue conversations with Sure Assistant wherever you are, and optionally receive notifications when new insights are ready.
 
 Your API key is stored securely in the device Keychain. Sure Insights connects directly to the Sure server you choose.
+
+Usage analytics
+To improve the app, Sure Insights sends app-open and screen-view events, an anonymous installation identifier, and app and device information to PostHog in the United States. Analytics is enabled by default. You can turn it off at any time under Sure connection → Usage analytics → Share usage analytics. Financial data, credentials, server addresses, and conversation content are not included in these analytics events. Session recording is disabled.
