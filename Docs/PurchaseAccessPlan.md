@@ -288,3 +288,18 @@ No purchase bypass or speculative runtime change was made during this check.
 
 Both the legacy availability and current plan-availability read requests timed
 out, so remote territory availability is not yet verified.
+
+## Agreement activation follow-up
+
+The account holder now reports all agreements Active, activated only a couple of
+minutes before the latest device retry. The previous agreement blocker is cleared;
+StoreKit product loading is still unverified. Allow propagation before treating
+this as a persistent configuration or runtime failure. Apple's documented
+up-to-one-hour sandbox delay applies to product metadata changes, not a guaranteed
+agreement-activation deadline.
+
+Code inspection confirms Try Again and foreground activation both call refresh,
+which requests products from StoreKit again. No new binary is required solely
+for agreement activation. Retry after allowing propagation; if still unavailable,
+continue with device build confirmation, StoreKit diagnostics, and remote
+territory verification rather than assuming propagation is the cause.
