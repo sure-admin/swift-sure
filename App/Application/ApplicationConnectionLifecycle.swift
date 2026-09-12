@@ -15,6 +15,7 @@ extension SureConnectionLifecycleHandling {
 
 @MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
+  weak var analytics: (any UsageAnalytics)?
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
 
@@ -33,6 +34,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func didCommitConnectionChange() {
+    analytics?.resetIdentity()
     financeData?.discardSnapshot()
     clearLocalData()
   }
@@ -49,6 +51,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func didLogOut() {
+    analytics?.resetIdentity()
     clearLocalData()
     financeData?.disconnect()
   }

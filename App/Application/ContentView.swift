@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var connection: SureConnection
+  var analytics: AnalyticsStore
   var financeData: FinanceDataStore
   var appleCardConnection: AppleCardConnectionStore
   var notificationManager: any InsightNotificationControlling
@@ -41,11 +42,29 @@ struct ContentView: View {
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
+    .onChange(of: visibleScreen, initial: true) { _, screen in
+      analytics.capture(.screenViewed(screen))
+    }
     .environment(\.showConnectionSettings) {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection)
+      ConnectionSettingsView(connection: connection, analytics: analytics)
+    }
+  }
+
+  private var visibleScreen: UsageScreen {
+    if showingConnectionSettings { return .connectionSettings }
+    #if os(iOS)
+    if !connection.isConfigured && !(appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
+      return connection.pendingSSOOnboarding == nil ? .signIn : .onboarding
+    }
+    #endif
+    switch selection {
+    case .overview: return .overview
+    case .assistant: return .assistant
+    case .accounts: return .accounts
+    case .budget: return .budget
     }
   }
 

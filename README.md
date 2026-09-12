@@ -77,3 +77,33 @@ Configure these GitHub Actions secrets before merging the deployment workflow:
 The API key must be able to manage signing assets and upload builds for bundle
 ID `am.sure.insights`. The workflow imports credentials only into an ephemeral
 runner keychain and removes them after the deployment job.
+
+## iOS usage analytics
+
+The iPhone/iPad app uses PostHog iOS 3.59.3 for explicit usage events. Analytics
+is enabled by default and can be disabled under **Sure connection → Usage
+analytics → Share usage analytics**. The preference persists across launches.
+Mac and Watch do not initialize PostHog.
+
+`Project.json` supplies `SURE_POSTHOG_PROJECT_TOKEN` (a public client ingestion
+token, never a personal API key) and `SURE_POSTHOG_HOST`. The current destination
+is PostHog US. Self-hosted distributions can replace these build settings with
+their own HTTPS ingestion host and project token, or leave either empty to
+completely disable initialization. Test hosts do not initialize the SDK.
+
+Events are `app_opened` (one per process launch) and `screen_viewed`, whose only
+app-defined property is a fixed `screen` value: `overview`, `assistant`,
+`accounts`, `budget`, `connection_settings`, `sign_in`, or `onboarding`.
+PostHog also supplies standard app/device/session metadata and an anonymous ID.
+No Sure IDs, server addresses, financial values, account/transaction details,
+credentials, or conversation text are passed to analytics. The app does not call
+`identify`; identity resets after logout and committed connection changes.
+Automatic lifecycle/screen/interaction capture, swizzling, session replay,
+surveys, and feature-flag preloading are disabled.
+
+Opt-out stops collection and shuts down the SDK. It does not delete events
+already received by PostHog or recall requests already in flight. Review the
+app's published privacy policy and App Store privacy disclosures for this
+collection before distributing a release.
+
+Reference: https://posthog.com/docs/libraries/ios

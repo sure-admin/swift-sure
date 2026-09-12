@@ -13,6 +13,7 @@ struct AppDefinition: App {
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
   @State private var appleCardConnection: AppleCardConnectionStore
+  private var analytics: AnalyticsStore
   private var notificationManager: NotificationManager
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
@@ -20,6 +21,24 @@ struct AppDefinition: App {
   private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
   init() {
+    let analyticsClient: (any AnalyticsClient)?
+    #if os(iOS)
+    // Test hosts must not start SDK networking, even with a persisted preference.
+    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
+       let configuration = PostHogConfiguration(bundle: .main) {
+      analyticsClient = PostHogAnalyticsClient(configuration: configuration)
+    } else {
+      analyticsClient = nil
+    }
+    #else
+    analyticsClient = nil
+    #endif
+    let analytics = AnalyticsStore(
+      preferences: UserDefaultsAnalyticsPreferences(defaults: .standard),
+      client: analyticsClient
+    )
+    self.analytics = analytics
+    analytics.capture(.appOpened)
     let preferences = UserDefaultsConnectionPreferences()
     let credentials = KeychainCredentialRepository(
       legacyServerURL: preferences.serverURL() ?? SureConnectionInitialState.defaultServerURL
@@ -54,6 +73,7 @@ struct AppDefinition: App {
       )
     )
     let lifecycle = ApplicationConnectionLifecycle()
+    lifecycle.analytics = analytics
     let connection = SureConnection(
       initialState: initialState,
       session: session,
@@ -176,6 +196,7 @@ struct AppDefinition: App {
     WindowGroup {
       ContentView(
         connection: connection,
+        analytics: analytics,
         financeData: financeData,
         appleCardConnection: appleCardConnection,
         notificationManager: notificationManager,

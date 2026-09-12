@@ -3,7 +3,7 @@ name: Bitrig Native
 on:
   pull_request:
     paths:
-      - "App/**"
+      - "App/**" # Includes Infrastructure/Analytics and Features/Analytics
       - "Shared/**"
       - "Tests/**"
       - "Watch/**"
