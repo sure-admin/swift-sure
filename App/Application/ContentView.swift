@@ -4,6 +4,7 @@ struct ContentView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var connection: SureConnection
   var financeData: FinanceDataStore
+  var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
@@ -54,6 +55,8 @@ struct ContentView: View {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
           data: financeData,
+          spendingComparison: spendingComparison,
+          refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )

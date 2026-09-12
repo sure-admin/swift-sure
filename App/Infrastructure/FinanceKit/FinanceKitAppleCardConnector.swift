@@ -3,8 +3,9 @@ import Foundation
 #if os(iOS) && FINANCEKIT_ENABLED
 import FinanceKit
 
-struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient {
+struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient, WalletSpendingTransactionProviding {
   var calendar: Calendar = .autoupdatingCurrent
+  var store: FinanceStore = .shared
 
   var isAvailable: Bool {
     #if targetEnvironment(simulator)
@@ -18,7 +19,7 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     #if targetEnvironment(simulator)
     return .denied
     #else
-    return try await map(FinanceStore.shared.authorizationStatus())
+    return try await map(store.authorizationStatus())
     #endif
   }
 
@@ -26,7 +27,7 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     #if targetEnvironment(simulator)
     return .denied
     #else
-    return try await map(FinanceStore.shared.requestAuthorization())
+    return try await map(store.requestAuthorization())
     #endif
   }
 
@@ -48,12 +49,43 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
     #endif
   }
 
+  func fetchSpendingTransactions(
+    in window: TransactionDateWindow, accountIDs: Set<UUID>
+  ) async throws -> [WalletSpendingTransaction] {
+    #if targetEnvironment(simulator)
+    throw SpendingComparisonServiceError.unavailable
+    #else
+    guard try await authorizationStatus() == .authorized else {
+      throw SpendingComparisonServiceError.unavailable
+    }
+    // A nil limit requests the complete local snapshot; no first-page totals.
+    let records = try await store.transactions(query: FinanceKit.TransactionQuery(limit: nil))
+    return try records.filter {
+      let date = try LocalDate($0.postedDate ?? $0.transactionDate, in: calendar)
+      return accountIDs.contains($0.accountID) && window.contains(date)
+    }.map { transaction in
+      let signed = try LocalFinancialBalanceMapper().map(
+        amount: transaction.transactionAmount.amount,
+        currencyCode: transaction.transactionAmount.currencyCode,
+        direction: .credit
+      )
+      return WalletSpendingTransaction(
+        id: transaction.id, accountID: transaction.accountID,
+        date: try LocalDate(transaction.postedDate ?? transaction.transactionDate, in: calendar),
+        amount: signed, isPosted: transaction.status == .booked,
+        isDebit: transaction.creditDebitIndicator == .debit,
+        isTransfer: transaction.transactionType == .transfer
+      )
+    }
+    #endif
+  }
+
   private func loadTransactions(
     _ request: TransactionHistoryRequest
   ) async throws -> [FinanceTransaction] {
     guard let accountID = request.accountID else { return [] }
     let query = FinanceKit.TransactionQuery()
-    return try await FinanceStore.shared.transactions(query: query)
+    return try await store.transactions(query: query)
       .filter {
         let date = try LocalDate(
           $0.postedDate ?? $0.transactionDate,
@@ -67,7 +99,6 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
   }
 
   private func loadAccounts() async throws -> [LocalFinancialAccount] {
-    let store = FinanceStore.shared
     // An unfiltered query includes every shared institution, not just Apple products.
     // A missing balance must not hide an account that can provide transactions.
     async let accounts = store.accounts(query: AccountQuery())
@@ -192,8 +223,14 @@ private enum FinanceKitConnectorError: Error {
   case unsupportedBalance
 }
 #else
-struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient {
+struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClient, WalletSpendingTransactionProviding {
   var calendar: Calendar = .autoupdatingCurrent
+
+  func fetchSpendingTransactions(
+    in window: TransactionDateWindow, accountIDs: Set<UUID>
+  ) async throws -> [WalletSpendingTransaction] {
+    throw SpendingComparisonServiceError.unavailable
+  }
 
   var isAvailable: Bool { false }
 

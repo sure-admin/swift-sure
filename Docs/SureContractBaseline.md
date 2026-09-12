@@ -126,9 +126,12 @@ binary floating-point presentation bridge:
 - Period income and spending remain grouped by currency. The client does not
   invent exchange rates or label a mixed-currency total as one currency.
 
-The only `Double` conversion is an isolated Swift Charts coordinate after the
-client has established that every plotted account uses the same reporting
-currency; it is not used for display or financial calculation.
+`Double` conversions are confined to Swift Charts geometry and axis ticks.
+Account charts require one reporting currency; each spending comparison
+uses one currency from its explicitly labeled source. Local Wallet spending is
+calculated separately on-device and is never combined with Sure data. Monetary summaries remain lossless Decimal
+values. The spending comparison has no live API adapter yet; see
+[its integration status](SpendingComparison.md).
 
 ## Updating the pin
 

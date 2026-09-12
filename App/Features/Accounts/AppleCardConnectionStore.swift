@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-final class AppleCardConnectionStore {
+final class AppleCardConnectionStore: WalletSpendingAccessProviding {
   enum State: Equatable {
     case idle
     case checking
@@ -20,6 +20,15 @@ final class AppleCardConnectionStore {
 
   var isAvailable: Bool { connector.isAvailable }
   private var generation = 0
+
+  var walletSpendingAccess: WalletSpendingAccess {
+    WalletSpendingAccess(
+      isAuthorized: !requiresReconnect && (state == .authorized || (state == .checking && !accounts.isEmpty)),
+      accountIDs: Set(accounts.map(\.id)),
+      currencies: Set(accounts.compactMap { $0.balance?.currency }),
+      generation: generation
+    )
+  }
 
   // Logout clears app-owned data without changing system Wallet permission.
   func disconnect() {
@@ -64,6 +73,7 @@ final class AppleCardConnectionStore {
       let loadedAccounts = authorization == .authorized ? try await connector.fetchAccounts() : []
       try Task.checkCancellation()
       guard generation == requestGeneration else { return }
+      generation += 1
       accounts = loadedAccounts
       state = Self.state(for: authorization)
     } catch is CancellationError {
@@ -95,6 +105,7 @@ final class AppleCardConnectionStore {
         requiresReconnect = false
         setRequiresReconnect(false)
       }
+      generation += 1
       accounts = loadedAccounts
       state = Self.state(for: authorization)
     } catch is CancellationError {

@@ -16,6 +16,19 @@ types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
 The app connects to `https://demo.sure.am` by default. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
+## Spending comparison
+
+Overview includes a Spending card directly after Insights. With Wallet access
+enabled in Accounts, it shows local spending even without a Sure connection.
+Wallet totals stay on the device and include posted debits, excluding transfers;
+credits and refunds are not deducted. Mixed currencies are not combined.
+
+The card labels this source as Wallet spending. Sure's authoritative spending
+API is still pending; without authorized Wallet access, the server comparison
+continues to show an unavailable state. See
+[Spending comparison integration](Docs/SpendingComparison.md) for the upstream
+requirements and adapter boundaries.
+
 ## On-device Wallet accounts
 
 On an iPhone with FinanceKit available, the app opens Accounts without requiring
