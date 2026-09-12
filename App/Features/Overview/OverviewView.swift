@@ -8,6 +8,7 @@ struct OverviewView: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var hasSyncAccess: Bool
   var spendingComparison: SpendingComparisonStore
   var refreshWalletAccess: () async -> Void
   var notificationManager: any InsightNotificationControlling
@@ -71,18 +72,12 @@ struct OverviewView: View {
     switch data.state {
     case .idle, .loading:
       loadingView
+    case .failed where !hasSyncAccess:
+      if spendingComparison.source == .wallet { SpendingComparisonCard(store: spendingComparison) }
+      SureConnectionPrompt(hasSyncAccess: false)
     case .needsConnection:
       if spendingComparison.source == .wallet { SpendingComparisonCard(store: spendingComparison) }
-      ContentUnavailableView {
-        Label("Connect your Sure account", systemImage: "link.badge.plus")
-      } description: {
-        Text("Sign in with a passkey or connect with an API key to load your finances.")
-      } actions: {
-        Button("Connect to Sure", systemImage: "link") {
-          showConnectionSettings()
-        }
-        .buttonStyle(.borderedProminent)
-      }
+      SureConnectionPrompt(hasSyncAccess: hasSyncAccess)
     case .failed(let message):
       if spendingComparison.source == .wallet { SpendingComparisonCard(store: spendingComparison) }
       ContentUnavailableView {

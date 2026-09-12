@@ -5,6 +5,7 @@ struct AccountsView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var hasSyncAccess: Bool
   var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -59,17 +60,10 @@ struct AccountsView: View {
     case .idle, .loading:
       ProgressView("Loading accounts…")
         .frame(minHeight: 420)
+    case .failed where !hasSyncAccess:
+      SureConnectionPrompt(hasSyncAccess: false)
     case .needsConnection:
-      ContentUnavailableView {
-        Label("Connect your Sure account", systemImage: "link.badge.plus")
-      } description: {
-        Text("Sign in with a passkey or connect with an API key to see your accounts.")
-      } actions: {
-        Button("Connect to Sure", systemImage: "link") {
-          showConnectionSettings()
-        }
-        .buttonStyle(.borderedProminent)
-      }
+      SureConnectionPrompt(hasSyncAccess: hasSyncAccess)
       .frame(minHeight: appleCardConnection.isAvailable ? 180 : 420)
     case .failed(let message):
       ContentUnavailableView {
