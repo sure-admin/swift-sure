@@ -21,6 +21,27 @@ struct ContentView: View {
 
   var body: some View {
     appTabs
+    .safeAreaInset(edge: .top) {
+      if !subscriptionAccess.hasAccess || subscriptionAccess.renewalCancelled {
+        Button {
+          showingConnectionSettings = true
+        } label: {
+          VStack(spacing: 4) {
+            if subscriptionAccess.hasAccess, let end = subscriptionAccess.accessEnd {
+              Text("Sync will stop on \(end.formatted(date: .abbreviated, time: .omitted))")
+            } else {
+              Text("Sync paused · Subscription required")
+            }
+            Text("Local features and downloaded data remain available")
+              .font(.caption)
+          }
+          .frame(maxWidth: .infinity)
+          .padding(8)
+          .background(.regularMaterial)
+        }
+        .buttonStyle(.plain)
+      }
+    }
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
@@ -31,17 +52,12 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection, analytics: analytics)
+      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
     }
   }
 
   private var visibleScreen: UsageScreen {
     if showingConnectionSettings { return .connectionSettings }
-    #if os(iOS)
-    if !connection.isConfigured && !(appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
-      return connection.pendingSSOOnboarding == nil ? .signIn : .onboarding
-    }
-    #endif
     switch selection {
     case .overview: return .overview
     case .assistant: return .assistant
