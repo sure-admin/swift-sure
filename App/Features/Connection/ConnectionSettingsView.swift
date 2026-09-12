@@ -94,6 +94,13 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
+          NavigationLink("Password or provider sign-in") {
+            SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
+          }
+
+          statusView
+          }
+
           #if os(iOS)
           if let analytics {
             NavigationLink {
@@ -105,9 +112,6 @@ struct ConnectionSettingsView: View {
             }
           }
           #endif
-
-          statusView
-          }
 
           if connection.canLogOut {
             Button("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
