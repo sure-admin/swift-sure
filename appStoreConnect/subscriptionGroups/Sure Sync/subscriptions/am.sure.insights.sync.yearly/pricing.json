@@ -1,0 +1,9 @@
+{
+  "baseTerritory": "USA",
+  "prices": [
+    {
+      "customerPrice": "9.99",
+      "territory": "USA"
+    }
+  ]
+}
