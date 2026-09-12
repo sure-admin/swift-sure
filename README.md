@@ -33,9 +33,10 @@ transaction windows are labeled when viewed offline; data never fetched is not
 invented. Explicit logout removes the local archives. Hosted app.sure.am
 subscription recognition is deferred and does not bypass the authentication gate.
 
-Product definitions are staged under `appStoreConnect/subscriptionGroups/Sure Sync`.
-Before testing real purchases, apply the listing and finish the required product
-review screenshots. Use a physical device through Bitrig's Run on… or TestFlight
+Product definitions live under `appStoreConnect/subscriptionGroups/Sure Sync`,
+and App Store Connect has confirmed that the listing is synced. Before testing
+real purchases, verify product readiness and replace the initial review
+screenshots with the loaded purchase plans. Use a physical device through Bitrig's Run on… or TestFlight
 with a Sandbox Apple Account. Unit tests use injected entitlement services;
 there is no production bypass and no StoreKit configuration file. See
 [the subscription plan and implementation status](Docs/PurchaseAccessPlan.md).
