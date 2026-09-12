@@ -31,14 +31,39 @@
   "resources": {
     "ageRatingDeclaration": {
       "fields": {
+        "advertising": false,
+        "ageAssurance": false,
         "ageRatingOverrideV2": "NONE",
-        "koreaAgeRatingOverride": "NONE"
+        "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+        "contests": "NONE",
+        "gambling": false,
+        "gamblingSimulated": "NONE",
+        "gunsOrOtherWeapons": "NONE",
+        "healthOrWellnessTopics": false,
+        "horrorOrFearThemes": "NONE",
+        "koreaAgeRatingOverride": "NONE",
+        "lootBox": false,
+        "matureOrSuggestiveThemes": "NONE",
+        "medicalOrTreatmentInformation": "NONE",
+        "messagingAndChat": false,
+        "parentalControls": false,
+        "profanityOrCrudeHumor": "NONE",
+        "sexualContentGraphicAndNudity": "NONE",
+        "sexualContentOrNudity": "NONE",
+        "socialMedia": false,
+        "socialMediaAgeRestricted": false,
+        "unrestrictedWebAccess": false,
+        "userGeneratedContent": false,
+        "violenceCartoonOrFantasy": "NONE",
+        "violenceRealistic": "NONE",
+        "violenceRealisticProlongedGraphicOrSadistic": "NONE"
       },
       "id": "dfacd01a-5017-45ae-a573-78a0664c9e08",
       "type": "ageRatingDeclarations"
     },
     "app": {
       "fields": {
+        "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT",
         "primaryLocale": "en-US"
       },
       "id": "6804843427",
@@ -46,7 +71,7 @@
     },
     "appInfo": {
       "fields": {
-
+        "primaryCategory": "FINANCE"
       },
       "id": "dfacd01a-5017-45ae-a573-78a0664c9e08",
       "type": "appInfos"
@@ -69,7 +94,7 @@
     },
     "appStoreVersionLocalization:IOS:1.0:en-US": {
       "fields": {
-        "description": "Sure Insights is the native companion for your Sure personal finance server.\n\nConnect securely with an API key to review your net worth, accounts, budgets, and proactive financial insights. Continue conversations with Sure Assistant wherever you are, and optionally receive notifications when new insights are ready.\n\nYour API key is stored securely in the device Keychain. Sure Insights connects directly to the Sure server you choose.",
+        "description": "Sure Insights is the native companion for your Sure personal finance server.\n\nConnect securely with an API key to review your net worth, accounts, budgets, and proactive financial insights. Continue conversations with Sure Assistant wherever you are, and optionally receive notifications when new insights are ready.\n\nYour API key is stored securely in the device Keychain. Sure Insights connects directly to the Sure server you choose.\n\nUsage analytics\nTo improve the app, Sure Insights sends app-open and screen-view events, an anonymous installation identifier, and app and device information to PostHog in the United States. Analytics is enabled by default. You can turn it off at any time under Sure connection → Usage analytics → Share usage analytics. Financial data, credentials, server addresses, and conversation content are not included in these analytics events. Session recording is disabled.",
         "keywords": "personal finance,net worth,budgets,accounts,financial insights",
         "supportUrl": "https://github.com/we-promise/sure/issues"
       },
