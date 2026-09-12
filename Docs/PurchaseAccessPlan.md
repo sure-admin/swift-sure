@@ -207,7 +207,7 @@ Remaining before release:
 - Complete on-device VoiceOver navigation and verify the loaded purchase plans
   after the staged products are applied. The simulator checks below cover the
   locked/unavailable state, not a completed purchase.
-- Verify the synced products reach Ready to Submit and load through StoreKit;
+- Both products are confirmed Ready to Submit; verify they load through StoreKit;
   replace the initial review screenshots with the loaded purchase plans. Listing
   sync confirmation does not establish product review readiness.
 - Verify purchase, trial conversion, renewal cancellation, expiry, refund,
@@ -270,3 +270,21 @@ subscription listing is synced. No app build was uploaded or submitted for revie
 This confirmation does not establish StoreKit propagation, Ready to Submit status,
 or a successful sandbox purchase. Those checks and replacing the initial review
 screenshots with the loaded plans remain outstanding.
+
+## TestFlight product-loading investigation (2026-09-11)
+
+A physical-device tester reports “Subscription plans are currently unavailable.”
+Read-only App Store Connect checks confirm both products are `READY_TO_SUBMIT`,
+with IDs matching `StoreKitSubscriptionService` and the connected app's bundle ID
+`am.sure.insights`. Current US prices are $0.99 monthly and $9.99 yearly.
+Product readiness alone does not establish that StoreKit returns the products.
+
+The device's installed build, storefront, and Paid Applications agreement status
+still need confirmation. Apple identifies active agreements and sandbox metadata
+propagation (up to one hour after changes) as product-availability prerequisites:
+https://developer.apple.com/documentation/technotes/tn3186-troubleshooting-in-app-purchases-availability-in-the-sandbox
+
+No purchase bypass or speculative runtime change was made during this check.
+
+Both the legacy availability and current plan-availability read requests timed
+out, so remote territory availability is not yet verified.
