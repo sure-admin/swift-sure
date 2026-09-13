@@ -152,7 +152,10 @@ final class FinanceDataStore {
   }
 
   func refresh() async {
-    guard canSync() else { return }
+    guard canSync() else {
+      suspendSync()
+      return
+    }
     hasRequestedSessionRefresh = true
     if let activeRefresh {
       await activeRefresh.task.value

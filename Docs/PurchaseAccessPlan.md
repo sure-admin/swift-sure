@@ -1,8 +1,8 @@
 # Purchase access before Sure connections
 
-Status: initial runtime implementation and local product definitions completed.
-Remote product setup, visual verification, and device sandbox purchase testing
-remain pending; do not release this build before completing those checks.
+Status: runtime implementation completed and App Store Connect listing sync
+confirmed. Loaded-product verification, final review screenshots, and device
+sandbox purchase testing remain pending before release.
 
 ## Objective
 
@@ -208,9 +208,9 @@ Remaining before release:
 - Complete on-device VoiceOver navigation and verify the loaded purchase plans
   after the staged products are applied. The simulator checks below cover the
   locked/unavailable state, not a completed purchase.
-- Apply the staged product definitions to App Store Connect, complete product
-  metadata/screenshots, and verify products reach Ready to Submit and load through
-  StoreKit. The local listing validator does not verify remote readiness.
+- Both products are confirmed Ready to Submit; verify they load through StoreKit;
+  replace the initial review screenshots with the loaded purchase plans. Listing
+  sync confirmation does not establish product review readiness.
 - Verify purchase, trial conversion, renewal cancellation, expiry, refund,
   restoration, and Family Sharing on physical devices using Apple's sandbox.
 - Verify billing-grace configuration with the real product setup; the client
@@ -240,3 +240,67 @@ these initial images with the loaded plans after remote product setup propagates
 The listing validates with the screenshot files present locally. Assets remain
 excluded from git under the listing's standard policy. No App Store Connect
 changes have been applied or submitted for review in this follow-up.
+
+## Approved apply attempt (2026-09-11)
+
+The user explicitly approved applying the two subscriptions to App Store Connect.
+Local listing validation passed with both review screenshots present. The
+`asc_update_app_store_listing` request then timed out after 300 seconds without
+returning an apply result. No local sync record or listing-file changes were
+written. This does not establish whether Apple received partial changes.
+
+Authentication setup still reports the existing Sure Insights app as configured,
+and the read-only app-list tool successfully reaches the Apple account. A bounded
+read-only subscription-group lookup through the authenticated bundled CLI also
+timed out after 35 seconds. Remote product state could not be verified, so the
+products must not yet be described as applied or ready for purchase testing.
+
+Next recovery step: inspect the timed-out listing sync and remote subscription
+state through Bitrig, then resume the already-authorized apply operation. Do not
+ask again for permission to apply this same setup. No app build was uploaded or
+submitted for review. Runtime code did not change during this attempt.
+
+## Apply retry confirmed (2026-09-11)
+
+At the user's request, local validation was repeated successfully and the approved
+App Store Connect update was retried. The update returned `up_to_date`: the local
+listing already matches App Store Connect and no remote changes were necessary.
+This supersedes the uncertain sync outcome above and confirms that the desired
+subscription listing is synced. No app build was uploaded or submitted for review.
+
+This confirmation does not establish StoreKit propagation, Ready to Submit status,
+or a successful sandbox purchase. Those checks and replacing the initial review
+screenshots with the loaded plans remain outstanding.
+
+## TestFlight product-loading investigation (2026-09-11)
+
+A physical-device tester reports “Subscription plans are currently unavailable.”
+Read-only App Store Connect checks confirm both products are `READY_TO_SUBMIT`,
+with IDs matching `StoreKitSubscriptionService` and the connected app's bundle ID
+`am.sure.insights`. Current US prices are $0.99 monthly and $9.99 yearly.
+Product readiness alone does not establish that StoreKit returns the products.
+
+The device's installed build, storefront, and Paid Applications agreement status
+still need confirmation. Apple identifies active agreements and sandbox metadata
+propagation (up to one hour after changes) as product-availability prerequisites:
+https://developer.apple.com/documentation/technotes/tn3186-troubleshooting-in-app-purchases-availability-in-the-sandbox
+
+No purchase bypass or speculative runtime change was made during this check.
+
+Both the legacy availability and current plan-availability read requests timed
+out, so remote territory availability is not yet verified.
+
+## Agreement activation follow-up
+
+The account holder now reports all agreements Active, activated only a couple of
+minutes before the latest device retry. The previous agreement blocker is cleared;
+StoreKit product loading is still unverified. Allow propagation before treating
+this as a persistent configuration or runtime failure. Apple's documented
+up-to-one-hour sandbox delay applies to product metadata changes, not a guaranteed
+agreement-activation deadline.
+
+Code inspection confirms Try Again and foreground activation both call refresh,
+which requests products from StoreKit again. No new binary is required solely
+for agreement activation. Retry after allowing propagation; if still unavailable,
+continue with device build confirmation, StoreKit diagnostics, and remote
+territory verification rather than assuming propagation is the cause.

@@ -16,6 +16,7 @@ extension SureConnectionLifecycleHandling {
 @MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
+  var clearOfflineResponses: () async -> Void = {}
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
   weak var spendingComparison: SpendingComparisonStore?

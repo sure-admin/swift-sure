@@ -108,17 +108,9 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
-          #if os(iOS)
-          if let analytics {
-            NavigationLink {
-              AnalyticsSettingsView(analytics: analytics)
-            } label: {
-              Label("Usage analytics", systemImage: "chart.bar.xaxis")
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-            }
+          NavigationLink("Password or provider sign-in") {
+            SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
           }
-          #endif
 
           statusView
           }
