@@ -2,24 +2,30 @@
 
 ## Supported upstream revision
 
-During the developer and TestFlight phase, this client targets Sure `main` at:
+During the developer and TestFlight phase, this client targets the coordinated Sure backend revision below (merge its draft PR before deploying this client):
 
-- Commit: `5594f8bc94c8e659838cac70d826bbcaeaa3bae2`
-- Upstream commit time: 2026-08-28 06:57:50 UTC
-- Commit subject: `fix(holdings): an outbound transfer must not clear a cost basis (#3237)`
+- Commit: `982dc0a42a83ffa476324a9ec3c9351b90a080b5`
+- Upstream commit time: 2026-09-13 05:46:56 UTC
+- Commit subject: `Expose authoritative native reporting and prove push-device continuity`
 
 Permalinks for the contract sources used by this baseline:
 
-- [OpenAPI](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/openapi.yaml)
-- [Client architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/clients.md)
-- [Transaction API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/transactions.md)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Chat API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/chats.md)
-- [AI architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/hosting/ai.md)
+- [OpenAPI](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/api/openapi.yaml)
+- [Client architecture](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/clients.md)
+- [Transaction API](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Chat API](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/api/chats.md)
+- [AI architecture](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/hosting/ai.md)
 
 This is a deliberate compatibility pin, not a claim that Sure has a versioned
 API. Backward compatibility with older self-hosted revisions is not required
 yet. The app should nevertheless tolerate additive optional response fields.
+
+The pin includes `GET /api/v1/financial_summary` and optional installation-proof
+push registration. [Financial summary contract](https://github.com/we-promise/sure/blob/982dc0a42a83ffa476324a9ec3c9351b90a080b5/docs/api/financial-summary.md).
+Existing account, transaction, budget, balance-sheet, chat, and auth fixtures
+remain additive-compatible; new summary fixtures and push-request tests cover
+these operations. This pin is deliberate, not an older-server fallback.
 
 ## Current client policy
 
