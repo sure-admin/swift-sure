@@ -238,7 +238,7 @@ struct OverviewView: View {
             .accessibilityLabel("Loading month")
         }
       }
-      if data.transactionsError != nil && data.transactions.isEmpty {
+      if data.currentSummary == nil {
         Label("Spending activity is currently unavailable", systemImage: "exclamationmark.triangle")
           .foregroundStyle(.secondary)
       } else {
@@ -281,11 +281,15 @@ struct OverviewView: View {
       .buttonStyle(.plain)
       .accessibilityHint("Shows activity from the last 7 days")
 
+      if data.transactionsResource.metadata?.source == .cache {
+        Label("Downloaded recent activity", systemImage: "internaldrive")
+          .font(.caption).foregroundStyle(.secondary)
+      }
       if data.transactionsError != nil && recentTransactions.isEmpty {
         Text("Recent activity is currently unavailable")
           .foregroundStyle(.secondary)
       } else if recentTransactions.isEmpty {
-        Text("No activity in the last 7 days")
+        Text(data.transactionsResource.metadata?.source == .cache ? "No downloaded activity in the last 7 days" : "No activity in the last 7 days")
           .foregroundStyle(.secondary)
       } else {
         ForEach(recentTransactions.prefix(3)) { transaction in
@@ -297,16 +301,12 @@ struct OverviewView: View {
     .sureCard()
   }
 
-  private func metric(title: String, value: MoneyBreakdown, color: Color) -> some View {
+  private func metric(title: String, value: DecimalMoney?, color: Color) -> some View {
     VStack(alignment: .leading, spacing: 3) {
       Text(title)
         .font(.caption)
         .foregroundStyle(.secondary)
-      Text(FinanceFormatters.currency(
-        value,
-        compact: true,
-        zeroCurrency: data.balanceSheet?.currency
-      ))
+      Text(value.map(FinanceFormatters.compactCurrency) ?? "Unavailable")
         .font(.title2.bold())
       Capsule().fill(color).frame(width: 36, height: 4)
     }

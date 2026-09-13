@@ -12,6 +12,13 @@ struct SpendingComparisonCard: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+        if store.source == .sure, store.metadata?.source == .cache {
+          Label("Downloaded from Sure", systemImage: "internaldrive")
+            .font(.caption)
+          if let date = store.metadata?.fetchedAt {
+            Text(date, format: .dateTime.month().day().hour().minute()).font(.caption)
+          }
+        }
         if let month = store.selectedMonth {
           Picker("Spending month", selection: Binding(
             get: { month },
@@ -38,7 +45,7 @@ struct SpendingComparisonCard: View {
             .font(.headline)
           Text(store.source == .wallet
             ? LocalizedStringKey("Wallet spending is unavailable. Check Wallet access in Accounts.")
-            : LocalizedStringKey("The spending totals used by Sure’s web dashboard aren’t available to this app yet."))
+            : LocalizedStringKey("This Sure server doesn’t provide the required financial summary."))
             .font(.subheadline)
             .foregroundStyle(.secondary)
         case .noWalletAccounts:

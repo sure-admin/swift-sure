@@ -1,22 +1,10 @@
 import Foundation
 
 @MainActor
-protocol SureConnectionLifecycleHandling: AnyObject {
-  func didConnect() async
-  func didCommitConnectionChange() async
-  func prepareForConnectionChange() async
-  func prepareForLogout() async
-  func didLogOut()
-}
-
-extension SureConnectionLifecycleHandling {
-  func didCommitConnectionChange() async { }
-}
-
-@MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
-  var clearOfflineResponses: () async -> Void = {}
+  private(set) var dataCleanupFailure: DataFailure?
+  var clearOfflineResponses: () async throws -> Void = {}
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
   weak var spendingComparison: SpendingComparisonStore?
@@ -27,11 +15,14 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   func restoreInitialState(isExplicitlySignedOut: Bool) {
     // Wallet reconnect preferences already reflect the latest explicit decision.
     // A persisted Sure logout must not undo Wallet access granted afterward.
-    if isExplicitlySignedOut { financeData?.disconnect() }
+    if isExplicitlySignedOut {
+      financeData?.disconnect()
+      Task { await clearDownloadedData() }
+    }
   }
 
   func didConnect() async {
-    financeData?.restoreSnapshotIfAvailable()
+    await financeData?.restoreSnapshotIfAvailable()
     await financeData?.refresh()
     await spendingComparison?.refresh()
     await notificationLifecycle?.didConnect()
@@ -43,18 +34,26 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     await notificationLifecycle?.prepareForConnectionChange()
   }
 
+  func didFailConnectionChange() async {
+    await spendingComparison?.refresh()
+  }
+
   func didCommitConnectionChange() async {
-    await clearOfflineResponses()
+    await clearDownloadedData()
     analytics?.resetIdentity()
-    financeData?.discardSnapshot()
     clearLocalData()
   }
 
   func prepareForLogout() async {
-    await clearOfflineResponses()
+    await clearDownloadedData()
     clearLocalData()
     financeData?.disconnect()
     await notificationLifecycle?.prepareForLogout()
+  }
+
+  private func clearDownloadedData() async {
+    do { try await clearOfflineResponses(); dataCleanupFailure = nil }
+    catch { dataCleanupFailure = .cleanup }
   }
 
   private func clearLocalData() {

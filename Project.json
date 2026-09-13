@@ -209,6 +209,65 @@
         }
       ],
       "type" : "bundle.unit-test"
+    },
+    "Sure UI Host": {
+      "type": "application",
+      "platform": "iOS",
+      "sources": [
+        {
+          "path": "App",
+          "excludes": [
+            "Application/AppDefinition.swift",
+            "Info.plist"
+          ]
+        },
+        {
+          "path": "Shared"
+        },
+        {
+          "path": "Tests/SureUITestHost"
+        }
+      ],
+      "dependencies": [
+        {
+          "package": "PostHog"
+        }
+      ],
+      "settings": {
+        "base": {
+          "PRODUCT_BUNDLE_IDENTIFIER": "am.sure.uitest-host",
+          "GENERATE_INFOPLIST_FILE": "YES",
+          "SWIFT_VERSION": "5.0",
+          "TARGETED_DEVICE_FAMILY": "1,2",
+          "INFOPLIST_KEY_UILaunchScreen_Generation": "YES"
+        }
+      },
+      "scheme": {
+        "testTargets": [
+          "Sure UI Tests"
+        ]
+      }
+    },
+    "Sure UI Tests": {
+      "type": "bundle.ui-testing",
+      "platform": "iOS",
+      "sources": [
+        {
+          "path": "Tests/SureUITests"
+        }
+      ],
+      "dependencies": [
+        {
+          "target": "Sure UI Host"
+        }
+      ],
+      "settings": {
+        "base": {
+          "TEST_TARGET_NAME": "Sure UI Host",
+          "SWIFT_VERSION": "5.0",
+          "GENERATE_INFOPLIST_FILE": "YES"
+        }
+      }
     }
   }
 }

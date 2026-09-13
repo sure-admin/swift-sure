@@ -341,6 +341,9 @@ private final class LifecycleCredentialRepository: CredentialRepository, @unchec
 }
 
 private final class LifecycleConnectionPreferences: ConnectionPreferences, @unchecked Sendable {
+  var hasConnected = false
+  func hasConnectedToSure() -> Bool { hasConnected }
+  func setHasConnectedToSure(_ connected: Bool) { hasConnected = connected }
   private var savedServerURL: String
   private var explicitlySignedOut = false
 

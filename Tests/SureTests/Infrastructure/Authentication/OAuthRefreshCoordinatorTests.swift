@@ -22,6 +22,7 @@ struct OAuthRefreshCoordinatorTests {
         isVerified: true
       )
     )
+    let originalIdentity = try repository.loadCredentials().session?.connectionID
     let refresher = SuspendedOAuthTokenRefresher()
     let coordinator = OAuthRefreshCoordinator(
       session: session,
@@ -50,6 +51,7 @@ struct OAuthRefreshCoordinatorTests {
     #expect(firstContext?.authorization == .bearer("rotated-access"))
     #expect(repository.credentials?.accessToken == "rotated-access")
     #expect(repository.credentials?.refreshToken == "rotated-refresh")
+    #expect(try repository.loadCredentials().session?.connectionID == originalIdentity)
     #expect(try await session.requestContext() == firstContext)
     #expect(await refresher.callCount == 1)
   }

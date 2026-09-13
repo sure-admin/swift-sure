@@ -43,7 +43,12 @@ struct TransactionsView: View {
     }
     .safeAreaInset(edge: .top) {
       if store.showingDownloadedData {
-        Text("Downloaded transactions · Last synchronized window")
+        VStack(spacing: 2) {
+          Text("Downloaded transactions")
+          if let window = store.downloadedWindow {
+            Text("\(FinanceFormatters.fullDate(window.startDate)) – \(FinanceFormatters.fullDate(window.endDate))")
+          }
+        }
           .font(.caption)
           .frame(maxWidth: .infinity)
           .padding(8)

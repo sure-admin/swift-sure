@@ -4,6 +4,9 @@ import Observation
 @MainActor
 @Observable
 final class TransactionHistoryStore {
+  private(set) var downloadedWindow: TransactionDateWindow?
+  private(set) var failure: DataFailure?
+  private(set) var metadata: ReadMetadata?
   private(set) var showingDownloadedData = false
   private var isOffline: () -> Bool
   private(set) var state: TransactionHistoryState = .idle
@@ -59,9 +62,13 @@ final class TransactionHistoryStore {
       )
       let wasOffline = isOffline()
       let loadedTransactions = try await client.fetchTransactions(request)
-      showingDownloadedData = wasOffline
+      let info = await client.transactionMetadata(for: request)
       try Task.checkCancellation()
       guard !isInvalidated else { return }
+      downloadedWindow = request.dateWindow
+      metadata = info
+      failure = info?.failure
+      showingDownloadedData = info?.source == .cache || wasOffline
       transactions = loadedTransactions.sorted { lhs, rhs in
         if lhs.date == rhs.date { return lhs.id.uuidString < rhs.id.uuidString }
         return lhs.date > rhs.date
@@ -69,14 +76,23 @@ final class TransactionHistoryStore {
       state = .loaded
     } catch {
       guard !isInvalidated else { return }
-      if Self.isCancellation(error) {
+      failure = DataFailure(error)
+      if failure?.allowsCachedRead == true,
+         let saved = await client.latestDownloadedTransactions(accountID: scope.accountID) {
+        guard !isInvalidated, !Task.isCancelled else { return }
+        transactions = saved.transactions
+        metadata = saved.metadata
+        downloadedWindow = saved.request.dateWindow
+        showingDownloadedData = true
+        state = .loaded
+      } else if failure == .cancelled || Self.isCancellation(error) {
         state = previousState
         transactions = previousTransactions
       } else if !previousTransactions.isEmpty {
         transactions = previousTransactions
         state = .loaded
       } else {
-        state = .failed(error.localizedDescription)
+        state = .failed(DataFailure(error).localizedDescription)
       }
     }
   }

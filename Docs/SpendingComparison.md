@@ -2,16 +2,17 @@
 
 ## Integration status
 
-The native card is placed immediately after Insights in Overview. Exact PWA
-parity requires an upstream read-only API for the server's spending series.
-Neither the pinned OpenAPI contract nor upstream `main` inspected on September
-11, 2026 exposes this data. No endpoint or runtime fallback has been invented.
-The existing contract pin remains unchanged. The Sure source uses
-`UnavailableSpendingComparisonClient`, so its totals remain unavailable.
-Authorized local Wallet accounts can independently populate the card through
-`WalletSpendingComparisonClient`; this source is labeled explicitly and never
-merged with Sure records. The chart is implemented and
-can receive validated data through the injected `SpendingComparisonClient`.
+The native card is placed immediately after Insights in Overview. The coordinated
+backend change adds `GET /api/v1/financial_summary?month=YYYY-MM-01`, delegating to
+Sure's existing IncomeStatement. `FinancialSummaryAPIClient` validates the wire
+contract and `CachedFinanceRepository` stores the result for offline and suspended
+sessions. See `SureContractBaseline.md` for the exact required server revision.
+
+Wallet comparison remains an intentionally separate onboarding preview. It is
+available only before the first successful Sure connection. Connected and
+previously connected users never fall back to Wallet totals, including after
+logout, network failure, or entitlement loss. No local financial records are
+uploaded by this feature.
 
 `SpendingComparison` is a domain input, not a proposed wire schema. It requires
 unfurled cumulative daily values (including zero-spend days), a server-local
@@ -55,11 +56,9 @@ different financial presentation, not a substitute for the PWA calculation.
 - Distinct loading, empty, unavailable, and failure states. Never turn a failed
   request or an unsupported server into a zero-spending chart.
 
-## Required upstream data
+## Server contract
 
-Expose the existing server calculation through a documented authenticated
-read-only operation. The route and wire schema must be agreed upstream before
-adding a client endpoint. It needs to supply:
+The financial-summary operation supplies:
 
 - Requested/resolved month, server-local cutoff date, family currency, and
   current and previous date ranges.

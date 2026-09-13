@@ -24,7 +24,7 @@ across devices and servers, with Family Sharing. Both products have a one-week
 introductory trial for eligible users. Prices displayed in the app come from
 StoreKit and follow the customer's storefront.
 
-Local Wallet features and on-device Assistant calls are always free. Cancelling
+The onboarding Wallet preview and on-device Assistant calls are free. Cancelling
 renewal preserves access through Apple's entitlement end date; the app warns
 when sync will stop. Expiry or revocation blocks authentication, token refresh,
 and backend reads/writes, while retained local data stays available. Restoring a
@@ -42,20 +42,21 @@ there is no production bypass and no StoreKit configuration file. See
 
 ## Spending comparison
 
-Overview includes a Spending card directly after Insights. With Wallet access
-enabled in Accounts, it shows local spending even without a Sure connection.
-Wallet totals stay on the device and include posted debits, excluding transfers;
-credits and refunds are not deducted. Mixed currencies are not combined.
+Overview uses Sure's authenticated `financial_summary` endpoint for monthly
+income, spending, savings rate, and the daily spending comparison. Sure owns
+reporting exclusions, account selection, and currency conversion. Overview
+fetches only seven days of transaction records for Recent activity.
 
-The card labels this source as Wallet spending. Sure's authoritative spending
-API is still pending; without authorized Wallet access, the server comparison
-continues to show an unavailable state. See
-[Spending comparison integration](Docs/SpendingComparison.md) for the upstream
-requirements and adapter boundaries.
+Before the first successful Sure connection, authorized Wallet accounts can
+populate an explicitly labeled local preview. Its posted-debit calculation stays
+on-device, excludes transfers, and does not combine currencies. Connected,
+offline, suspended, and previously connected sessions use Sure data; logging out
+does not restore the onboarding preview. See [spending comparison](Docs/SpendingComparison.md)
+and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
 
 ## On-device Wallet accounts
 
-On an iPhone with FinanceKit available, the app opens Accounts without requiring
+During initial onboarding on an iPhone with FinanceKit available, the app opens Accounts without requiring
 Sure sign-in. Allow Access loads the eligible accounts shared through Apple
 Wallet; selecting an account shows its last 31 days of transactions. Wallet data
 stays on the device. All accounts shared by FinanceKit are included, including
@@ -64,10 +65,10 @@ Accounts refreshes when opened and when the app returns to the foreground.
 Eligibility is controlled by Apple and the institution; card activity visible in
 Wallet alone does not guarantee that FinanceKit exposes it to apps.
 
-Logging out clears app-held financial data, transaction histories, insights,
-and the saved overview snapshot. Wallet access must be explicitly re-enabled
-after logout or a Sure connection change, including after relaunch. This clears
-the app’s copies, not the original records or permission in Apple Wallet.
+Logging out clears app-held financial data, transaction windows, insights, and
+cached conversations. It does not change the original Wallet records or Apple's
+system permission. Once Sure has connected successfully, all reporting uses Sure;
+future Wallet ingestion must upload source transactions for aggregation on Sure.
 
 ## AI Insight push notifications
 
@@ -144,3 +145,20 @@ app's published privacy policy and App Store privacy disclosures for this
 collection before distributing a release.
 
 Reference: https://posthog.com/docs/libraries/ios
+
+## Consolidation validation
+
+`swiftlint lint --strict --quiet` checks the configured correctness rules.
+The `Sure UI Host` scheme runs production views with in-memory fixtures in a
+separate app, including onboarding/connected source boundaries, retry behavior,
+and accessibility descriptions. It never constructs production services.
+
+```sh
+xcodegen generate --spec Project.json
+xcodebuild -project Sure.xcodeproj -scheme 'Sure UI Host' -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO test
+```
+
+Continue to run the main Sure suites on iOS and macOS, and the Sure Watch suite
+on a paired simulator for Watch changes. Generated projects and Info.plists
+remain untracked.
