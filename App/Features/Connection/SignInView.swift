@@ -17,7 +17,7 @@ struct SignInView: View {
         signInContent
       }
     } else {
-      ScrollView { SubscriptionAccessView(access: subscriptionAccess).padding() }
+      SubscriptionAccessView(access: subscriptionAccess)
     }
   }
 
