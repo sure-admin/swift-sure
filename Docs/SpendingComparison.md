@@ -97,6 +97,10 @@ When Wallet access has been explicitly enabled in Accounts, the card prefers
 that source, including with no Sure connection. Overview refreshes Wallet access
 on appearance, foregrounding, and manual refresh. Revocation, logout, account
 changes, and reconnect invalidate displayed and in-flight spending snapshots.
+The persisted Wallet reconnect decision is independent of Sure sign-in state.
+Cold launch checks system authorization without replaying an earlier Sure logout
+or undoing Wallet access granted afterward. Revoked system permission still
+removes access; an explicit logout still requires a new Wallet connection.
 
 `WalletSpendingAccessProviding` exposes authorized account IDs and known balance
 currencies without coupling Overview to the Accounts view model. The injected

@@ -41,6 +41,15 @@ struct TransactionsView: View {
       .frame(maxWidth: .infinity)
       .padding()
     }
+    .safeAreaInset(edge: .top) {
+      if store.showingDownloadedData {
+        Text("Downloaded transactions · Last synchronized window")
+          .font(.caption)
+          .frame(maxWidth: .infinity)
+          .padding(8)
+          .background(.regularMaterial)
+      }
+    }
     .background(SureTheme.canvas.opacity(0.65))
     .navigationTitle(store.scope.navigationTitle)
     .searchable(text: $searchText, prompt: "Merchant or category")

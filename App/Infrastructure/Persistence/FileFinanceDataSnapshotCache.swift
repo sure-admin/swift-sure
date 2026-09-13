@@ -24,17 +24,7 @@ struct FileFinanceDataSnapshotCache: FinanceDataSnapshotCaching {
   }
 
   func saveSnapshotData(_ data: Data) throws {
-    let directoryURL = fileURL.deletingLastPathComponent()
-    try fileManager.createDirectory(
-      at: directoryURL,
-      withIntermediateDirectories: true
-    )
-    try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
-
-    var resourceValues = URLResourceValues()
-    resourceValues.isExcludedFromBackup = true
-    var protectedFileURL = fileURL
-    try protectedFileURL.setResourceValues(resourceValues)
+    try ProtectedLocalFileWriter(fileManager: fileManager).write(data, to: fileURL)
   }
 
   func removeSnapshotData() throws {

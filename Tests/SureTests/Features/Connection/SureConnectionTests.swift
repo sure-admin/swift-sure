@@ -427,8 +427,30 @@ struct SureConnectionTests {
     #expect(!harness.credentials.loadFails)
   }
 
+  @Test("Locked access prevents every sign-in method and still permits logout")
+  func subscriptionGateBlocksAuthentication() async throws {
+    let gate = BackendAccessGate()
+    let verifier = VerificationSpy()
+    let mobile = MobileSSOAuthenticationFake()
+    let harness = makeHarness(context: nil, accessGate: gate, mobileSSO: mobile, verifier: verifier)
+    harness.connection.apiKey = "test-key"
+    harness.connection.email = "test@example.com"
+    harness.connection.password = "test-password"
+    await harness.connection.connectWithAPIKey()
+    await harness.connection.signInWithPassword()
+    await harness.connection.signInWithPasskey()
+    await harness.connection.signIn(with: .apple)
+    #expect(harness.oauth.signInServerURLs.isEmpty)
+    #expect(mobile.providers.isEmpty)
+    #expect(await verifier.contexts.isEmpty)
+    #expect(!harness.connection.isConfigured)
+    await harness.connection.logOut()
+    #expect(harness.connection.isSignedOut)
+  }
+
   private func makeHarness(
     context: SureRequestContext?,
+    accessGate: BackendAccessGate? = nil,
     oauthCredentials: StoredOAuthCredentials? = nil,
     apiKey: String? = nil,
     isAPIKeyVerified: Bool = false,
@@ -490,7 +512,8 @@ struct SureConnectionTests {
       verify: { context in try await verifier.verify(context) },
       beginCredentialChange: beginCredentialChange,
       endCredentialChange: endCredentialChange,
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      accessGate: accessGate ?? entitledTestGate()
     )
     return ConnectionHarness(
       connection: connection,

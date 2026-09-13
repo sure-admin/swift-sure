@@ -153,6 +153,22 @@ protocols are for meaningful seams and alternate implementations.
 - Preserve cancellation. Do not implement polling with blocking sleeps, and
   bound retry attempts with testable policy.
 
+## Subscription boundary
+
+- Use StoreKit 2 directly; do not introduce RevenueCat or another billing service.
+- All Sure backend traffic, including future Wallet uploads and authentication,
+  must use the injected `BackendAccessGate` and gated transport. Hide credential
+  entry until an active trial, paid, or Family Sharing entitlement is verified.
+- Cancellation of renewal does not immediately revoke access. Honor Apple's
+  verified entitlement end date and warn when sync will stop.
+- Wallet and on-device Assistant functionality remain free. Entitlement loss
+  suspends connectivity without logging out or deleting downloaded records.
+- Offline authenticated responses and transaction windows are private, scoped to
+  the committed server/credential identity, and cleared on explicit logout.
+  Never use offline responses to verify credentials or complete authentication.
+- See `Docs/PurchaseAccessPlan.md` for product configuration and deferred hosted
+  subscription inclusion. No hosted-login exception is currently authorized.
+
 ## Financial-domain correctness
 
 - New monetary domain code must preserve currency and use integer minor units

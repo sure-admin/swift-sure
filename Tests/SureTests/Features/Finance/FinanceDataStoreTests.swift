@@ -5,6 +5,26 @@ import Testing
 @MainActor
 @Suite("Finance data store")
 struct FinanceDataStoreTests {
+  @Test("Locked sync leaves a usable startup state without contacting Sure", arguments: [false, true])
+  func lockedSyncStartup(configured: Bool) async {
+    let client = FinanceDataClientStub()
+    let store = FinanceDataStore(
+      connection: ConnectionStateStub(isConfigured: configured), client: client,
+      calendar: utcCalendar(), now: { Date(timeIntervalSince1970: 1_800_000_000) },
+      canSync: { false }, syncInsights: { _ in }
+    )
+    await store.refresh()
+    #expect(store.state != .idle)
+    #expect(store.state != .loading)
+    #expect(await client.recordedCalls().isEmpty)
+    let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+    store.state = .loaded
+    store.lastUpdated = timestamp
+    store.suspendSync()
+    #expect(store.state == .loaded)
+    #expect(store.lastUpdated == timestamp)
+  }
+
   @Test("An unconfigured connection requires setup without loading data")
   func unconfiguredConnection() async {
     let client = FinanceDataClientStub()

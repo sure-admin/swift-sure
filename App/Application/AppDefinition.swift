@@ -10,12 +10,15 @@ struct AppDefinition: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   #endif
 
+  @State private var subscriptionAccess: SubscriptionAccessStore
+  @Environment(\.scenePhase) private var scenePhase
   @State private var connection: SureConnection
   @State private var financeData: FinanceDataStore
   @State private var spendingComparison: SpendingComparisonStore
   @State private var appleCardConnection: AppleCardConnectionStore
   private var analytics: AnalyticsStore
   private var notificationManager: NotificationManager
+  private var oauthService: PasskeyOAuthService
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -54,16 +57,24 @@ struct AppDefinition: App {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.urlCache = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-    let dataTransport = URLSessionHTTPDataTransport(session: URLSession(configuration: configuration))
+    let accessGate = BackendAccessGate()
+    let subscriptionAccess = SubscriptionAccessStore(service: StoreKitSubscriptionService(), gate: accessGate) { end in
+      try await Task.sleep(for: .seconds(max(0, end.timeIntervalSinceNow)))
+    }
+    _subscriptionAccess = State(initialValue: subscriptionAccess)
+    let dataTransport = SubscriptionHTTPDataTransport(
+      base: URLSessionHTTPDataTransport(session: URLSession(configuration: configuration)), gate: accessGate
+    )
     let oauthClient = OAuthHTTPClient(
       dataTransport: dataTransport,
       clientIDStore: UserDefaultsOAuthClientIDStore()
     )
-    let oauthService = PasskeyOAuthService(oauthClient: oauthClient)
+    let oauthService = PasskeyOAuthService(oauthClient: oauthClient, accessGate: accessGate)
     let mobileSSOClient = MobileSSOHTTPClient(dataTransport: dataTransport)
     let mobileSSOService = MobileSSOAuthService(
       httpClient: mobileSSOClient,
-      deviceInformation: MobileDeviceInformationProvider()
+      deviceInformation: MobileDeviceInformationProvider(),
+      accessGate: accessGate
     )
     let refreshCoordinator = OAuthRefreshCoordinator(
       session: session,
@@ -98,11 +109,23 @@ struct AppDefinition: App {
       endCredentialChange: {
         await refreshCoordinator.endCredentialChange()
       },
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      accessGate: accessGate
     )
+    let offlineResponses = OfflineAPIResponseStore(directory:
+      FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("am.sure.insights/offline-responses", isDirectory: true))
+    lifecycle.clearOfflineResponses = { try? await offlineResponses.removeAll() }
+    let offlineTransport = OfflineSubscriptionDataTransport(
+      base: dataTransport, gate: accessGate, cache: offlineResponses,
+      identity: { @MainActor [weak connection] in
+        guard let connection, let server = connection.connectedServerURL,
+              let identity = connection.connectedSnapshotIdentity else { return nil }
+        return server.absoluteString + "\n" + identity
+      })
     let transport = SureAPITransport(
       session: session,
-      dataTransport: dataTransport,
+      dataTransport: offlineTransport,
       unauthorizedRecovery: refreshCoordinator
     )
     let apiClient = SureAPIClient(transport: transport)
@@ -143,6 +166,7 @@ struct AppDefinition: App {
       client: apiClient,
       calendar: .autoupdatingCurrent,
       now: { .now },
+      canSync: { accessGate.isAllowed },
       syncInsights: syncInsights,
       snapshotCache: FileFinanceDataSnapshotCache(),
       snapshotServerURL: { [weak connection] in
@@ -174,19 +198,23 @@ struct AppDefinition: App {
     lifecycle.financeData = financeData
     lifecycle.spendingComparison = spendingComparison
     lifecycle.appleCardConnection = appleCardConnection
-    if initialState.isExplicitlySignedOut {
-      appleCardConnection.disconnect()
-      financeData.disconnect()
-    }
+    lifecycle.restoreInitialState(isExplicitlySignedOut: initialState.isExplicitlySignedOut)
     _connection = State(initialValue: connection)
     _financeData = State(initialValue: financeData)
     _spendingComparison = State(initialValue: spendingComparison)
     _appleCardConnection = State(initialValue: appleCardConnection)
     self.notificationManager = notificationManager
     self.mobileSSOService = mobileSSOService
+    self.oauthService = oauthService
     remoteAssistant = apiClient
     transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
-      client: apiClient,
+      client: ArchivedTransactionHistoryClient(base: apiClient, gate: accessGate,
+        archive: offlineResponses, identity: { [weak connection] in
+          guard let server = connection?.connectedServerURL,
+                let identity = connection?.connectedSnapshotIdentity else { return nil }
+          return (server, identity)
+        }, now: { .now }),
+      isOffline: { !accessGate.isAllowed },
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
@@ -202,6 +230,7 @@ struct AppDefinition: App {
 
     #if os(iOS)
     appDelegate.notificationEventHandler = notificationManager
+    appDelegate.canReceiveBackendNotifications = { accessGate.isAllowed }
     watchInsightsSync.activate()
     #endif
   }
@@ -209,6 +238,7 @@ struct AppDefinition: App {
   var body: some Scene {
     WindowGroup {
       ContentView(
+        subscriptionAccess: subscriptionAccess,
         connection: connection,
         analytics: analytics,
         financeData: financeData,
@@ -221,7 +251,25 @@ struct AppDefinition: App {
         makeAssistantMessageID: { UUID() },
         now: { .now }
       )
+      .task { await subscriptionAccess.monitor() }
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .active { Task { await subscriptionAccess.refresh() } }
+      }
+      .onChange(of: subscriptionAccess.hasAccess) { _, allowed in
+        if allowed { Task {
+          await financeData.refresh()
+          await notificationManager.applicationDidFinishLaunching()
+          await notificationManager.didConnect()
+        } }
+        else {
+          financeData.suspendSync()
+          connection.suspendAuthentication()
+          oauthService.cancelAuthentication()
+          mobileSSOService.cancelAuthentication()
+        }
+      }
       .onOpenURL { url in
+        guard subscriptionAccess.hasAccess else { return }
         mobileSSOService.handleOpenURL(url)
       }
     }

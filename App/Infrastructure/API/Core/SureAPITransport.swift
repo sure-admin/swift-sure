@@ -181,6 +181,8 @@ struct SureAPITransport {
       throw CancellationError()
     } catch let error as URLError where error.code == .cancelled {
       throw CancellationError()
+    } catch let error as BackendAccessError {
+      throw error
     } catch {
       throw SureAPIError.transport
     }

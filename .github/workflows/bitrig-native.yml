@@ -7,6 +7,8 @@ on:
       - "Shared/**"
       - "Tests/**"
       - "Docs/SpendingComparison.md"
+      - "Docs/PurchaseAccessPlan.md"
+      - "appStoreConnect/**"
       - "Watch/**"
       - "Project.json"
       - ".github/scripts/**"

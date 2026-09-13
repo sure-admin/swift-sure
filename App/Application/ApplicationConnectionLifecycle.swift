@@ -16,12 +16,19 @@ extension SureConnectionLifecycleHandling {
 @MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
+  var clearOfflineResponses: () async -> Void = {}
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
   weak var spendingComparison: SpendingComparisonStore?
 
   weak var appleCardConnection: AppleCardConnectionStore?
   var transactionHistoryFactories: [TransactionHistoryStoreFactory] = []
+
+  func restoreInitialState(isExplicitlySignedOut: Bool) {
+    // Wallet reconnect preferences already reflect the latest explicit decision.
+    // A persisted Sure logout must not undo Wallet access granted afterward.
+    if isExplicitlySignedOut { financeData?.disconnect() }
+  }
 
   func didConnect() async {
     financeData?.restoreSnapshotIfAvailable()
@@ -31,6 +38,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForConnectionChange() async {
+    await clearOfflineResponses()
     spendingComparison?.invalidate()
     financeData?.disconnect(preservingSnapshot: true)
     await notificationLifecycle?.prepareForConnectionChange()
@@ -43,6 +51,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForLogout() async {
+    await clearOfflineResponses()
     clearLocalData()
     financeData?.disconnect()
     await notificationLifecycle?.prepareForLogout()

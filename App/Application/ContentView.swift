@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  var subscriptionAccess: SubscriptionAccessStore
   var connection: SureConnection
   var analytics: AnalyticsStore
   var financeData: FinanceDataStore
@@ -18,28 +19,7 @@ struct ContentView: View {
   @State private var showingConnectionSettings = false
 
   var body: some View {
-    Group {
-      #if os(iOS)
-      if connection.isConfigured || (appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
-        appTabs
-      } else if let onboarding = connection.pendingSSOOnboarding {
-        SSOOnboardingHandoffView(
-          context: onboarding,
-          signInWithPasskey: {
-            Task { await connection.signInWithPasskey() }
-          },
-          goBack: connection.cancelSSOOnboarding
-        )
-      } else {
-        SignInView(
-          connection: connection,
-          showConnectionSettings: { showingConnectionSettings = true }
-        )
-      }
-      #else
-      appTabs
-      #endif
-    }
+    appTabs
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
@@ -50,17 +30,12 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(connection: connection, analytics: analytics)
+      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
     }
   }
 
   private var visibleScreen: UsageScreen {
     if showingConnectionSettings { return .connectionSettings }
-    #if os(iOS)
-    if !connection.isConfigured && !(appleCardConnection.isAvailable && connection.pendingSSOOnboarding == nil) {
-      return connection.pendingSSOOnboarding == nil ? .signIn : .onboarding
-    }
-    #endif
     switch selection {
     case .overview: return .overview
     case .assistant: return .assistant
@@ -74,6 +49,7 @@ struct ContentView: View {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
           data: financeData,
+          hasSyncAccess: subscriptionAccess.hasAccess,
           spendingComparison: spendingComparison,
           refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
@@ -96,6 +72,7 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
+          hasSyncAccess: subscriptionAccess.hasAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,
           localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
@@ -104,7 +81,7 @@ struct ContentView: View {
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
-        BudgetView(data: financeData)
+        BudgetView(data: financeData, hasSyncAccess: subscriptionAccess.hasAccess)
           .id(connection.sessionGeneration)
       }
     }

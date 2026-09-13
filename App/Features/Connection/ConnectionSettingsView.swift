@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectionSettingsView: View {
   @Environment(\.dismiss) private var dismiss
+  var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
 
@@ -9,6 +10,13 @@ struct ConnectionSettingsView: View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
+          SubscriptionAccessView(access: subscriptionAccess)
+          if subscriptionAccess.hasAccess {
+          if let onboarding = connection.pendingSSOOnboarding {
+            SSOOnboardingHandoffView(context: onboarding,
+              signInWithPasskey: { Task { await connection.signInWithPasskey() } },
+              goBack: connection.cancelSSOOnboarding)
+          }
           Label("Connect to your Sure instance", systemImage: "lock.shield.fill")
             .font(.title2.bold())
           Text("Use a passkey for passwordless sign-in. Face ID or Touch ID confirms it’s you, and your passkey stays in iCloud Keychain.")
@@ -86,6 +94,13 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
+          NavigationLink("Password or provider sign-in") {
+            SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
+          }
+
+          statusView
+          }
+
           #if os(iOS)
           if let analytics {
             NavigationLink {
@@ -97,8 +112,6 @@ struct ConnectionSettingsView: View {
             }
           }
           #endif
-
-          statusView
 
           if connection.canLogOut {
             Button("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
