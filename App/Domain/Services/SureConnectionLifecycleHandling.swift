@@ -16,4 +16,3 @@ extension SureConnectionLifecycleHandling {
   func didFailConnectionChange() async { }
   func didCommitConnectionChange() async { }
 }
-
