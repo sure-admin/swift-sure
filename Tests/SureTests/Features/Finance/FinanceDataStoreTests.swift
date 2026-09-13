@@ -5,6 +5,37 @@ import Testing
 @MainActor
 @Suite("Finance data store")
 struct FinanceDataStoreTests {
+  @Test("Revisiting a month replaces edited records and removes absent records")
+  func refreshedMonthReplacesRecords() async throws {
+    let calendar = utcCalendar()
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 28)))
+    let july = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 10)))
+    let original = transaction(id: 1, date: july, minorUnits: 1_000)
+    let updated = transaction(id: 1, date: july, minorUnits: 2_000)
+    let store = FinanceDataStore(connection: ConnectionStateStub(isConfigured: true),
+      client: FinanceDataClientStub(transactionsResult: .success([updated])),
+      calendar: calendar, now: { now }, syncInsights: { _ in })
+    store.transactions = [original, transaction(id: 2, date: july), transaction(id: 3, date: now)]
+    await store.selectPreviousReportingMonth()
+    #expect(store.transactions.first(where: { $0.id == original.id })?.amount.minorUnits == 2_000)
+    #expect(!store.transactions.contains(where: { $0.id == financeTestID(2) }))
+    #expect(store.transactions.contains(where: { $0.id == financeTestID(3) }))
+  }
+
+  @Test("Reporting navigation uses Gregorian months with a Buddhist device calendar")
+  func nonGregorianDeviceCalendar() async throws {
+    let now = try #require(utcCalendar().date(from: DateComponents(year: 2026, month: 8, day: 28)))
+    var calendar = Calendar(identifier: .buddhist)
+    calendar.timeZone = utcCalendar().timeZone
+    let client = FinanceDataClientStub()
+    let store = FinanceDataStore(connection: ConnectionStateStub(isConfigured: true), client: client,
+      calendar: calendar, now: { now }, syncInsights: { _ in })
+    await store.selectPreviousReportingMonth()
+    #expect(store.reportingDate == (try LocalDate(year: 2026, month: 7, day: 1)))
+    #expect(await client.recordedTransactionWindows().first?.endDate ==
+      (try LocalDate(year: 2026, month: 7, day: 31)))
+  }
+
   @Test("Locked sync leaves a usable startup state without contacting Sure", arguments: [false, true])
   func lockedSyncStartup(configured: Bool) async {
     let client = FinanceDataClientStub()

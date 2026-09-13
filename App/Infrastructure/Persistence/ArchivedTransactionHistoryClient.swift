@@ -28,7 +28,7 @@ struct ArchivedTransactionHistoryClient: TransactionHistoryClient {
     guard self.identity()?.1 == identity else { throw CancellationError() }
     let snapshot = FinanceDataSnapshot(serverURL: server, connectionIdentity: identity,
       balanceSheet: nil, accounts: [], transactions: transactions, budgets: [], insights: [], lastUpdated: now())
-    try await archive.write(codec.encode(snapshot), key: key)
+    try? await archive.write(codec.encode(snapshot), key: key)
     try Task.checkCancellation()
     try gate.validate(permit)
     return transactions

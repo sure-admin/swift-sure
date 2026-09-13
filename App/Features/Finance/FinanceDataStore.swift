@@ -126,14 +126,16 @@ final class FinanceDataStore {
   ) {
     self.connection = connection
     self.client = client
-    self.calendar = calendar
+    var reportingCalendar = Calendar(identifier: .gregorian)
+    reportingCalendar.timeZone = calendar.timeZone
+    self.calendar = reportingCalendar
     self.now = now
     self.canSync = canSync
     self.syncInsights = syncInsights
     self.snapshotCache = snapshotCache
     self.snapshotServerURL = snapshotServerURL
     self.snapshotConnectionIdentity = snapshotConnectionIdentity
-    self.selectedReportingDate = Self.initialReportingDate(now: now(), calendar: calendar)
+    self.selectedReportingDate = Self.initialReportingDate(now: now(), calendar: reportingCalendar)
     restoreSnapshotIfAvailable()
   }
 
@@ -429,11 +431,10 @@ final class FinanceDataStore {
       try Task.checkCancellation()
       guard generation == requestGeneration, connection.isConfigured else { return }
       let loadedIDs = Set(loadedTransactions.map(\.id))
-      transactions.removeAll {
-        window.contains($0.date) && !loadedIDs.contains($0.id)
-      }
-      let existingIDs = Set(transactions.map(\.id))
-      transactions.append(contentsOf: loadedTransactions.filter { !existingIDs.contains($0.id) })
+      // A complete window replaces both edited records and records deleted or
+      // moved out of this period on the server.
+      transactions.removeAll { window.contains($0.date) || loadedIDs.contains($0.id) }
+      transactions.append(contentsOf: loadedTransactions)
       transactionsError = nil
       self.selectedReportingDate = targetDate
       saveSnapshot()

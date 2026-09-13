@@ -24,7 +24,9 @@ struct OfflineSubscriptionDataTransport: HTTPDataTransport {
     try Task.checkCancellation()
     try gate.validate(permit)
     if (result.1 as? HTTPURLResponse)?.statusCode == 200 {
-      try await cache.write(result.0, key: key)
+      // Persistence is optional for a successful live read. Access and
+      // cancellation are still rechecked after the storage operation.
+      try? await cache.write(result.0, key: key)
     }
     try Task.checkCancellation()
     try gate.validate(permit)

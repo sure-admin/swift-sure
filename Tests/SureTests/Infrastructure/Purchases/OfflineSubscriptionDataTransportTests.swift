@@ -3,6 +3,15 @@ import Testing
 @testable import Sure
 
 struct OfflineSubscriptionDataTransportTests {
+  @Test func cacheWriteFailureDoesNotDiscardSuccessfulLiveData() async throws {
+    let gate = entitledTestGate()
+    let base = HTTPDataTransportStub([try .http(json: "{}")])
+    let transport = OfflineSubscriptionDataTransport(base: base, gate: gate,
+      cache: FailingResponseStore(), identity: { "synthetic-identity" })
+    let result = try await transport.data(for: URLRequest(url: #require(URL(string: "https://sure.example/accounts"))))
+    #expect(result.0 == Data("{}".utf8))
+  }
+
   @Test func revocationDuringIdentityCheckRejectsResponseBeforeCaching() async throws {
     let gate = entitledTestGate()
     let cache = RevokingResponseStore(gate: nil)
@@ -77,6 +86,12 @@ struct OfflineSubscriptionDataTransportTests {
     try await cache.removeAll()
     #expect(try await cache.read(key: "account-a") == nil)
   }
+}
+
+private struct FailingResponseStore: OfflineResponseStoring {
+  func read(key: String) async throws -> Data? { nil }
+  func write(_ data: Data, key: String) async throws { throw CocoaError(.fileWriteOutOfSpace) }
+  func removeAll() async throws { }
 }
 
 private actor RevokingResponseStore: OfflineResponseStoring {
