@@ -63,7 +63,7 @@ struct AnalyticsStoreTests {
     lifecycle.analytics = client
     await lifecycle.prepareForConnectionChange()
     #expect(client.calls.isEmpty)
-    lifecycle.didCommitConnectionChange()
+    await lifecycle.didCommitConnectionChange()
     lifecycle.didLogOut()
     #expect(client.calls == ["reset", "reset"])
   }

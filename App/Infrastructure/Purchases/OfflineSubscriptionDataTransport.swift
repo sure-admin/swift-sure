@@ -3,7 +3,7 @@ import Foundation
 struct OfflineSubscriptionDataTransport: HTTPDataTransport {
   var base: any HTTPDataTransport
   var gate: BackendAccessGate
-  var cache: OfflineAPIResponseStore
+  var cache: any OfflineResponseStoring
   var identity: @Sendable () async -> String?
 
   func data(for request: URLRequest) async throws -> (Data, URLResponse) {
@@ -18,11 +18,16 @@ struct OfflineSubscriptionDataTransport: HTTPDataTransport {
       return (data, HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
                                    headerFields: ["Content-Type": "application/json"])!)
     }
+    let permit = try gate.permit()
     let result = try await base.data(for: request)
     guard await identity() == scope else { throw CancellationError() }
+    try Task.checkCancellation()
+    try gate.validate(permit)
     if (result.1 as? HTTPURLResponse)?.statusCode == 200 {
       try await cache.write(result.0, key: key)
     }
+    try Task.checkCancellation()
+    try gate.validate(permit)
     return result
   }
 }
