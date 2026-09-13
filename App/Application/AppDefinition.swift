@@ -262,6 +262,7 @@ struct AppDefinition: App {
           await notificationManager.didConnect()
         } }
         else {
+          financeData.suspendSync()
           connection.suspendAuthentication()
           oauthService.cancelAuthentication()
           mobileSSOService.cancelAuthentication()
