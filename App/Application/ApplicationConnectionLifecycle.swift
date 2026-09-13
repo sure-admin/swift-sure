@@ -3,14 +3,14 @@ import Foundation
 @MainActor
 protocol SureConnectionLifecycleHandling: AnyObject {
   func didConnect() async
-  func didCommitConnectionChange()
+  func didCommitConnectionChange() async
   func prepareForConnectionChange() async
   func prepareForLogout() async
   func didLogOut()
 }
 
 extension SureConnectionLifecycleHandling {
-  func didCommitConnectionChange() { }
+  func didCommitConnectionChange() async { }
 }
 
 @MainActor
@@ -37,13 +37,13 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForConnectionChange() async {
-    await clearOfflineResponses()
     spendingComparison?.invalidate()
     financeData?.disconnect(preservingSnapshot: true)
     await notificationLifecycle?.prepareForConnectionChange()
   }
 
-  func didCommitConnectionChange() {
+  func didCommitConnectionChange() async {
+    await clearOfflineResponses()
     analytics?.resetIdentity()
     financeData?.discardSnapshot()
     clearLocalData()

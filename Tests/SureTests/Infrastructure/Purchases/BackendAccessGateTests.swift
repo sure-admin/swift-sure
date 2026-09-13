@@ -3,6 +3,21 @@ import Testing
 @testable import Sure
 
 struct BackendAccessGateTests {
+  @Test func cancellationBeforeTaskInstallationIsNotLost() async throws {
+    let gate = entitledTestGate()
+    let cancellation = SubscriptionRequestCancellation()
+    let permit = try gate.permit()
+    let id = UUID()
+    try gate.register(id, permit: permit, cancel: { cancellation.cancel() })
+    defer { gate.unregister(id) }
+    gate.update(expiration: nil)
+    let task = Task { }
+    cancellation.install { task.cancel() }
+    #expect(task.isCancelled)
+    #expect(throws: BackendAccessError.self) { try gate.validate(permit) }
+    await task.value
+  }
+
   @Test func lockedTransportNeverContactsBackend() async throws {
     let base = HTTPDataTransportStub([])
     let gate = BackendAccessGate()
