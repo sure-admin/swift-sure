@@ -85,3 +85,10 @@ Fixture coverage:
   shared 401, preview-gated 403, scope 403, and 422 response bodies.
 - `error-malformed.json`: valid JSON whose required error fields have invalid
   wire types.
+
+The `mcp-*` fixtures follow the pinned `app/controllers/mcp_controller.rb`
+JSON-RPC contract and contain only synthetic values. They cover initialization,
+discovery (including a write tool that must be filtered), empty discovery,
+paginated tool content, JSON-RPC error, `isError`, and malformed content. MCP is
+not described by the REST OpenAPI operations; its controller and hosting guide
+are the source of truth.

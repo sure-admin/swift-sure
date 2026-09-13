@@ -5,22 +5,24 @@ struct AssistantView: View {
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var connection: SureConnection
   @State private var store: AssistantStore
+  @State private var mcpAccess: MCPAccessStore?
   @State private var sureSendHaptic = 0
   @State private var didLongPressSend = false
 
   init(
     connection: SureConnection,
-    financeData: FinanceDataStore,
+    services: AssistantSessionServices,
     remoteAssistant: any RemoteAssistantClient,
     makeMessageID: @escaping () -> UUID,
     now: @escaping () -> Date
   ) {
     self.connection = connection
+    _mcpAccess = State(initialValue: services.mcpAccess)
     _store = State(
       initialValue: AssistantStore(
         connection: connection,
         remoteAssistant: remoteAssistant,
-        localAssistant: LocalAssistantService(financeData: financeData),
+        localAssistant: services.localAssistant,
         makeID: makeMessageID,
         now: now
       )
@@ -72,10 +74,32 @@ struct AssistantView: View {
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           conversationMenu
+          if let mcpAccess {
+            Menu("Assistant settings", systemImage: "slider.horizontal.3") {
+              Toggle("Allow Automatic MCP Access", isOn: Binding(
+                get: { mcpAccess.allowsAutomaticAccess },
+                set: { mcpAccess.allowsAutomaticAccess = $0 }
+              ))
+              Text("Allow read-only tool requests to Sure from this device. When off, ask before each operation.")
+            }
+          }
           Button("Connection settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
         }
+      }
+      .sheet(item: Binding(
+        get: { mcpAccess?.pendingRequest },
+        set: { if $0 == nil { mcpAccess?.cancelPending() } }
+      )) { request in
+        MCPApprovalView(request: request) { decision in
+          mcpAccess?.resolve(id: request.id, decision: decision)
+        }
+      }
+      .onAppear { mcpAccess?.setPresentationAvailable(true) }
+      .onDisappear { mcpAccess?.setPresentationAvailable(false) }
+      .onChange(of: connection.sessionGeneration) { _, _ in
+        mcpAccess?.cancelPending()
       }
       .task(id: connection.sessionGeneration) {
         await store.reloadConversationsForCurrentSession()
@@ -262,7 +286,7 @@ struct AssistantView: View {
           || store.isLoadingConversation
       )
       .sensoryFeedback(.impact(weight: .heavy), trigger: sureSendHaptic)
-      .accessibilityHint("Tap for an on-device answer. Touch and hold to send to Sure.")
+      .accessibilityHint("Tap for an on-device answer; MCP tools require permission unless enabled in Assistant settings. Touch and hold to send to Sure.")
     }
     .padding()
     .background(.bar)

@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": "00000000-0000-0000-0000-000000000001",
+  "result": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "tools": {}
+    },
+    "serverInfo": {
+      "name": "sure",
+      "version": "1.0"
+    },
+    "sessionId": "synthetic-session"
+  }
+}

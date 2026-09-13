@@ -10,6 +10,7 @@ struct ContentView: View {
   var appleCardConnection: AppleCardConnectionStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
+  var makeAssistantServices: () -> AssistantSessionServices
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
   var makeAssistantMessageID: () -> UUID
@@ -61,7 +62,7 @@ struct ContentView: View {
       Tab("Assistant", systemImage: "sparkles", value: .assistant) {
         AssistantView(
           connection: connection,
-          financeData: financeData,
+          services: makeAssistantServices(),
           remoteAssistant: remoteAssistant,
           makeMessageID: makeAssistantMessageID,
           now: now

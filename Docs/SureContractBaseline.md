@@ -145,3 +145,14 @@ Adopt a newer Sure `main` revision deliberately:
 5. Run contract tests plus iOS, macOS, and Watch builds before committing.
 
 Do not silently move this pin as part of unrelated feature work.
+
+## Assistant MCP baseline
+
+The local tool inventory mirrors this revision's `Assistant.function_classes`
+registry. Direct delegation uses the pinned `/mcp` controller's JSON-RPC
+`initialize`, `tools/list`, and `tools/call` operations, not the REST chat API.
+MCP requires bearer authorization with `read_write` scope (or the server's
+static MCP bearer token); API-key sessions are not compatible with this route.
+The client independently permits only reviewed read operations. See
+[Assistant tool delegation](AssistantToolDelegation.md) for regeneration,
+stateless protocol behavior, and the explicit local/server privacy boundary.
