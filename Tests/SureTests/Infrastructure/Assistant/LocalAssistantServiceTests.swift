@@ -34,7 +34,8 @@ struct LocalAssistantServiceTests {
 
     #expect(prompt.contains("Net worth: \(FinanceFormatters.currency(authoritativeNetWorth))"))
     #expect(!prompt.contains("Net worth: \(FinanceFormatters.currency(reconstructedNetWorth))"))
-    #expect(prompt.contains("- Checking (Cash): \(FinanceFormatters.currency(firstBalance))"))
+    #expect(!prompt.contains("Checking"))
+    #expect(!prompt.contains("Savings"))
     #expect(prompt.contains("Current question:\nWhat is my net worth?"))
   }
 
@@ -85,6 +86,54 @@ struct LocalAssistantServiceTests {
     #expect(prompt.contains("Period income: \(expectedIncome)"))
     #expect(prompt.contains("Period spending: \(expectedSpending)"))
   }
+
+  #if canImport(FoundationModels)
+  @available(iOS 26.0, macOS 26.0, *)
+  @Test("Account tool preserves signed balances and currency precision")
+  func accountToolBalances() async throws {
+    let store = makeStore()
+    store.accounts = try [("USD", Int64(-12345)), ("JPY", 0), ("KWD", 1234567),
+                          ("BTC", 1), ("USD", 9007199254740993)].enumerated().map { index, value in
+      account(id: index, name: "Synthetic \(index)", balance: Money(
+        minorUnits: value.1, currency: try #require(CurrencyCode(value.0))
+      ))
+    }
+    let output = try await LocalGetAccountsTool(financeData: store).call(arguments: .init())
+    let result = try JSONDecoder().decode(AccountToolResult.self, from: Data(output.utf8))
+    #expect(result.status == "available")
+    #expect(result.accounts.map(\.balance) == ["-123.45", "0", "1234.567", "0.00000001", "90071992547409.93"])
+    #expect(result.accounts.map(\.currency) == ["USD", "JPY", "KWD", "BTC", "USD"])
+    #expect(result.accounts.map(\.name) == store.accounts.map(\.name))
+    #expect(result.accounts.map(\.id) == store.accounts.map(\.id))
+  }
+
+  @available(iOS 26.0, macOS 26.0, *)
+  @Test("Account tool distinguishes empty, unavailable, failed and cleared snapshots")
+  func accountToolAvailability() async throws {
+    let store = makeStore()
+    let tool = LocalGetAccountsTool(financeData: store)
+    func result() async throws -> AccountToolResult {
+      let output = try await tool.call(arguments: .init())
+      return try JSONDecoder().decode(AccountToolResult.self, from: Data(output.utf8))
+    }
+    #expect(try await result().status == "unavailable")
+    store.state = .loaded
+    #expect(try await result().status == "available")
+    #expect(try await result().accounts.isEmpty)
+    store.accounts = [account(id: 1, name: "Checking", balance: Money(
+      minorUnits: 100, currency: try #require(CurrencyCode("USD"))
+    ))]
+    store.accountsError = "Synthetic failure"
+    #expect(try await result().status == "unavailable")
+    #expect(try await result().accounts.isEmpty)
+    store.accountsError = nil
+    #expect(try await result().accounts.count == 1)
+    store.accounts = []
+    store.state = .needsConnection
+    #expect(try await result().status == "unavailable")
+    #expect(try await result().accounts.isEmpty)
+  }
+  #endif
 
   private func makeStore(
     now: Date = Date(timeIntervalSince1970: 1_800_000_000)
@@ -162,6 +211,18 @@ private struct UnusedLocalAssistantFinanceDataClient: FinanceDataClient {
 
 private enum UnusedLocalAssistantClientError: Error {
   case unexpectedCall
+}
+
+private struct AccountToolResult: Decodable {
+  var status: String
+  var accounts: [Account]
+
+  struct Account: Decodable {
+    var id: UUID
+    var name: String
+    var balance: String
+    var currency: String
+  }
 }
 
 private func localAssistantID(_ sequence: Int) -> UUID {
