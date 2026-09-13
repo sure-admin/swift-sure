@@ -7,6 +7,9 @@
 .Trashes
 
 # Xcode
+# Generated from Project.json by XcodeGen
+App/Info.plist
+Watch/Info.plist
 *.xcodeproj/
 xcuserdata/
 *.xcscmblueprint
