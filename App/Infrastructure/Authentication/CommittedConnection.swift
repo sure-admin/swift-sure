@@ -89,7 +89,10 @@ final class CommittedConnection {
       await activate()
       if let previous, candidate != .oauth(previous) { await revoke(previous) }
     } catch {
-      if prepared && wasConfigured { await activate() }
+      if prepared {
+        if wasConfigured { await activate() }
+        else { await lifecycle.didFailConnectionChange() }
+      }
       throw error
     }
   }

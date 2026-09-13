@@ -1,7 +1,7 @@
 import Foundation
 
 /// Validated, unfurled cumulative series from the explicitly selected spending source.
-/// This is deliberately not a wire DTO until an upstream API contract exists.
+/// Both the Sure response mapper and the onboarding Wallet preview enforce this shape.
 struct SpendingComparison: Equatable, Sendable {
   let month: SpendingMonth
   let asOf: LocalDate

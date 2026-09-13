@@ -1,6 +1,6 @@
 import Foundation
 
-struct FinanceAccount: Identifiable {
+struct FinanceAccount: Equatable, Identifiable {
   var id: UUID
   var name: String
   var institution: String

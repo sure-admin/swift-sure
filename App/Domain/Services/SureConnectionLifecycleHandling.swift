@@ -4,6 +4,7 @@ import Foundation
 protocol SureConnectionLifecycleHandling: AnyObject {
   var dataCleanupFailure: DataFailure? { get }
   func didConnect() async
+  func didFailConnectionChange() async
   func didCommitConnectionChange() async
   func prepareForConnectionChange() async
   func prepareForLogout() async
@@ -12,6 +13,7 @@ protocol SureConnectionLifecycleHandling: AnyObject {
 
 extension SureConnectionLifecycleHandling {
   var dataCleanupFailure: DataFailure? { nil }
+  func didFailConnectionChange() async { }
   func didCommitConnectionChange() async { }
 }
 

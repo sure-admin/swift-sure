@@ -4,12 +4,14 @@ import Observation
 @MainActor
 @Observable
 final class SpendingComparisonStore {
+  private(set) var metadata: ReadMetadata?
+  private(set) var failure: DataFailure?
   private var storedState: State = .idle
   private var activeAccess: AccessIdentity?
   var state: State { activeAccess == accessIdentity ? storedState : .idle }
-  var source: Source { walletClient != nil && walletAccess?.walletSpendingAccess.isAuthorized == true ? .wallet : .sure }
+  var source: Source { connection.allowsWalletPreview && walletClient != nil && walletAccess?.walletSpendingAccess.isAuthorized == true ? .wallet : .sure }
   var accessIdentity: AccessIdentity {
-    AccessIdentity(wallet: walletAccess?.walletSpendingAccess, serverConfigured: connection.isConfigured, serverGeneration: connection.sessionGeneration)
+    AccessIdentity(previewAllowed: connection.allowsWalletPreview, wallet: connection.allowsWalletPreview ? walletAccess?.walletSpendingAccess : nil, serverConfigured: connection.isConfigured, serverGeneration: connection.sessionGeneration)
   }
   private(set) var months: [SpendingMonth] = []
   private(set) var selectedMonth: SpendingMonth?
@@ -36,7 +38,9 @@ final class SpendingComparisonStore {
     self.walletAccess = walletAccess
     self.client = client
     self.connection = connection
-    self.calendar = calendar
+    var reportingCalendar = Calendar(identifier: .gregorian)
+    reportingCalendar.timeZone = calendar.timeZone
+    self.calendar = reportingCalendar
     self.now = now
     updateMonths()
   }
@@ -84,18 +88,22 @@ final class SpendingComparisonStore {
       } else {
         comparison = try await client.fetchComparison(for: month)
       }
+      let info = requestSource == .sure ? await client.comparisonMetadata(for: month) : nil
       try Task.checkCancellation()
       guard generation == requestGeneration, accessIdentity == requestAccess else { return }
       guard comparison.month == month else {
         storedState = .failed
         return
       }
+      metadata = info
+      failure = info?.failure
       storedState = .loaded(comparison)
     } catch {
       guard generation == requestGeneration, accessIdentity == requestAccess else { return }
-      if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+      failure = DataFailure(error)
+      if failure == .cancelled || error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
         storedState = .idle
-      } else if let error = error as? SpendingComparisonServiceError, error == .unavailable {
+      } else if (error as? SpendingComparisonServiceError) == .unavailable || failure == .unavailable {
         storedState = .unavailable
       } else if let error = error as? WalletSpendingComparisonBuilder.Failure {
         switch error {
@@ -114,6 +122,8 @@ final class SpendingComparisonStore {
   func invalidate() {
     generation += 1
     storedState = .idle
+    metadata = nil
+    failure = nil
     loadingMonth = nil
     selectedMonth = nil
     updateMonths()
@@ -132,6 +142,7 @@ final class SpendingComparisonStore {
   enum Source { case sure, wallet }
 
   struct AccessIdentity: Equatable {
+    var previewAllowed: Bool
     var wallet: WalletSpendingAccess?
     var serverConfigured: Bool
     var serverGeneration: Int

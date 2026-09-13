@@ -1,6 +1,6 @@
 import Foundation
 
-struct AssistantConversation: Equatable, Identifiable {
+struct AssistantConversation: Codable, Equatable, Identifiable {
   var id: UUID
   var title: String
   var updatedAt: Date
