@@ -5,6 +5,24 @@ import Testing
 @MainActor
 @Suite("Watch insights store")
 struct WatchInsightsStoreTests {
+  @Test("Logout erases a future-dated snapshot and rejects its delayed redelivery")
+  func sequencedLogout() throws {
+    let receiver = WatchInsightsReceiverFake()
+    let cache = WatchInsightsCacheFake()
+    let store = WatchInsightsStore(receiver: receiver, cache: cache)
+    var financial = snapshot()
+    financial.streamID = "installation"; financial.revision = 10
+    financial.updatedAt = .distantFuture
+    let logout = WatchInsightsSnapshot(insights: [], updatedAt: .distantPast, streamID: "installation", revision: 11)
+    store.start()
+    receiver.emit(.snapshot(.success(financial)))
+    receiver.emit(.snapshot(.success(logout)))
+    receiver.emit(.snapshot(.success(financial)))
+    #expect(store.insights.isEmpty)
+    #expect(store.lastUpdated == .distantPast)
+    #expect(try WatchInsightsSnapshotCodec().decode(#require(cache.savedData)) == logout)
+  }
+
   @Test("A valid cached snapshot is restored at launch")
   func restoresCache() throws {
     let expected = snapshot()

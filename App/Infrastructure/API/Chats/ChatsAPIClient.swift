@@ -103,7 +103,7 @@ struct ChatsAPIClient {
     for attempt in 0..<pollingPolicy.maximumAttempts {
       try Task.checkCancellation()
       if attempt > 0 {
-        try await pollingPolicy.sleep(pollingPolicy.delay)
+        try await pollingPolicy.sleep(pollingPolicy.delay(beforeAttempt: attempt))
       }
       if let reply = try await assistantReplies(chatID: chatID).last(where: { reply in
         !existingReplyIDs.contains(reply.id)

@@ -12,6 +12,7 @@ final class WatchInsightsStore {
   private let cache: any WatchInsightsCaching
   private let codec: WatchInsightsSnapshotCodec
   private var hasStarted = false
+  private var latestSnapshot: WatchInsightsSnapshot?
 
   init(
     receiver: any WatchInsightsReceiving,
@@ -45,7 +46,15 @@ final class WatchInsightsStore {
   }
 
   private func apply(_ snapshot: WatchInsightsSnapshot) {
-    guard lastUpdated.map({ snapshot.updatedAt >= $0 }) ?? true else { return }
+    if let previous = latestSnapshot {
+      if let revision = snapshot.revision, let stream = snapshot.streamID {
+        if stream == previous.streamID, let last = previous.revision, revision <= last { return }
+      } else {
+        // After a sequenced update, a delayed legacy context cannot undo logout.
+        guard previous.revision == nil, snapshot.updatedAt >= previous.updatedAt else { return }
+      }
+    }
+    latestSnapshot = snapshot
     insights = snapshot.insights
     lastUpdated = snapshot.updatedAt
     guard let data = try? codec.encode(snapshot) else { return }
@@ -60,6 +69,7 @@ final class WatchInsightsStore {
       return
     }
 
+    latestSnapshot = snapshot
     insights = snapshot.insights
     lastUpdated = snapshot.updatedAt
   }

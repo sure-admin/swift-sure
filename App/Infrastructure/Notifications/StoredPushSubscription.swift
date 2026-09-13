@@ -4,18 +4,21 @@ struct StoredPushSubscription: Codable, Equatable, Sendable {
   var id: UUID
   var serverURL: URL
   var deviceToken: String
+  var connectionIdentity: String?
   var environment: APNsEnvironment
 
   init(
     id: UUID,
     serverURL: URL,
     deviceToken: String,
-    environment: APNsEnvironment
+    environment: APNsEnvironment,
+    connectionIdentity: String? = nil
   ) throws {
     guard !deviceToken.isEmpty else {
       throw StoredPushSubscriptionError.invalidDeviceToken
     }
 
+    self.connectionIdentity = connectionIdentity
     self.id = id
     self.serverURL = try SureRequestContext(
       baseURL: serverURL,
@@ -32,7 +35,8 @@ struct StoredPushSubscription: Codable, Equatable, Sendable {
         id: values.decode(UUID.self, forKey: .id),
         serverURL: values.decode(URL.self, forKey: .serverURL),
         deviceToken: values.decode(String.self, forKey: .deviceToken),
-        environment: values.decode(APNsEnvironment.self, forKey: .environment)
+        environment: values.decode(APNsEnvironment.self, forKey: .environment),
+        connectionIdentity: values.decodeIfPresent(String.self, forKey: .connectionIdentity)
       )
     } catch {
       throw DecodingError.dataCorruptedError(
