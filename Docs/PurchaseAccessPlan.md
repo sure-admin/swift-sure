@@ -12,7 +12,8 @@ Buying client access does not create a Sure account or purchase server hosting.
 
 ## Current integration points
 
-- No StoreKit or RevenueCat integration is present.
+- Direct StoreKit 2 integration verifies subscriptions and gates Sure access.
+  RevenueCat and other billing services are not used.
 - `AppDefinition` restores stored credentials into `SureSession` at startup and
   composes separate authentication and authenticated API transports.
 - `SureConnection` supports API keys, passkeys, passwords, and provider SSO.

@@ -14,8 +14,9 @@ struct FinanceDataStoreTests {
       canSync: { false }, syncInsights: { _ in }
     )
     await store.refresh()
-    #expect(store.state != .idle)
-    #expect(store.state != .loading)
+    #expect(store.state == (configured
+      ? .failed(BackendAccessError.subscriptionRequired.localizedDescription)
+      : .needsConnection))
     #expect(await client.recordedCalls().isEmpty)
     let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
     store.state = .loaded
@@ -408,7 +409,7 @@ struct FinanceDataStoreTests {
     #expect(store.state == .loaded)
     #expect(store.insights.map(\.id) == ["cached-insight"])
 
-    lifecycle.didCommitConnectionChange()
+    await lifecycle.didCommitConnectionChange()
     #expect(cache.data == nil)
   }
 

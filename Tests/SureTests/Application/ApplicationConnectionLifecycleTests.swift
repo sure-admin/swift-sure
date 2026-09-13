@@ -12,6 +12,8 @@ struct ApplicationConnectionLifecycleTests {
     let preferences = LifecycleConnectionPreferences(serverURL: serverURL.absoluteString)
     let session = SureSession(context: nil)
     let lifecycle = ApplicationConnectionLifecycle()
+    var offlineClearCount = 0
+    lifecycle.clearOfflineResponses = { offlineClearCount += 1 }
     let connection = SureConnection(
       initialState: SureConnectionInitialState(
         serverURL: serverURL.absoluteString,
@@ -56,6 +58,7 @@ struct ApplicationConnectionLifecycleTests {
 
     await connection.connectWithAPIKey()
 
+    #expect(offlineClearCount == 1)
     #expect(connection.status == .connected)
     #expect(financeData.state == .loaded)
     #expect(financeData.balanceSheet != nil)
@@ -72,6 +75,7 @@ struct ApplicationConnectionLifecycleTests {
 
     await connection.logOut()
 
+    #expect(offlineClearCount == 2)
     #expect(financeData.insights.isEmpty)
     #expect(financeData.accounts.isEmpty)
     #expect(financeData.transactions.isEmpty)
@@ -97,6 +101,8 @@ struct ApplicationConnectionLifecycleTests {
     )
     let session = SureSession(context: oldContext)
     let lifecycle = ApplicationConnectionLifecycle()
+    var offlineClearCount = 0
+    lifecycle.clearOfflineResponses = { offlineClearCount += 1 }
     let gate = LifecycleCredentialChangeGate()
     let connection = SureConnection(
       initialState: SureConnectionInitialState(
@@ -137,6 +143,7 @@ struct ApplicationConnectionLifecycleTests {
     await connectionTask.value
 
     #expect(connection.status == .connected)
+    #expect(offlineClearCount == 0)
     #expect(try await session.requestContext() == oldContext)
     #expect(financeData.state == .loaded)
     #expect(financeData.accounts.map(\.id) == [lifecycleID(1)])
@@ -157,6 +164,8 @@ struct ApplicationConnectionLifecycleTests {
     credentials.failNextReplace = true
     let session = SureSession(context: oldContext)
     let lifecycle = ApplicationConnectionLifecycle()
+    var offlineClearCount = 0
+    lifecycle.clearOfflineResponses = { offlineClearCount += 1 }
     let connection = SureConnection(
       initialState: SureConnectionInitialState(
         serverURL: oldSession.serverURL.absoluteString,
@@ -191,6 +200,7 @@ struct ApplicationConnectionLifecycleTests {
 
     #expect(connection.isConfigured)
     #expect(connection.status == .failed("The Sure connection couldn’t be completed."))
+    #expect(offlineClearCount == 0)
     #expect(try await session.requestContext() == oldContext)
     #expect(try credentials.loadCredentials() == snapshot)
     #expect(financeData.state == .loaded)

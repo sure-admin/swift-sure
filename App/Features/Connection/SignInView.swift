@@ -7,7 +7,15 @@ struct SignInView: View {
 
   var body: some View {
     if subscriptionAccess.hasAccess {
-      signInContent
+      if let onboarding = connection.pendingSSOOnboarding {
+        SSOOnboardingHandoffView(
+          context: onboarding,
+          signInWithPasskey: { Task { await connection.signInWithPasskey() } },
+          goBack: connection.cancelSSOOnboarding
+        )
+      } else {
+        signInContent
+      }
     } else {
       ScrollView { SubscriptionAccessView(access: subscriptionAccess).padding() }
     }

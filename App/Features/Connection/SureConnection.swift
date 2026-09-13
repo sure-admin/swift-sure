@@ -294,7 +294,7 @@ final class SureConnection {
       isSignedOut = false
       updateAPIKeyDraftState()
       status = .connected
-      lifecycle.didCommitConnectionChange()
+      await lifecycle.didCommitConnectionChange()
       await activateCommittedSession()
 
       if let previousOAuth {
@@ -421,7 +421,7 @@ final class SureConnection {
       serverURL = context.baseURL.absoluteString
       isSignedOut = false
       status = .connected
-      lifecycle.didCommitConnectionChange()
+      await lifecycle.didCommitConnectionChange()
       await activateCommittedSession()
 
       if let previousOAuth, previousOAuth != candidate {

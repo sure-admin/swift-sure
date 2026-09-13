@@ -6,7 +6,7 @@ import Foundation
 struct ArchivedTransactionHistoryClient: TransactionHistoryClient {
   var base: any TransactionHistoryClient
   var gate: BackendAccessGate
-  var archive: OfflineAPIResponseStore
+  var archive: any OfflineResponseStoring
   var identity: () -> (URL, String)?
   var now: () -> Date
 
@@ -29,6 +29,8 @@ struct ArchivedTransactionHistoryClient: TransactionHistoryClient {
     let snapshot = FinanceDataSnapshot(serverURL: server, connectionIdentity: identity,
       balanceSheet: nil, accounts: [], transactions: transactions, budgets: [], insights: [], lastUpdated: now())
     try await archive.write(codec.encode(snapshot), key: key)
+    try Task.checkCancellation()
+    try gate.validate(permit)
     return transactions
   }
 }
