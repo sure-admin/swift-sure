@@ -1,19 +1,6 @@
 import Foundation
 
 @MainActor
-protocol SureConnectionLifecycleHandling: AnyObject {
-  func didConnect() async
-  func didCommitConnectionChange() async
-  func prepareForConnectionChange() async
-  func prepareForLogout() async
-  func didLogOut()
-}
-
-extension SureConnectionLifecycleHandling {
-  func didCommitConnectionChange() async { }
-}
-
-@MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
   var clearOfflineResponses: () async -> Void = {}
