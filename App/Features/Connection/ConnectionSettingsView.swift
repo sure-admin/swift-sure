@@ -8,10 +8,29 @@ struct ConnectionSettingsView: View {
 
   var body: some View {
     NavigationStack {
+      Group {
+        if !subscriptionAccess.hasAccess {
+          SubscriptionAccessView(access: subscriptionAccess)
+        } else {
+          connectionContent
+        }
+      }
+      .navigationTitle(subscriptionAccess.hasAccess ? "Sure connection" : "")
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+  }
+
+  private var connectionContent: some View {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
-          SubscriptionAccessView(access: subscriptionAccess)
           if subscriptionAccess.hasAccess {
+          NavigationLink("Manage subscription") {
+            SubscriptionAccessView(access: subscriptionAccess)
+          }
           Label("Connect to your Sure instance", systemImage: "lock.shield.fill")
             .font(.title2.bold())
           Text("Use a passkey for passwordless sign-in. Face ID or Touch ID confirms it’s you, and your passkey stays in iCloud Keychain.")
@@ -121,13 +140,6 @@ struct ConnectionSettingsView: View {
         .frame(maxWidth: .infinity)
         .padding()
       }
-      .navigationTitle("Sure connection")
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
-        }
-      }
-    }
   }
 
   @ViewBuilder

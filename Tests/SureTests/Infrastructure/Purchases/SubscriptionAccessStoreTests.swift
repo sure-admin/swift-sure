@@ -4,13 +4,24 @@ import Testing
 
 @MainActor
 struct SubscriptionAccessStoreTests {
+  @Test func savingsUseDecimalAndDoNotAdvertiseNonSavings() {
+    #expect(StoreKitSubscriptionService.savings(annual: Decimal(string: "9.99")!, monthly: Decimal(string: "0.99")!) == 16)
+    #expect(StoreKitSubscriptionService.savings(annual: 12, monthly: 1) == nil)
+    #expect(StoreKitSubscriptionService.savings(annual: 10, monthly: 0) == nil)
+  }
+
+  @Test func trialRequiresAnEligibleDuration() {
+    let plan = SubscriptionPlan(id: "monthly", price: "$1", isAnnual: false)
+    #expect(!plan.hasTrial)
+  }
+
   @Test func pendingAndCancelledPurchasesStayLocked() async {
     for outcome in [SubscriptionPurchaseOutcome.pending, .cancelled] {
       let service = PurchaseServiceFake()
       service.outcome = outcome
       let store = SubscriptionAccessStore(service: service, gate: BackendAccessGate(), waitUntil: { _ in throw CancellationError() })
       await store.refresh()
-      await store.purchase(SubscriptionPlan(id: "monthly", price: "$0.99", isAnnual: false, hasTrial: true))
+      await store.purchase(SubscriptionPlan(id: "monthly", price: "$0.99", isAnnual: false, trialDuration: "1 week"))
       #expect(!store.hasAccess)
       #expect(!store.gate.isAllowed)
     }
