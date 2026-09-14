@@ -118,6 +118,7 @@ struct OverviewView: View {
           recentCard
         }
       }
+      CashFlowCard(data: data)
       netWorthCard
     }
   }

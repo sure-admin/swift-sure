@@ -2,7 +2,7 @@
 
 ## Supported upstream revision
 
-This Sankey follow-up targets the backend contract candidate below, based on Sure `main` at `ca4a6b4a0e5bd4d36c0bbfd576ae4a7af6736d64`. Merge the backend cash-flow Sankey PR before releasing this client. PR #13 retains its existing merged-server baseline.
+This Sankey follow-up targets the backend contract candidate below, based on Sure `main` at `ca4a6b4a0e5bd4d36c0bbfd576ae4a7af6736d64`. Merge the backend cash-flow Sankey PR before releasing this client.
 
 - Commit: `bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d`
 - Upstream commit time: 2026-09-14 05:57:07 UTC
