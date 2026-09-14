@@ -2,30 +2,33 @@
 
 ## Supported upstream revision
 
-During the developer and TestFlight phase, this client targets the coordinated Sure backend revision below (merge its draft PR before deploying this client):
+During the developer and TestFlight phase, this client targets the Sure `main` revision below, which includes merged [backend PR #3545](https://github.com/we-promise/sure/pull/3545):
 
-- Commit: `859b7b41275c9497348269fc025228110f0c9f58`
-- Upstream commit time: 2026-09-14 04:28:21 UTC
-- Commit subject: `Compare family settings timestamps by their represented instant`
+- Commit: `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`
+- Upstream commit time: 2026-09-14 04:57:17 UTC
+- Commit subject: `Expose cash flow reporting and secure push-device continuity (#3545)`
 
 Permalinks for the contract sources used by this baseline:
 
-- [OpenAPI](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/api/openapi.yaml)
-- [Client architecture](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/clients.md)
-- [Transaction API](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/api/transactions.md)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Chat API](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/api/chats.md)
-- [AI architecture](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/hosting/ai.md)
+- [OpenAPI](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml)
+- [Client architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/clients.md)
+- [Transaction API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Chat API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/chats.md)
+- [AI architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/hosting/ai.md)
 
 This is a deliberate compatibility pin, not a claim that Sure has a versioned
 API. Backward compatibility with older self-hosted revisions is not required
 yet. The app should nevertheless tolerate additive optional response fields.
 
 The pin includes `GET /api/v1/cash_flow` and optional installation-proof
-push registration. [Cash flow contract](https://github.com/we-promise/sure/blob/859b7b41275c9497348269fc025228110f0c9f58/docs/api/cash-flow.md).
+push registration. [Cash flow contract](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml).
 Existing account, transaction, budget, balance-sheet, chat, and auth fixtures
 remain additive-compatible; new summary fixtures and push-request tests cover
-these operations. This pin is deliberate, not an older-server fallback.
+these operations. The merge preserves all existing GET contracts, shared schemas,
+and push-registration contracts from the previously tested revision; its other
+OpenAPI changes affect trade mutations, which this client does not use. This pin
+is deliberate, not an older-server fallback.
 
 ## Current client policy
 

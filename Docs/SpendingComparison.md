@@ -2,8 +2,8 @@
 
 ## Integration status
 
-The native card is placed immediately after Insights in Overview. The coordinated
-backend change adds `GET /api/v1/cash_flow?month=YYYY-MM-01`, delegating to
+The native card is placed immediately after Insights in Overview. Sure `main`
+provides `GET /api/v1/cash_flow?month=YYYY-MM-01`, delegating to
 Sure's existing IncomeStatement. `CashFlowAPIClient` validates the wire
 contract and `CachedFinanceRepository` stores the result for offline and suspended
 sessions. See `SureContractBaseline.md` for the exact required server revision.
