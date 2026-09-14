@@ -1,6 +1,6 @@
 import Foundation
 
-struct FinancialSummaryDTO: Codable {
+struct CashFlowDTO: Codable {
   var month: LocalDate
   var asOf: LocalDate
   var timeZone: String
@@ -38,7 +38,7 @@ struct FinancialSummaryDTO: Codable {
     }
   }
 
-  func record() throws -> FinancialSummary {
+  func record() throws -> CashFlow {
     guard let currency = CurrencyCode(currency), month.day == 1,
           TimeZone(identifier: timeZone) != nil else { throw SureAPIError.decoding }
     let month = SpendingMonth(containing: month)
@@ -54,14 +54,14 @@ struct FinancialSummaryDTO: Codable {
           spendingComparison.comparisonEndDate == comparison.previous[comparison.comparisonDay - 1].date else {
       throw SureAPIError.decoding
     }
-    return try FinancialSummary(month: month, asOf: asOf, timeZone: timeZone,
+    return try CashFlow(month: month, asOf: asOf, timeZone: timeZone,
       income: .init(amount: Self.decimal(income), currency: currency),
       spending: .init(amount: Self.decimal(spending), currency: currency),
       netSavings: .init(amount: Self.decimal(netSavings), currency: currency),
       savingsRate: savingsRate.map { try Self.decimal($0) / 100 }, comparison: comparison)
   }
 
-  init(_ record: FinancialSummary) {
+  init(_ record: CashFlow) {
     let comparison = record.comparison
     month = record.month.start; asOf = record.asOf; timeZone = record.timeZone
     currency = record.income.currency.rawValue

@@ -19,7 +19,7 @@ struct FinanceAssembly {
     let cache = ServerReadCache(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("am.sure.insights/server-reads", isDirectory: true))
     let repository = CachedFinanceRepository(base: apiClient, history: apiClient,
-      summaries: FinancialSummaryAPIClient(transport: transport), cache: cache, gate: accessGate,
+      summaries: CashFlowAPIClient(transport: transport), cache: cache, gate: accessGate,
       identity: { [weak connection] in
         guard let server = connection?.connectedServerURL, let id = connection?.connectedSnapshotIdentity else { return nil }
         return (server, id)

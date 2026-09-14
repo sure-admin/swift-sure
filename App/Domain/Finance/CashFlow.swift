@@ -1,7 +1,7 @@
 import Foundation
 
 /// Reporting values are calculated by Sure, including account eligibility and FX.
-struct FinancialSummary: Equatable, Sendable {
+struct CashFlow: Equatable, Sendable {
   var month: SpendingMonth
   var asOf: LocalDate
   var timeZone: String
@@ -12,6 +12,6 @@ struct FinancialSummary: Equatable, Sendable {
   var comparison: SpendingComparison
 }
 
-protocol FinancialSummaryProviding: Sendable {
-  func fetchSummary(for month: SpendingMonth) async throws -> FinancialSummary
+protocol CashFlowProviding: Sendable {
+  func fetchSummary(for month: SpendingMonth) async throws -> CashFlow
 }

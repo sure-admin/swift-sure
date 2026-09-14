@@ -10,12 +10,12 @@ final class FinanceDataStore {
   let transactionsResource = FinanceResource<[FinanceTransaction]>([])
   let budgetsResource = FinanceResource<[BudgetCategory]>([])
   let insightsResource = FinanceResource<[BackendInsight]>([])
-  let summaryResource = FinanceResource<FinancialSummary?>(nil)
+  let summaryResource = FinanceResource<CashFlow?>(nil)
   let reporting: ReportingPeriodStore
   private let sync = FinanceSyncCoordinator()
   private let connection: any ConnectionStateProviding
   private let client: any FinanceDataClient
-  private let summaries: (any FinancialSummaryProviding)?
+  private let summaries: (any CashFlowProviding)?
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
   private var hasRequestedSessionRefresh = false
@@ -24,7 +24,7 @@ final class FinanceDataStore {
 
   init(connection: any ConnectionStateProviding, client: any FinanceDataClient,
        calendar: Calendar, now: @escaping () -> Date,
-       summaries: (any FinancialSummaryProviding)? = nil,
+       summaries: (any CashFlowProviding)? = nil,
        syncInsights: @escaping ([BackendInsight]) -> Void) {
     self.connection = connection; self.client = client; self.now = now
     self.summaries = summaries; self.syncInsights = syncInsights
@@ -48,7 +48,7 @@ final class FinanceDataStore {
   var periodIncome: DecimalMoney? { currentSummary?.income }
   var periodSpending: DecimalMoney? { currentSummary?.spending }
   var savingsRate: Decimal? { currentSummary?.savingsRate }
-  var currentSummary: FinancialSummary? { summaryResource.value.flatMap { $0.month == reporting.month ? $0 : nil } }
+  var currentSummary: CashFlow? { summaryResource.value.flatMap { $0.month == reporting.month ? $0 : nil } }
   var reportingDate: LocalDate? { reporting.month.start }
   var reportingPeriodLabel: String { reporting.label }
   var canSelectNextReportingMonth: Bool { reporting.canSelectNext }

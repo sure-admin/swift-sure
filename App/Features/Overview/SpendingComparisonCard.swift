@@ -45,7 +45,7 @@ struct SpendingComparisonCard: View {
             .font(.headline)
           Text(store.source == .wallet
             ? LocalizedStringKey("Wallet spending is unavailable. Check Wallet access in Accounts.")
-            : LocalizedStringKey("This Sure server doesn’t provide the required financial summary."))
+            : LocalizedStringKey("This Sure server doesn’t provide the required cash flow."))
             .font(.subheadline)
             .foregroundStyle(.secondary)
         case .noWalletAccounts:

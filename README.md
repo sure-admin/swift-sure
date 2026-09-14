@@ -42,7 +42,7 @@ there is no production bypass and no StoreKit configuration file. See
 
 ## Spending comparison
 
-Overview uses Sure's authenticated `financial_summary` endpoint for monthly
+Overview uses Sure's authenticated `cash_flow` endpoint for monthly
 income, spending, savings rate, and the daily spending comparison. Sure owns
 reporting exclusions, account selection, and currency conversion. Overview
 fetches only seven days of transaction records for Recent activity.

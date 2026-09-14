@@ -88,8 +88,8 @@ Fixture coverage:
 
 ## Native reporting baseline
 
-The client now targets Sure `982dc0a42a83ffa476324a9ec3c9351b90a080b5`. The
-financial-summary success/empty/malformed fixtures use the new bounded monthly
+The client now targets Sure `147fa69e73f7873671b30b0a3b37708fdd9ea79d`. The
+cash-flow success/empty/malformed fixtures use the new bounded monthly
 contract: decimal strings, canonical IANA family time zone, server-local cutoff,
 and complete unfurled daily curves. Existing fixtures continue to cover the
 unchanged portions of the public contracts. Push registration also permits a

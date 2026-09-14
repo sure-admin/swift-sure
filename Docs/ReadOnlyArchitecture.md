@@ -58,7 +58,7 @@ reporting rules. Overview requests seven days of recent transactions; account
 screens request 31 days. Browsing historical summaries does not expand those
 windows.
 
-`financial_summary` reuses IncomeStatement's user/account scope, exclusions, and
+`cash_flow` reuses IncomeStatement's user/account scope, exclusions, and
 FX behavior. Amounts remain Decimal, including sub-minor-unit FX precision. The
 server's as-of date determines chart completeness and comparisons. The client
 only formats and folds chart points for presentation.

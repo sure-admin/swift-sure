@@ -2,11 +2,11 @@ import Foundation
 
 /// Session policy sits above endpoints; the transport still enforces every network permit.
 @MainActor
-final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, TransactionHistoryClient, FinancialSummaryProviding, SpendingComparisonClient {
+final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, TransactionHistoryClient, CashFlowProviding, SpendingComparisonClient {
   private let base: any FinanceDataClient
   private let remote: (any RemoteAssistantClient)?
   private let history: any TransactionHistoryClient
-  private let summaries: any FinancialSummaryProviding
+  private let summaries: any CashFlowProviding
   private let cache: ServerReadCache
   private let gate: BackendAccessGate
   private let identity: () -> (URL, String)?
@@ -16,10 +16,10 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
   private(set) var metadata: [String: ReadMetadata] = [:]
   private var metadataScope: String?
   private var generation = 0
-  private var summaryTasks: [SpendingMonth: Task<FinancialSummary, Error>] = [:]
+  private var summaryTasks: [SpendingMonth: Task<CashFlow, Error>] = [:]
 
   init(base: any FinanceDataClient, history: any TransactionHistoryClient,
-       summaries: any FinancialSummaryProviding, cache: ServerReadCache, gate: BackendAccessGate,
+       summaries: any CashFlowProviding, cache: ServerReadCache, gate: BackendAccessGate,
        identity: @escaping () -> (URL, String)?, now: @escaping () -> Date,
        legacySnapshotURL: URL? = nil, legacyResponsesURL: URL? = nil, remote: (any RemoteAssistantClient)? = nil) {
     self.remote = remote
@@ -121,13 +121,13 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
     var end: LocalDate
   }
 
-  func fetchSummary(for month: SpendingMonth) async throws -> FinancialSummary {
+  func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
     if let task = summaryTasks[month] { return try await task.value }
     let request = generation
     let task = Task { @MainActor in
       try await read(key: Self.summaryKey(month), fetch: { try await summaries.fetchSummary(for: month) },
-        encode: { try JSONEncoder().encode(FinancialSummaryDTO($0)) },
-        decode: { try JSONDecoder().decode(FinancialSummaryDTO.self, from: $0).record() })
+        encode: { try JSONEncoder().encode(CashFlowDTO($0)) },
+        decode: { try JSONDecoder().decode(CashFlowDTO.self, from: $0).record() })
     }
     summaryTasks[month] = task
     defer { if request == generation { summaryTasks[month] = nil } }

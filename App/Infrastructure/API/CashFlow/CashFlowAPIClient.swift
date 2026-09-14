@@ -1,14 +1,14 @@
 import Foundation
 
 @MainActor
-struct FinancialSummaryAPIClient: FinancialSummaryProviding, SpendingComparisonClient {
+struct CashFlowAPIClient: CashFlowProviding, SpendingComparisonClient {
   var transport: SureAPITransport
 
-  func fetchSummary(for month: SpendingMonth) async throws -> FinancialSummary {
-    let response = try await transport.send(APIRequest<FinancialSummaryDTO>(method: .get,
-      pathComponents: ["api", "v1", "financial_summary"],
+  func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
+    let response = try await transport.send(APIRequest<CashFlowDTO>(method: .get,
+      pathComponents: ["api", "v1", "cash_flow"],
       queryItems: [URLQueryItem(name: "month", value: month.start.iso8601String)]))
-    let record: FinancialSummary
+    let record: CashFlow
     do { record = try response.record() }
     catch { throw SureAPIError.decoding }
     guard record.month == month else { throw SureAPIError.decoding }

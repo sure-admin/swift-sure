@@ -24,12 +24,12 @@ final class ReadConnectionFake: ConnectionStateProviding {
 }
 
 @MainActor
-final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, FinancialSummaryProviding {
+final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, CashFlowProviding {
   var accountsFailure: Error?
   var accountsOperation: (() async -> [FinanceAccount])?
   var budgetOperation: (() async -> [BudgetCategory])?
   var transactions = [testReadTransaction]
-  var summary: FinancialSummary?
+  var summary: CashFlow?
   var summaryMonths: [SpendingMonth] = []
   var windows: [TransactionDateWindow] = []
   var accountCalls = 0
@@ -53,7 +53,7 @@ final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, Financ
   }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { await budgetOperation?() ?? [] }
   func fetchInsights() async throws -> [BackendInsight] { [] }
-  func fetchSummary(for month: SpendingMonth) async throws -> FinancialSummary {
+  func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
     summaryMonths.append(month)
     guard let summary, summary.month == month else { throw SureAPIError.notFound }
     return summary
@@ -76,6 +76,6 @@ actor ReadBarrier<Value: Sendable> {
   func finish(_ value: Value) { pending?.resume(returning: value); pending = nil }
 }
 
-func summaryFixture() throws -> FinancialSummary {
-  try JSONDecoder().decode(FinancialSummaryDTO.self, from: APIFixture.data(named: "financial-summary-success")).record()
+func summaryFixture() throws -> CashFlow {
+  try JSONDecoder().decode(CashFlowDTO.self, from: APIFixture.data(named: "cash-flow-success")).record()
 }
