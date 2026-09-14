@@ -10,6 +10,7 @@ struct CashFlow: Equatable, Sendable {
   var netSavings: DecimalMoney
   var savingsRate: Decimal?
   var comparison: SpendingComparison
+  var sankey: CashFlowGraph? = nil
 }
 
 protocol CashFlowProviding: Sendable {

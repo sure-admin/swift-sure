@@ -11,9 +11,10 @@ struct CashFlowDTO: Codable {
   var netSavings: String
   var savingsRate: String?
   var spendingComparison: Comparison
+  var sankey: CashFlowGraphDTO?
 
   enum CodingKeys: String, CodingKey {
-    case month, currency, period, income, spending
+    case month, currency, period, income, spending, sankey
     case asOf = "as_of", timeZone = "time_zone", netSavings = "net_savings"
     case savingsRate = "savings_rate", spendingComparison = "spending_comparison"
   }
@@ -54,14 +55,17 @@ struct CashFlowDTO: Codable {
           spendingComparison.comparisonEndDate == comparison.previous[comparison.comparisonDay - 1].date else {
       throw SureAPIError.decoding
     }
+    let graph = try sankey?.record(currency: currency)
+    if let graph, graph.netSavings.amount != (try Self.decimal(netSavings)) { throw SureAPIError.decoding }
     return try CashFlow(month: month, asOf: asOf, timeZone: timeZone,
       income: .init(amount: Self.decimal(income), currency: currency),
       spending: .init(amount: Self.decimal(spending), currency: currency),
       netSavings: .init(amount: Self.decimal(netSavings), currency: currency),
-      savingsRate: savingsRate.map { try Self.decimal($0) / 100 }, comparison: comparison)
+      savingsRate: savingsRate.map { try Self.decimal($0) / 100 }, comparison: comparison, sankey: graph)
   }
 
   init(_ record: CashFlow) {
+    sankey = record.sankey.map(CashFlowGraphDTO.init)
     let comparison = record.comparison
     month = record.month.start; asOf = record.asOf; timeZone = record.timeZone
     currency = record.income.currency.rawValue
@@ -77,8 +81,8 @@ struct CashFlowDTO: Codable {
       previous: comparison.previous.map { Point(date: $0.date, amount: Self.string($0.amount)) })
   }
 
-  private static func string(_ value: Decimal) -> String { NSDecimalNumber(decimal: value).stringValue }
-  private static func decimal(_ string: String) throws -> Decimal {
+  static func string(_ value: Decimal) -> String { NSDecimalNumber(decimal: value).stringValue }
+  static func decimal(_ string: String) throws -> Decimal {
     let significantDigits = string.filter(\.isNumber).trimmingCharacters(in: CharacterSet(charactersIn: "0"))
     guard significantDigits.count <= 38, string.range(of: #"^-?[0-9]+(?:\.[0-9]+)?$"#, options: .regularExpression) != nil,
           let value = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")),

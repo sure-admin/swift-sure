@@ -2,33 +2,33 @@
 
 ## Supported upstream revision
 
-During the developer and TestFlight phase, this client targets the Sure `main` revision below, which includes merged [backend PR #3545](https://github.com/we-promise/sure/pull/3545):
+This Sankey follow-up targets the backend contract candidate below, based on Sure `main` at `ca4a6b4a0e5bd4d36c0bbfd576ae4a7af6736d64`. Merge the backend cash-flow Sankey PR before releasing this client. PR #13 retains its existing merged-server baseline.
 
-- Commit: `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`
-- Upstream commit time: 2026-09-14 04:57:17 UTC
-- Commit subject: `Expose cash flow reporting and secure push-device continuity (#3545)`
+- Commit: `bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d`
+- Upstream commit time: 2026-09-14 05:57:07 UTC
+- Commit subject: `Expose server-calculated Sankey graphs through cash flow`
 
 Permalinks for the contract sources used by this baseline:
 
-- [OpenAPI](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml)
-- [Client architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/clients.md)
-- [Transaction API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/transactions.md)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Chat API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/chats.md)
-- [AI architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/hosting/ai.md)
+- [OpenAPI](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/docs/api/openapi.yaml)
+- [Client architecture](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/docs/clients.md)
+- [Transaction API](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Chat API](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/docs/api/chats.md)
+- [AI architecture](https://github.com/we-promise/sure/blob/bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d/docs/hosting/ai.md)
 
 This is a deliberate compatibility pin, not a claim that Sure has a versioned
 API. Backward compatibility with older self-hosted revisions is not required
 yet. The app should nevertheless tolerate additive optional response fields.
 
-The pin includes `GET /api/v1/cash_flow` and optional installation-proof
-push registration. [Cash flow contract](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml).
-Existing account, transaction, budget, balance-sheet, chat, and auth fixtures
-remain additive-compatible; new summary fixtures and push-request tests cover
-these operations. The merge preserves all existing GET contracts, shared schemas,
-and push-registration contracts from the previously tested revision; its other
-OpenAPI changes affect trade mutations, which this client does not use. This pin
-is deliberate, not an older-server fallback.
+The pin adds opt-in Sankey graphs to `GET /api/v1/cash_flow?include=sankey`.
+Monthly reporting, account eligibility, FX, refund netting, hierarchy, and flow
+balancing remain server-owned. The client validates the graph, caches it with the
+monthly summary, and computes only drawing geometry. Old cache records without
+a graph remain readable, but a successful live response must contain the
+requested graph. No local Wallet Sankey or connected aggregation fallback exists.
+The web-only graph view's arbitrary ranges and cookie authentication are not used
+by the native client, which retains gated API-key/OAuth transport.
 
 ## Current client policy
 

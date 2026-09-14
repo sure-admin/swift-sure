@@ -98,3 +98,12 @@ per-server installation proof, tested in the typed request contract.
 The merged baseline preserves all existing GET operations, shared schemas, and
 push registration from the reviewed branch. Response fixtures are unchanged;
 upstream trade-mutation changes do not affect this read-only client.
+
+### Sankey contract candidate
+
+The `cash-flow-*.json` fixtures additionally represent the opt-in graph schema at
+Sure revision `bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d` (see the client baseline).
+Success and empty graphs preserve server decimal strings. Graph tests also cover
+invalid references, duplicate IDs, cycles, negative/nonfinite amounts, broken
+flow totals, missing live graph data, and cache round trips. The pre-graph cache
+case intentionally remains readable without synthesizing a graph.
