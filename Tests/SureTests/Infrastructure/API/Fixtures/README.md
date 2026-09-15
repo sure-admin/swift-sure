@@ -85,3 +85,16 @@ Fixture coverage:
   shared 401, preview-gated 403, scope 403, and 422 response bodies.
 - `error-malformed.json`: valid JSON whose required error fields have invalid
   wire types.
+
+## Native reporting baseline
+
+The client targets merged Sure `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`. The
+cash-flow success/empty/malformed fixtures use the new bounded monthly
+contract: decimal strings, canonical IANA family time zone, server-local cutoff,
+and complete unfurled daily curves. Existing fixtures continue to cover the
+unchanged portions of the public contracts. Push registration also permits a
+per-server installation proof, tested in the typed request contract.
+
+The merged baseline preserves all existing GET operations, shared schemas, and
+push registration from the reviewed branch. Response fixtures are unchanged;
+upstream trade-mutation changes do not affect this read-only client.

@@ -21,7 +21,7 @@ struct ContentView: View {
   var body: some View {
     appTabs
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
-      if !configured && appleCardConnection.isAvailable { selection = .accounts }
+      if connection.allowsWalletPreview && !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
     .onChange(of: visibleScreen, initial: true) { _, screen in
       analytics.capture(.screenViewed(screen))
@@ -72,6 +72,7 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
+          allowsWalletPreview: connection.allowsWalletPreview,
           hasSyncAccess: subscriptionAccess.hasAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,

@@ -448,6 +448,50 @@ struct SureConnectionTests {
     #expect(harness.connection.isSignedOut)
   }
 
+  @Test("Wallet preview ends permanently after the first committed connection")
+  func onboardingPreviewBoundary() async {
+    let harness = makeHarness(context: nil)
+    #expect(harness.connection.allowsWalletPreview)
+    harness.connection.apiKey = "test-key"
+    await harness.connection.connectWithAPIKey()
+    #expect(!harness.connection.allowsWalletPreview)
+    #expect(harness.preferences.hasConnectedToSure())
+    await harness.connection.logOut()
+    #expect(!harness.connection.allowsWalletPreview)
+    #expect(harness.preferences.hasConnectedToSure())
+  }
+
+  @Test("The cancel intent discards a verified candidate before it commits")
+  func cancelIntent() async {
+    let lifecycle = ConnectionLifecycleSpy()
+    lifecycle.suspendsConnectionPreparation = true
+    let harness = makeHarness(context: nil, lifecycle: lifecycle)
+    harness.connection.apiKey = "candidate"
+    let task = Task { await harness.connection.connectWithAPIKey() }
+    await lifecycle.waitUntilConnectionPreparationStarted()
+    harness.connection.cancelAuthentication()
+    lifecycle.resumeConnectionPreparation()
+    await task.value
+    #expect(!harness.connection.isConfigured)
+    #expect(harness.connection.status == .notConnected)
+    #expect(harness.credentials.snapshot.session == nil)
+  }
+
+  @Test("Logout reports a failed disk cleanup while keeping the session signed out")
+  func logoutCleanupFailure() async {
+    let lifecycle = ConnectionLifecycleSpy()
+    lifecycle.dataCleanupFailure = .cleanup
+    let harness = makeHarness(context: nil, lifecycle: lifecycle)
+    await harness.connection.logOut()
+    #expect(harness.connection.isSignedOut)
+    #expect(!harness.connection.isConfigured)
+    #expect(harness.connection.status == .failed(DataFailure.cleanup.localizedDescription))
+    #expect(harness.connection.canLogOut)
+    lifecycle.dataCleanupFailure = nil
+    await harness.connection.logOut()
+    #expect(harness.connection.status == .notConnected)
+  }
+
   private func makeHarness(
     context: SureRequestContext?,
     accessGate: BackendAccessGate? = nil,
@@ -579,6 +623,9 @@ private final class CredentialRepositoryFake: CredentialRepository, @unchecked S
 private final class ConnectionPreferencesFake: ConnectionPreferences, @unchecked Sendable {
   var savedServerURL: String
   var explicitlySignedOut: Bool
+  var hasConnected = false
+  func hasConnectedToSure() -> Bool { hasConnected }
+  func setHasConnectedToSure(_ connected: Bool) { hasConnected = connected }
 
   init(serverURL: String, explicitlySignedOut: Bool = false) {
     savedServerURL = serverURL
@@ -660,6 +707,7 @@ private actor VerificationSpy {
 
 @MainActor
 private final class ConnectionLifecycleSpy: SureConnectionLifecycleHandling {
+  var dataCleanupFailure: DataFailure?
   private(set) var didConnectCount = 0
   private(set) var events: [String] = []
   var suspendsConnectionPreparation = false

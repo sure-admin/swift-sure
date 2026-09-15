@@ -5,6 +5,7 @@ struct AccountsView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
+  var allowsWalletPreview: Bool
   var hasSyncAccess: Bool
   var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -48,7 +49,7 @@ struct AccountsView: View {
 
   @ViewBuilder
   private var content: some View {
-    if appleCardConnection.isAvailable {
+    if allowsWalletPreview && appleCardConnection.isAvailable {
       LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
         appleCardCard
         ForEach(appleCardConnection.accounts) { account in

@@ -52,10 +52,13 @@ struct LocalAssistantService: LocalAssistantResponding {
   private func financialContext() -> String {
     let store = financeData
     var sections = [
+      "Source: downloaded Sure records, potentially incomplete or stale. No live server query was made for this answer.",
+      "Last complete overview update: \(store.lastUpdated?.ISO8601Format() ?? "Unknown")",
+      "Monthly summary as of: \(store.currentSummary?.asOf.iso8601String ?? "Unavailable")",
       "Reporting period: \(store.reportingPeriodLabel)",
       "Net worth: \(store.netWorth.map(FinanceFormatters.currency) ?? "Unavailable")",
-      "Period income: \(FinanceFormatters.currency(store.periodIncome, compact: false, zeroCurrency: store.balanceSheet?.currency))",
-      "Period spending: \(FinanceFormatters.currency(store.periodSpending, compact: false, zeroCurrency: store.balanceSheet?.currency))"
+      "Period income: \(store.periodIncome.map(FinanceFormatters.currency) ?? "Unavailable")",
+      "Period spending: \(store.periodSpending.map(FinanceFormatters.currency) ?? "Unavailable")"
     ]
 
     if !store.accounts.isEmpty {
@@ -77,7 +80,7 @@ struct LocalAssistantService: LocalAssistantResponding {
       return "- \(FinanceFormatters.fullDate(transaction.date)): \(transaction.merchant), \(transaction.category), \(FinanceFormatters.currency(transaction.amount)) \(direction)"
     }
     if !transactions.isEmpty {
-      sections.append("Recent transactions:\n\(transactions.joined(separator: "\n"))")
+      sections.append("Recent transactions (a limited window, not complete monthly history):\n\(transactions.joined(separator: "\n"))")
     }
 
     if store.accounts.isEmpty && store.transactions.isEmpty && store.budgets.isEmpty {

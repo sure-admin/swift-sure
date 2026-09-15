@@ -38,52 +38,15 @@ struct LocalAssistantServiceTests {
     #expect(prompt.contains("Current question:\nWhat is my net worth?"))
   }
 
-  @Test("The emitted prompt keeps reporting-period totals grouped by currency")
-  func groupedCurrencyContext() throws {
-    let usd = try #require(CurrencyCode("USD"))
-    let eur = try #require(CurrencyCode("EUR"))
-    let jpy = try #require(CurrencyCode("JPY"))
-    let date = try LocalDate(year: 2026, month: 8, day: 29)
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-    let referenceDate = try #require(
-      calendar.date(from: DateComponents(year: 2026, month: 8, day: 29, hour: 12))
-    )
-    let store = makeStore(now: referenceDate)
-    store.balanceSheet = BalanceSheetRecord(
-      currency: usd,
-      netWorth: DecimalMoney(amount: Decimal(1_000), currency: usd),
-      assets: DecimalMoney(amount: Decimal(1_500), currency: usd),
-      liabilities: DecimalMoney(amount: Decimal(500), currency: usd)
-    )
-    store.transactions = [
-      transaction(id: 10, date: date, amount: Money(minorUnits: 100_000, currency: usd), kind: .income),
-      transaction(id: 11, date: date, amount: Money(minorUnits: 25_000, currency: eur), kind: .income),
-      transaction(id: 12, date: date, amount: Money(minorUnits: 5_000, currency: usd), kind: .expense),
-      transaction(id: 13, date: date, amount: Money(minorUnits: 12_500, currency: jpy), kind: .expense)
-    ]
-    let expectedIncome = FinanceFormatters.currency(
-      store.periodIncome,
-      compact: false,
-      zeroCurrency: usd
-    )
-    let expectedSpending = FinanceFormatters.currency(
-      store.periodSpending,
-      compact: false,
-      zeroCurrency: usd
-    )
-
-    let prompt = LocalAssistantService(financeData: store).localPrompt(
-      question: "Summarize this month.",
-      conversation: []
-    )
-
-    #expect(store.periodIncome.amounts.count == 2)
-    #expect(store.periodSpending.amounts.count == 2)
-    #expect(expectedIncome.contains(" + "))
-    #expect(expectedSpending.contains(" + "))
-    #expect(prompt.contains("Period income: \(expectedIncome)"))
-    #expect(prompt.contains("Period spending: \(expectedSpending)"))
+  @Test("The prompt identifies provenance and does not aggregate raw transactions")
+  func incompleteContext() {
+    let store = makeStore()
+    store.transactions = [testReadTransaction]
+    let prompt = LocalAssistantService(financeData: store).localPrompt(question: "Summarize this month.", conversation: [])
+    #expect(prompt.contains("potentially incomplete or stale"))
+    #expect(prompt.contains("No live server query"))
+    #expect(prompt.contains("Period income: Unavailable"))
+    #expect(prompt.contains("Period spending: Unavailable"))
   }
 
   private func makeStore(

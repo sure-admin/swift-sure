@@ -192,6 +192,7 @@ struct SignInView: View {
       HStack(spacing: 10) {
         ProgressView()
         Text("Opening secure sign-in…")
+        Button("Cancel", action: connection.cancelAuthentication)
       }
       .foregroundStyle(.secondary)
       .accessibilityElement(children: .combine)

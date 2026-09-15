@@ -4,6 +4,20 @@ enum StoredAuthenticatedSession: Codable, Equatable, Sendable {
   case oauth(StoredOAuthSession)
   case apiKey(StoredAPIKeySession)
 
+  var connectionID: String {
+    switch self {
+    case .oauth(let session): session.connectionID
+    case .apiKey(let session): session.connectionID
+    }
+  }
+
+  func requestContext() throws -> SureRequestContext {
+    switch self {
+    case .oauth(let session): try session.requestContext()
+    case .apiKey(let session): try session.requestContext()
+    }
+  }
+
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     switch try container.decode(Kind.self, forKey: .kind) {

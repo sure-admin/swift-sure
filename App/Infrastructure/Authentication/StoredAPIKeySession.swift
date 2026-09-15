@@ -4,8 +4,9 @@ struct StoredAPIKeySession: Codable, Equatable, Sendable {
   var serverURL: URL
   var apiKey: String
   var isVerified: Bool
+  var connectionID: String
 
-  init(serverURL: URL, apiKey: String, isVerified: Bool) throws {
+  init(serverURL: URL, apiKey: String, isVerified: Bool, connectionID: String? = nil) throws {
     let context = try SureRequestContext(
       baseURL: serverURL,
       authorization: .apiKey(apiKey)
@@ -13,6 +14,7 @@ struct StoredAPIKeySession: Codable, Equatable, Sendable {
     self.serverURL = context.baseURL
     self.apiKey = apiKey
     self.isVerified = isVerified
+    self.connectionID = connectionID ?? ConnectionCacheIdentity.legacyAPIKey(apiKey)
   }
 
   init(from decoder: Decoder) throws {
@@ -20,7 +22,8 @@ struct StoredAPIKeySession: Codable, Equatable, Sendable {
     try self.init(
       serverURL: container.decode(URL.self, forKey: .serverURL),
       apiKey: container.decode(String.self, forKey: .apiKey),
-      isVerified: container.decode(Bool.self, forKey: .isVerified)
+      isVerified: container.decode(Bool.self, forKey: .isVerified),
+      connectionID: container.decodeIfPresent(String.self, forKey: .connectionID)
     )
   }
 
@@ -35,5 +38,6 @@ struct StoredAPIKeySession: Codable, Equatable, Sendable {
     case serverURL
     case apiKey
     case isVerified
+    case connectionID
   }
 }

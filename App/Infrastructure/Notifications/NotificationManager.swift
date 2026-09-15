@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 final class NotificationManager {
+  private let provesDeviceContinuity: Bool
+  private var currentConnectionIdentity: () -> String?
   private var currentServerURL: () async -> URL?
   private var pushSubscriptions: PushSubscriptionOperations
   private var authorization: any NotificationAuthorizationProviding
@@ -13,12 +15,16 @@ final class NotificationManager {
 
   init(
     currentServerURL: @escaping () async -> URL?,
+    currentConnectionIdentity: @escaping () -> String? = { nil },
+    provesDeviceContinuity: Bool = false,
     pushSubscriptions: PushSubscriptionOperations,
     authorization: any NotificationAuthorizationProviding,
     remoteRegistration: any RemoteNotificationRegistering,
     storage: any NotificationStateStoring,
     environment: @escaping () -> APNsEnvironment
   ) {
+    self.provesDeviceContinuity = provesDeviceContinuity
+    self.currentConnectionIdentity = currentConnectionIdentity
     self.currentServerURL = currentServerURL
     self.pushSubscriptions = pushSubscriptions
     self.authorization = authorization
@@ -92,10 +98,12 @@ final class NotificationManager {
           let token = storage.deviceToken,
           !token.isEmpty else { return }
 
+    let connectionIdentity = currentConnectionIdentity()
     let registrationEnvironment = environment()
     guard let currentState = loadSubscriptionState() else { return }
     if let active = currentState.active {
       if active.serverURL == serverURL,
+         active.connectionIdentity == connectionIdentity,
          active.deviceToken == token,
          active.environment == registrationEnvironment {
         return
@@ -116,7 +124,8 @@ final class NotificationManager {
         id: identifier,
         serverURL: serverURL,
         deviceToken: token,
-        environment: registrationEnvironment
+        environment: registrationEnvironment,
+        connectionIdentity: connectionIdentity
       )
       do {
         var state = try storage.loadSubscriptionState()
@@ -124,6 +133,13 @@ final class NotificationManager {
           enqueue(displaced, in: &state)
         }
         state.active = subscription
+        // Successful registration with this installation's proof supersedes the
+        // old row. Backend transfers create a fresh ID, so delayed deletes are safe.
+        if provesDeviceContinuity && connectionIdentity != nil {
+          state.pendingUnregistrations.removeAll {
+            $0.serverURL == serverURL && $0.deviceToken == token
+          }
+        }
         try storage.saveSubscriptionState(state)
         storage.registrationError = nil
       } catch {
@@ -167,7 +183,7 @@ final class NotificationManager {
 
   private func cleanActiveSubscription(on serverURL: URL) async {
     guard let active = loadSubscriptionState()?.active else { return }
-    guard active.serverURL == serverURL else {
+    guard active.serverURL == serverURL, active.connectionIdentity == currentConnectionIdentity() else {
       detachActiveSubscriptionForLaterCleanup()
       return
     }
@@ -197,7 +213,7 @@ final class NotificationManager {
   private func retryPendingUnregistrations(on serverURL: URL) async {
     guard let state = loadSubscriptionState() else { return }
     let targets = state.pendingUnregistrations.filter {
-      $0.serverURL == serverURL
+      $0.serverURL == serverURL && $0.connectionIdentity == currentConnectionIdentity()
     }
     guard !targets.isEmpty else { return }
 
@@ -222,7 +238,8 @@ final class NotificationManager {
   }
 
   private func unregister(_ subscription: StoredPushSubscription, on serverURL: URL) async -> Bool {
-    guard subscription.serverURL == serverURL else { return false }
+    guard subscription.serverURL == serverURL,
+          subscription.connectionIdentity == currentConnectionIdentity() else { return false }
 
     do {
       try await pushSubscriptions.unregister(subscription.id)

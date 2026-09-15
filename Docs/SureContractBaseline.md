@@ -2,24 +2,33 @@
 
 ## Supported upstream revision
 
-During the developer and TestFlight phase, this client targets Sure `main` at:
+During the developer and TestFlight phase, this client targets the Sure `main` revision below, which includes merged [backend PR #3545](https://github.com/we-promise/sure/pull/3545):
 
-- Commit: `5594f8bc94c8e659838cac70d826bbcaeaa3bae2`
-- Upstream commit time: 2026-08-28 06:57:50 UTC
-- Commit subject: `fix(holdings): an outbound transfer must not clear a cost basis (#3237)`
+- Commit: `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`
+- Upstream commit time: 2026-09-14 04:57:17 UTC
+- Commit subject: `Expose cash flow reporting and secure push-device continuity (#3545)`
 
 Permalinks for the contract sources used by this baseline:
 
-- [OpenAPI](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/openapi.yaml)
-- [Client architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/clients.md)
-- [Transaction API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/transactions.md)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Chat API](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/chats.md)
-- [AI architecture](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/hosting/ai.md)
+- [OpenAPI](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml)
+- [Client architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/clients.md)
+- [Transaction API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Chat API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/chats.md)
+- [AI architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/hosting/ai.md)
 
 This is a deliberate compatibility pin, not a claim that Sure has a versioned
 API. Backward compatibility with older self-hosted revisions is not required
 yet. The app should nevertheless tolerate additive optional response fields.
+
+The pin includes `GET /api/v1/cash_flow` and optional installation-proof
+push registration. [Cash flow contract](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml).
+Existing account, transaction, budget, balance-sheet, chat, and auth fixtures
+remain additive-compatible; new summary fixtures and push-request tests cover
+these operations. The merge preserves all existing GET contracts, shared schemas,
+and push-registration contracts from the previously tested revision; its other
+OpenAPI changes affect trade mutations, which this client does not use. This pin
+is deliberate, not an older-server fallback.
 
 ## Current client policy
 
@@ -123,14 +132,14 @@ binary floating-point presentation bridge:
   integer minor units and Sure currency codes through feature state and formatting.
 - Overview net worth comes from the documented `/api/v1/balance_sheet`
   operation. Native account balances are never summed as a substitute.
-- Period income and spending remain grouped by currency. The client does not
-  invent exchange rates or label a mixed-currency total as one currency.
+- Period income and spending use the server's cash-flow result in family
+  currency, including Sure's exchange-rate rules.
 
 `Double` conversions are confined to Swift Charts geometry and axis ticks.
 Account charts require one reporting currency; each spending comparison
 uses one currency from its explicitly labeled source. Local Wallet spending is
 calculated separately on-device and is never combined with Sure data. Monetary summaries remain lossless Decimal
-values. The spending comparison has no live API adapter yet; see
+values. The spending comparison uses the cash-flow API; see
 [its integration status](SpendingComparison.md).
 
 ## Updating the pin

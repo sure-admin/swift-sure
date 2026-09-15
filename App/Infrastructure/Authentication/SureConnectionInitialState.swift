@@ -1,7 +1,7 @@
 import Foundation
 
 struct SureConnectionInitialState {
-  static let defaultServerURL = "https://demo.sure.am"
+  static let defaultServerURL = ""
 
   var serverURL: String
   var credentials: StoredCredentialSnapshot

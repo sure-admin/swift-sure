@@ -410,6 +410,21 @@ struct NotificationManagerTests {
     )
   }
 
+  @Test("Cleanup never uses a different user's credentials on the same server")
+  func sameServerDifferentIdentity() async throws {
+    var old = try subscription(serverURL: serverA)
+    old.connectionIdentity = "old-user"
+    let storage = NotificationStateFake(insightNotificationsEnabled: true, deviceToken: "device-token")
+    try storage.saveSubscriptionState(StoredPushSubscriptionState(active: nil, pendingUnregistrations: [old]))
+    let push = PushSubscriptionSpy()
+    let manager = NotificationManager(currentServerURL: { serverA }, currentConnectionIdentity: { "new-user" },
+      pushSubscriptions: push.operations, authorization: NotificationAuthorizationFake(status: .authorized),
+      remoteRegistration: RemoteNotificationRegistrationSpy(), storage: storage, environment: { .sandbox })
+    await manager.didConnect()
+    #expect(push.unregistrations.isEmpty)
+    #expect(try storage.loadSubscriptionState().pendingUnregistrations.contains(old))
+  }
+
   private func makeManager(
     serverURL: URL? = URL(string: "https://sure-a.example")!,
     authorization: NotificationAuthorizationFake? = nil,
