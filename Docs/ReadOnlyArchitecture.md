@@ -2,8 +2,8 @@
 
 Sure is the system of record. The client presents server resources and maintains
 a private local cache. The only on-device aggregation is the separately labeled
-Wallet onboarding preview, permanently disabled after the first successful Sure
-connection. Future Wallet ingestion must send source transactions to Sure and
+Wallet local preview, available before the first Sure connection and after
+explicit logout and Wallet reconnection. Future Wallet ingestion must send source transactions to Sure and
 leave aggregation to the server.
 
 ## Sessions and access

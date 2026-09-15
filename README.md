@@ -24,7 +24,7 @@ across devices and servers, with Family Sharing. Both products have a one-week
 introductory trial for eligible users. Prices displayed in the app come from
 StoreKit and follow the customer's storefront.
 
-The onboarding Wallet preview and on-device Assistant calls are free. Cancelling
+The signed-out Wallet preview and on-device Assistant calls are free. Cancelling
 renewal preserves access through Apple's entitlement end date; the app warns
 when sync will stop. Expiry or revocation blocks authentication, token refresh,
 and backend reads/writes, while retained local data stays available. Restoring a
@@ -47,16 +47,16 @@ income, spending, savings rate, and the daily spending comparison. Sure owns
 reporting exclusions, account selection, and currency conversion. Overview
 fetches only seven days of transaction records for Recent activity.
 
-Before the first successful Sure connection, authorized Wallet accounts can
+Before the first successful Sure connection and after explicit logout, authorized Wallet accounts can
 populate an explicitly labeled local preview. Its posted-debit calculation stays
 on-device, excludes transfers, and does not combine currencies. Connected,
-offline, suspended, and previously connected sessions use Sure data; logging out
-does not restore the onboarding preview. See [spending comparison](Docs/SpendingComparison.md)
+offline, and suspended sessions use Sure data. Logging out restores the Wallet
+entry point; Allow Access reconnects it without restoring cached Sure records. See [spending comparison](Docs/SpendingComparison.md)
 and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
 
 ## On-device Wallet accounts
 
-During initial onboarding on an iPhone with FinanceKit available, the app opens Accounts without requiring
+During initial onboarding or after logout on an iPhone with FinanceKit available, the app opens Accounts without requiring
 Sure sign-in. Allow Access loads the eligible accounts shared through Apple
 Wallet; selecting an account shows its last 31 days of transactions. Wallet data
 stays on the device. All accounts shared by FinanceKit are included, including
@@ -67,7 +67,7 @@ Wallet alone does not guarantee that FinanceKit exposes it to apps.
 
 Logging out clears app-held financial data, transaction windows, insights, and
 cached conversations. It does not change the original Wallet records or Apple's
-system permission. Once Sure has connected successfully, all reporting uses Sure;
+system permission. While connected to Sure, all reporting uses Sure;
 future Wallet ingestion must upload source transactions for aggregation on Sure.
 
 ## AI Insight push notifications
