@@ -83,7 +83,8 @@ actor OAuthRefreshCoordinator: UnauthorizedRequestRecovering {
         serverURL: oauthSession.serverURL,
         credentials: rotatedCredentials,
         isVerified: true,
-        tokenSource: oauthSession.tokenSource
+        tokenSource: oauthSession.tokenSource,
+        connectionID: oauthSession.connectionID
       )
       guard try await session.requestContext() == context else { return nil }
 

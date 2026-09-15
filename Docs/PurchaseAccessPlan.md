@@ -183,9 +183,10 @@ In-flight requests are cancelled/discarded when access is revoked. Local feature
 stay reachable from the app tabs; saved connection state is retained on expiry.
 
 Offline finance snapshots remain visible without refreshing their timestamps.
-Authenticated GET responses are archived without credentials/headers in private,
+Validated server reads share one versioned asynchronous cache in private,
 backup-excluded files; cached responses are never used for authentication.
-Transaction drill-downs retain their last fully fetched window across launches,
+Each resource retains its own source and timestamp. Transaction drill-downs retain
+complete windows keyed by account and exact inclusive dates across launches,
 with an explicit downloaded-data label. Unfetched data remains unavailable.
 Mac writes use private permissions; iOS writes retain complete file protection.
 Foreground backend notifications are suppressed while access is suspended; the
@@ -304,3 +305,14 @@ which requests products from StoreKit again. No new binary is required solely
 for agreement activation. Retry after allowing propagation; if still unavailable,
 continue with device build confirmation, StoreKit diagnostics, and remote
 territory verification rather than assuming propagation is the cause.
+
+## Read-only consolidation (2026-09-13)
+
+Entitlement enforcement remains in the shared network transport, while cached-read
+policy lives above endpoints in `CachedFinanceRepository`. API keys, passkey OAuth,
+and mobile SSO share one committed-session lifecycle. Token rotation preserves
+cache identity; explicit logout invalidates pending writes and removes downloaded
+records. Disk cleanup failure is reported and can be retried without reconnecting.
+The free Wallet preview ends at the first successful Sure connection and is never
+a substitute for server data after subscription expiry. See
+[ReadOnlyArchitecture.md](ReadOnlyArchitecture.md) for the current boundaries.

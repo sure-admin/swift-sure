@@ -1,0 +1,17 @@
+# Start with correctness rules; formatting churn is outside this consolidation.
+only_rules:
+  - compiler_protocol_init
+  - duplicate_conditions
+  - duplicate_enum_cases
+  - duplicate_imports
+  - identical_operands
+  - duplicated_key_in_dictionary_literal
+  - unused_optional_binding
+included:
+  - App
+  - Shared
+  - Watch
+  - Tests
+excluded:
+  - App/Info.plist
+  - Watch/Info.plist

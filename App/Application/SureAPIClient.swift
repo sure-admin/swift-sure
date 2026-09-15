@@ -16,9 +16,9 @@ struct SureAPIClient {
     try await AccountsAPIClient(transport: transport).verifyAccess()
   }
 
-  func registerPushSubscription(token: String, environment: APNsEnvironment) async throws -> UUID {
+  func registerPushSubscription(token: String, environment: APNsEnvironment, deviceKey: String? = nil) async throws -> UUID {
     try await PushSubscriptionsAPIClient(transport: transport)
-      .register(token: token, environment: environment)
+      .register(token: token, environment: environment, deviceKey: deviceKey)
   }
 
   func unregisterPushSubscription(id: UUID) async throws {

@@ -231,7 +231,8 @@ struct ChatsAndPushAPIClientTests {
       try .http(status: 204)
     ])
     let client = PushSubscriptionsAPIClient(transport: makeTransport(stub))
-    let identifier = try await client.register(token: "synthetic-device-token", environment: .sandbox)
+    let deviceKey = String(repeating: "ab", count: 32)
+    let identifier = try await client.register(token: "synthetic-device-token", environment: .sandbox, deviceKey: deviceKey)
     try await client.unregister(id: identifier)
 
     #expect(identifier.uuidString == "00000000-0000-4000-8000-000000000801")
@@ -242,6 +243,7 @@ struct ChatsAndPushAPIClientTests {
     #expect(body.token == "synthetic-device-token")
     #expect(body.environment == "sandbox")
     #expect(body.platform == "ios")
+    #expect(body.device_key == deviceKey)
   }
 
   @Test("Rejects a malformed successful push registration response")
@@ -325,6 +327,7 @@ private struct PushBody: Decodable {
   var token: String
   var environment: String
   var platform: String
+  var device_key: String?
 }
 
 private actor PollingSleepRecorder {

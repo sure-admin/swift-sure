@@ -5,6 +5,8 @@ protocol ConnectionPreferences: Sendable {
   func setServerURL(_ serverURL: String)
   func isExplicitlySignedOut() -> Bool
   func setExplicitlySignedOut(_ isSignedOut: Bool)
+  func hasConnectedToSure() -> Bool
+  func setHasConnectedToSure(_ connected: Bool)
 }
 
 struct UserDefaultsConnectionPreferences: ConnectionPreferences, @unchecked Sendable {
@@ -29,6 +31,9 @@ struct UserDefaultsConnectionPreferences: ConnectionPreferences, @unchecked Send
   func setExplicitlySignedOut(_ isSignedOut: Bool) {
     defaults.set(isSignedOut, forKey: StorageKey.isExplicitlySignedOut)
   }
+
+  func hasConnectedToSure() -> Bool { defaults.bool(forKey: "sureHasConnected") }
+  func setHasConnectedToSure(_ connected: Bool) { defaults.set(connected, forKey: "sureHasConnected") }
 
   func requiresWalletReconnect() -> Bool {
     defaults.bool(forKey: "sureRequiresWalletReconnect")

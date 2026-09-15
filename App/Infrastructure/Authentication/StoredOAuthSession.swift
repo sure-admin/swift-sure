@@ -5,12 +5,14 @@ struct StoredOAuthSession: Codable, Equatable, Sendable {
   var credentials: StoredOAuthCredentials
   var isVerified: Bool
   var tokenSource: OAuthTokenSource
+  var connectionID: String
 
   init(
     serverURL: URL,
     credentials: StoredOAuthCredentials,
     isVerified: Bool,
-    tokenSource: OAuthTokenSource = .dynamicClient
+    tokenSource: OAuthTokenSource = .dynamicClient,
+    connectionID: String? = nil
   ) throws {
     let context = try SureRequestContext(
       baseURL: serverURL,
@@ -20,6 +22,7 @@ struct StoredOAuthSession: Codable, Equatable, Sendable {
     self.credentials = credentials
     self.isVerified = isVerified
     self.tokenSource = tokenSource
+    self.connectionID = connectionID ?? ConnectionCacheIdentity.legacyOAuth(credentials, source: tokenSource)
   }
 
   init(from decoder: Decoder) throws {
@@ -31,7 +34,8 @@ struct StoredOAuthSession: Codable, Equatable, Sendable {
       tokenSource: try container.decodeIfPresent(
         OAuthTokenSource.self,
         forKey: .tokenSource
-      ) ?? .dynamicClient
+      ) ?? .dynamicClient,
+      connectionID: try container.decodeIfPresent(String.self, forKey: .connectionID)
     )
   }
 
@@ -47,5 +51,6 @@ struct StoredOAuthSession: Codable, Equatable, Sendable {
     case credentials
     case isVerified
     case tokenSource
+    case connectionID
   }
 }

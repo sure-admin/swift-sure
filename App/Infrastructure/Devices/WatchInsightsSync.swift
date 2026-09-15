@@ -6,17 +6,20 @@ final class WatchInsightsSync {
   private let transport: any WatchInsightsSendingTransport
   private let codec: WatchInsightsSnapshotCodec
   private let now: () -> Date
+  private let nextRevision: () -> (String, UInt64)?
   private var pendingSnapshot: WatchInsightsSnapshot?
   private var hasActivated = false
 
   init(
     transport: any WatchInsightsSendingTransport,
     codec: WatchInsightsSnapshotCodec = WatchInsightsSnapshotCodec(),
-    now: @escaping () -> Date
+    now: @escaping () -> Date,
+    nextRevision: @escaping () -> (String, UInt64)? = { nil }
   ) {
     self.transport = transport
     self.codec = codec
     self.now = now
+    self.nextRevision = nextRevision
   }
 
   func activate() {
@@ -29,6 +32,7 @@ final class WatchInsightsSync {
   }
 
   func send(_ insights: [BackendInsight]) {
+    let sequence = nextRevision()
     pendingSnapshot = WatchInsightsSnapshot(
       insights: insights.map {
         WatchInsight(
@@ -40,7 +44,8 @@ final class WatchInsightsSync {
           generatedAt: $0.generatedAt
         )
       },
-      updatedAt: now()
+      updatedAt: now(),
+      streamID: sequence?.0, revision: sequence?.1
     )
 
     activate()

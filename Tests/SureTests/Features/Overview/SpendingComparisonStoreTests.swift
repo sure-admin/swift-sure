@@ -143,6 +143,18 @@ struct SpendingComparisonStoreTests {
     #expect(store.state == .idle)
   }
 
+  @Test("Connected and previously connected sessions never use Wallet as a fallback", arguments: [true, false])
+  func serverSourceAfterOnboarding(configured: Bool) async {
+    let connection = SpendingConnectionStub(isConfigured: configured)
+    connection.previewAllowed = false
+    let wallet = ControlledSpendingClient()
+    let store = makeStore(connection: connection, walletClient: wallet, walletAccess: WalletAccessStub())
+    await store.refresh()
+    #expect(store.source == .sure)
+    #expect(await wallet.count == 0)
+    #expect(store.state == (configured ? .unavailable : .idle))
+  }
+
   private func makeStore(
     client: any SpendingComparisonClient = UnavailableSpendingComparisonClient(),
     connection: SpendingConnectionStub? = nil,
@@ -172,6 +184,8 @@ struct SpendingComparisonStoreTests {
 private final class SpendingConnectionStub: ConnectionStateProviding {
   var isConfigured: Bool
   var sessionGeneration = 0
+  var previewAllowed: Bool?
+  var allowsWalletPreview: Bool { previewAllowed ?? !isConfigured }
   init(isConfigured: Bool = true) { self.isConfigured = isConfigured }
 }
 

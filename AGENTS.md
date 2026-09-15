@@ -34,9 +34,11 @@ idiomatic Swift and SwiftUI architecture.
   carrying speculative compatibility for older self-hosted instances. Update
   the pin, fixtures, and affected contract tests together when adopting a newer
   `main`. Never infer compatibility from the demo server alone.
-- Explicitly authorized FinanceKit accounts may supply a separate, on-device
-  Wallet spending comparison. Label its source, keep it separate from Sure totals,
-  and never upload local financial records as part of the comparison.
+- Explicitly authorized FinanceKit accounts may supply an onboarding-only, on-device
+  Wallet spending preview before the first successful Sure connection. Never restore
+  that preview after logout or use it as a connected/offline/suspended fallback.
+  Future Wallet ingestion sends source transactions to Sure for aggregation; the
+  preview never uploads local financial records.
 - Sure is the system of record for financial data. The client may derive
   presentation summaries, but it must not invent server data or reimplement a
   server-owned workflow when a documented API exists.
@@ -157,15 +159,22 @@ protocols are for meaningful seams and alternate implementations.
 
 - Use StoreKit 2 directly; do not introduce RevenueCat or another billing service.
 - All Sure backend traffic, including future Wallet uploads and authentication,
-  must use the injected `BackendAccessGate` and gated transport. Hide credential
+  must use the injected `BackendAccessGate` and gated transport. Place offline-read
+  and entitlement policy in the session repository; keep transport enforcement as
+  the final network boundary. Hide credential
   entry until an active trial, paid, or Family Sharing entitlement is verified.
 - Cancellation of renewal does not immediately revoke access. Honor Apple's
   verified entitlement end date and warn when sync will stop.
 - Wallet and on-device Assistant functionality remain free. Entitlement loss
   suspends connectivity without logging out or deleting downloaded records.
+- Use the versioned asynchronous server-read cache for authenticated resources.
+  Cache only complete validated reads, with exact transaction-window keys and
+  per-resource freshness. Subscription state never changes cache identity.
 - Offline authenticated responses and transaction windows are private, scoped to
   the committed server/credential identity, and cleared on explicit logout.
   Never use offline responses to verify credentials or complete authentication.
+  Preserve the stable connection ID across OAuth rotation; issue a new ID only
+  when a newly verified connection commits.
 - See `Docs/PurchaseAccessPlan.md` for product configuration and deferred hosted
   subscription inclusion. No hosted-login exception is currently authorized.
 
@@ -296,6 +305,9 @@ xcodebuild -project Sure.xcodeproj -scheme Sure -configuration Debug \
 xcodebuild -project Sure.xcodeproj -scheme 'Sure Watch' -configuration Debug \
   -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
+
+Run the isolated `Sure UI Host` scheme for production-view state changes; its
+in-memory fixtures must not initialize live services.
 
 Run the `Sure` scheme test action on an available iOS simulator and macOS
 destination. Run the `Sure Watch` scheme test action on a paired Watch

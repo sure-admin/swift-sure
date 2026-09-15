@@ -151,7 +151,7 @@ struct TransactionHistoryStoreTests {
 
     await store.load()
 
-    #expect(store.state == .failed("Expected history failure"))
+    #expect(store.state == .failed(DataFailure.unknown.localizedDescription))
     #expect(store.transactions.isEmpty)
   }
 
