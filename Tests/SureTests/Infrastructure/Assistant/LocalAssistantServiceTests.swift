@@ -80,19 +80,23 @@ struct LocalAssistantServiceTests {
       return try JSONDecoder().decode(AccountToolResult.self, from: Data(output.utf8))
     }
     #expect(try await result().status == "unavailable")
-    store.state = .loaded
+    store.accountsResource.restore([], metadata: nil)
     #expect(try await result().status == "available")
     #expect(try await result().accounts.isEmpty)
     store.accounts = [account(id: 1, name: "Checking", balance: Money(
       minorUnits: 100, currency: try #require(CurrencyCode("USD"))
     ))]
-    store.accountsError = "Synthetic failure"
+    _ = await store.accountsResource.load(now: { Date(timeIntervalSince1970: 1_800_000_000) }, metadata: { nil }) {
+      throw URLError(.notConnectedToInternet)
+    }
     #expect(try await result().status == "unavailable")
     #expect(try await result().accounts.isEmpty)
-    store.accountsError = nil
+    let loadedAccounts = store.accounts
+    _ = await store.accountsResource.load(now: { Date(timeIntervalSince1970: 1_800_000_000) }, metadata: { nil }) {
+      loadedAccounts
+    }
     #expect(try await result().accounts.count == 1)
-    store.accounts = []
-    store.state = .needsConnection
+    store.accountsResource.clear()
     #expect(try await result().status == "unavailable")
     #expect(try await result().accounts.isEmpty)
   }
