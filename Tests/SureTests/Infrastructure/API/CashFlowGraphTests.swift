@@ -23,6 +23,23 @@ struct CashFlowGraphTests {
     #expect(graph.spending.amount == Decimal(string: "32.345"))
   }
 
+  @Test("Merged Sure graph preserves a spending-only deficit path")
+  func spendingOnlyDeficit() throws {
+    let dto = try JSONDecoder().decode(CashFlowGraphDTO.self,
+      from: APIFixture.data(named: "cash-flow-sankey-deficit"))
+    let graph = try dto.record(currency: #require(CurrencyCode("USD")))
+    #expect(graph.income.amount == 0)
+    #expect(graph.spending.amount == 160)
+    #expect(graph.netSavings.amount == -160)
+    #expect(graph.links.map { graph.nodes[$0.source].kind } == [.cashFlow, .deficit])
+    #expect(graph.links.map { graph.nodes[$0.target].kind } == [.expense, .cashFlow])
+    #expect(graph.links.allSatisfy { $0.value == 160 })
+    let layout = SankeyLayout(graph: graph, size: CGSize(width: 420, height: 300))
+    #expect(layout.columnCount == 3)
+    #expect(layout.bands.count == 2)
+    #expect(layout.bands.allSatisfy { $0.source.x < $0.target.x && $0.thickness > 0 })
+  }
+
   @Test("Old cache records remain readable but do not invent a graph")
   func oldCache() throws {
     var summary = try summaryFixture(); summary.sankey = nil

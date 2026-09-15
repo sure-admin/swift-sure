@@ -1,19 +1,19 @@
 # Sure API contract fixtures
 
 These fixtures represent the Sure API contract pinned at revision
-`5594f8bc94c8e659838cac70d826bbcaeaa3bae2` in
+`e526fac7e0d8a5591d1fc0bc1d275b08fe917e97` in
 `Docs/SureContractBaseline.md`.
 
 Primary sources:
 
-- [Generated OpenAPI document](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/docs/api/openapi.yaml)
-- [Accounts response template](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/views/api/v1/accounts/_account.json.jbuilder)
-- [Transactions response template](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/views/api/v1/transactions/_transaction.json.jbuilder)
-- [Budget response template](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/views/api/v1/budgets/_budget.json.jbuilder)
-- [Budget category response templates](https://github.com/we-promise/sure/tree/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/views/api/v1/budget_categories)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Insights controller](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/insights_controller.rb)
-- [Shared API error handling](https://github.com/we-promise/sure/blob/5594f8bc94c8e659838cac70d826bbcaeaa3bae2/app/controllers/api/v1/base_controller.rb)
+- [Generated OpenAPI document](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/api/openapi.yaml)
+- [Accounts response template](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/views/api/v1/accounts/_account.json.jbuilder)
+- [Transactions response template](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/views/api/v1/transactions/_transaction.json.jbuilder)
+- [Budget response template](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/views/api/v1/budgets/_budget.json.jbuilder)
+- [Budget category response templates](https://github.com/we-promise/sure/tree/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/views/api/v1/budget_categories)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Insights controller](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/controllers/api/v1/insights_controller.rb)
+- [Shared API error handling](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/controllers/api/v1/base_controller.rb)
 
 All identifiers, names, institutions, merchants, amounts, and timestamps are
 synthetic. No fixture contains credentials, authorization headers, personal
@@ -88,7 +88,8 @@ Fixture coverage:
 
 ## Native reporting baseline
 
-The client targets merged Sure `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`. The
+The monthly reporting fixtures originated at merged Sure
+`d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`. The
 cash-flow success/empty/malformed fixtures use the new bounded monthly
 contract: decimal strings, canonical IANA family time zone, server-local cutoff,
 and complete unfurled daily curves. Existing fixtures continue to cover the
@@ -99,11 +100,21 @@ The merged baseline preserves all existing GET operations, shared schemas, and
 push registration from the reviewed branch. Response fixtures are unchanged;
 upstream trade-mutation changes do not affect this read-only client.
 
-### Sankey contract candidate
+### Merged Sankey contract
 
 The `cash-flow-*.json` fixtures additionally represent the opt-in graph schema at
-Sure revision `bdbb20d4e55a9bab7c43a39e9303b9ba61c6990d` (see the client baseline).
+Sure revision `e526fac7e0d8a5591d1fc0bc1d275b08fe917e97` (see the client baseline).
 Success and empty graphs preserve server decimal strings. Graph tests also cover
 invalid references, duplicate IDs, cycles, negative/nonfinite amounts, broken
 flow totals, missing live graph data, and cache round trips. The pre-graph cache
 case intentionally remains readable without synthesizing a graph.
+
+The merge preserves the monthly summary and graph schemas. The native request
+uses `month` plus `include=sankey` and never the mutually exclusive `view` mode
+or browser-session authentication.
+
+`cash-flow-sankey-deficit.json` was generated with the merged
+`IncomeStatement::Sankey` serializer and synthetic category totals (zero income,
+USD 160 spending), without a database or live server. The Swift graph contract
+test verifies its explicit deficit path and drawable layout. Category metadata
+is accepted as additive server data without becoming a native aggregation rule.
