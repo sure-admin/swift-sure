@@ -427,6 +427,17 @@ struct SureConnectionTests {
     #expect(!harness.credentials.loadFails)
   }
 
+  @Test("A fresh install allows Wallet without ever having subscription access")
+  func walletWithoutSubscription() {
+    let gate = BackendAccessGate()
+    let harness = makeHarness(context: nil, accessGate: gate)
+    #expect(!gate.isAllowed)
+    #expect(!harness.preferences.hasConnectedToSure())
+    #expect(!harness.connection.isConfigured)
+    #expect(!harness.connection.isSignedOut)
+    #expect(harness.connection.allowsWalletPreview)
+  }
+
   @Test("Locked access prevents every sign-in method and still permits logout")
   func subscriptionGateBlocksAuthentication() async throws {
     let gate = BackendAccessGate()
@@ -448,17 +459,43 @@ struct SureConnectionTests {
     #expect(harness.connection.isSignedOut)
   }
 
-  @Test("Wallet preview ends permanently after the first committed connection")
+  @Test("Wallet preview returns after logout and relaunch, but not subscription suspension")
   func onboardingPreviewBoundary() async {
-    let harness = makeHarness(context: nil)
+    let gate = entitledTestGate()
+    let harness = makeHarness(context: nil, accessGate: gate)
     #expect(harness.connection.allowsWalletPreview)
     harness.connection.apiKey = "test-key"
     await harness.connection.connectWithAPIKey()
     #expect(!harness.connection.allowsWalletPreview)
     #expect(harness.preferences.hasConnectedToSure())
-    await harness.connection.logOut()
+    gate.update(expiration: nil)
     #expect(!harness.connection.allowsWalletPreview)
+    await harness.connection.logOut()
+    #expect(harness.connection.allowsWalletPreview)
     #expect(harness.preferences.hasConnectedToSure())
+
+    let initialState = SureConnectionInitialState.load(
+      credentials: harness.credentials, preferences: harness.preferences
+    )
+    let relaunched = SureConnection(
+      initialState: initialState,
+      session: SureSession(context: initialState.requestContext),
+      credentials: harness.credentials,
+      preferences: harness.preferences,
+      oauth: harness.oauth,
+      mobileSSO: MobileSSOAuthenticationFake(),
+      verify: { _ in },
+      beginCredentialChange: {},
+      endCredentialChange: {},
+      lifecycle: ConnectionLifecycleSpy(),
+      accessGate: entitledTestGate()
+    )
+    #expect(relaunched.isSignedOut)
+    #expect(relaunched.allowsWalletPreview)
+    relaunched.apiKey = "test-key"
+    await relaunched.connectWithAPIKey()
+    #expect(relaunched.isConfigured)
+    #expect(!relaunched.allowsWalletPreview)
   }
 
   @Test("The cancel intent discards a verified candidate before it commits")

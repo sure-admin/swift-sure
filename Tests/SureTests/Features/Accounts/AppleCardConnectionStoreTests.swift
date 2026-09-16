@@ -115,6 +115,31 @@ struct AppleCardConnectionStoreTests {
     #expect(!requiresReconnect)
   }
 
+  @Test("Fresh local Wallet access loads Card and Cash without a Sure session or subscription")
+  func cardAndCashWithoutSure() async {
+    let accounts = [
+      LocalFinancialAccount(
+        id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!,
+        name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
+      ),
+      LocalFinancialAccount(
+        id: UUID(uuidString: "00000000-0000-4000-8000-000000000002")!,
+        name: "Apple Cash", institutionName: "Wallet", kind: .asset, balance: nil
+      )
+    ]
+    let connector = AppleCardConnectorFake(accounts: accounts)
+    let store = AppleCardConnectionStore(connector: connector)
+    await store.refresh()
+    #expect(store.state == .ready)
+    #expect(store.accounts.isEmpty)
+    await store.connect()
+    #expect(store.state == .authorized)
+    #expect(store.accounts == accounts)
+    #expect(store.walletSpendingAccess.isAuthorized)
+    #expect(connector.authorizationRequestCount == 1)
+    #expect(connector.accountRequestCount == 1)
+  }
+
   @Test("Available Wallet devices can enter Accounts without Sure credentials")
   func localAvailability() {
     #expect(AppleCardConnectionStore(connector: AppleCardConnectorFake()).isAvailable)
