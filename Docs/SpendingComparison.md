@@ -8,10 +8,10 @@ Sure's existing IncomeStatement. `CashFlowAPIClient` validates the wire
 contract and `CachedFinanceRepository` stores the result for offline and suspended
 sessions. See `SureContractBaseline.md` for the exact required server revision.
 
-Wallet comparison remains an intentionally separate onboarding preview. It is
-available only before the first successful Sure connection. Connected and
-previously connected users never fall back to Wallet totals, including after
-logout, network failure, or entitlement loss. No local financial records are
+Wallet comparison remains a separate local preview. It is available before the
+first successful Sure connection and after explicit logout and Wallet reconnection.
+Connected sessions never fall back to Wallet totals on network failure or
+entitlement loss. No local financial records are
 uploaded by this feature.
 
 `SpendingComparison` is a domain input, not a proposed wire schema. It requires

@@ -5,11 +5,11 @@ import Testing
 @MainActor
 @Suite("Transaction history store")
 struct TransactionHistoryStoreTests {
-  @Test("Wallet accounts from other institutions link to their own transaction histories")
-  func otherInstitutionHistory() async {
+  @Test("Local Wallet histories load without subscription access", arguments: ["Apple Card", "Apple Cash", "Current Account"])
+  func localWalletHistory(accountName: String) async {
     let accountID = UUID(uuidString: "00000000-0000-4000-8000-000000000002")!
     let account = LocalFinancialAccount(
-      id: accountID, name: "Current Account", institutionName: "Monzo", kind: .asset, balance: nil
+      id: accountID, name: accountName, institutionName: "Synthetic institution", kind: .asset, balance: nil
     )
     var expected = transaction(id: 1, date: Date(timeIntervalSince1970: 1_800_000_000))
     expected.accountID = accountID
