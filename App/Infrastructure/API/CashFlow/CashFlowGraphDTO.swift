@@ -14,6 +14,7 @@ struct CashFlowGraphDTO: Codable {
     var kind: CashFlowGraph.Kind
     var value: String
     var percentage: String
+    var color: String? = nil
   }
   struct Link: Codable {
     var source: Int
@@ -29,7 +30,7 @@ struct CashFlowGraphDTO: Codable {
       spending: .init(amount: CashFlowDTO.decimal(spending), currency: currency),
       netSavings: .init(amount: CashFlowDTO.decimal(netSavings), currency: currency),
       nodes: nodes.map { try .init(id: $0.id, name: $0.name, kind: $0.kind,
-        value: CashFlowDTO.decimal($0.value), percentage: CashFlowDTO.decimal($0.percentage)) },
+        value: CashFlowDTO.decimal($0.value), percentage: CashFlowDTO.decimal($0.percentage), categoryColor: $0.color) },
       links: links.map { try .init(source: $0.source, target: $0.target,
         value: CashFlowDTO.decimal($0.value), percentage: CashFlowDTO.decimal($0.percentage)) })
   }
@@ -40,7 +41,7 @@ struct CashFlowGraphDTO: Codable {
     spending = CashFlowDTO.string(record.spending.amount)
     netSavings = CashFlowDTO.string(record.netSavings.amount)
     nodes = record.nodes.map { .init(id: $0.id, name: $0.name, kind: $0.kind,
-      value: CashFlowDTO.string($0.value), percentage: CashFlowDTO.string($0.percentage)) }
+      value: CashFlowDTO.string($0.value), percentage: CashFlowDTO.string($0.percentage), color: $0.categoryColor) }
     links = record.links.map { .init(source: $0.source, target: $0.target,
       value: CashFlowDTO.string($0.value), percentage: CashFlowDTO.string($0.percentage)) }
   }

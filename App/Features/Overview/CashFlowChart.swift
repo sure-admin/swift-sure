@@ -49,16 +49,19 @@ struct CashFlowChart: View {
   }
 
   @ViewBuilder private var totals: some View {
-    metric("Net income", graph.income)
-    metric("Net spending", graph.spending)
-    metric(graph.netSavings.amount >= 0 ? "Surplus" : "Deficit", graph.netSavings)
+    metric("Net income", graph.income, color: .green)
+    metric("Net spending", graph.spending, color: .orange)
+    metric(graph.netSavings.amount >= 0 ? "Surplus" : "Deficit", graph.netSavings,
+      color: graph.netSavings.amount >= 0 ? .green : .red)
   }
 
-  private func metric(_ title: LocalizedStringKey, _ value: DecimalMoney) -> some View {
+  private func metric(_ title: LocalizedStringKey, _ value: DecimalMoney, color: Color) -> some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text(title).font(.caption).foregroundStyle(.secondary)
-      Text(FinanceFormatters.currency(value)).font(.headline).monospacedDigit()
+      Text(title).font(.caption)
+      Text(FinanceFormatters.currency(value)).font(.title3.bold())
     }
+    .padding(.leading, 10)
+    .overlay(alignment: .leading) { Capsule().fill(color).frame(width: 3) }
     .accessibilityElement(children: .combine)
   }
 
@@ -72,11 +75,14 @@ struct CashFlowChart: View {
           let middle = (band.source.x + band.target.x) / 2
           path.addCurve(to: band.target, control1: CGPoint(x: middle, y: band.source.y),
             control2: CGPoint(x: middle, y: band.target.y))
-          context.stroke(path, with: .color(color(graph.nodes[band.targetIndex].kind).opacity(0.2)),
+          context.stroke(path, with: .linearGradient(
+            Gradient(colors: [color(graph.nodes[band.sourceIndex]).opacity(0.2),
+              color(graph.nodes[band.targetIndex]).opacity(0.2)]),
+            startPoint: band.source, endPoint: band.target),
             lineWidth: band.thickness)
         }
         for (index, frame) in layout.frames.enumerated() {
-          context.fill(Path(roundedRect: frame, cornerRadius: 3), with: .color(color(graph.nodes[index].kind)))
+          context.fill(Path(roundedRect: frame, cornerRadius: 3), with: .color(color(graph.nodes[index])))
         }
       }
       ForEach(Array(graph.nodes.enumerated()), id: \.element.id) { index, node in
@@ -98,12 +104,29 @@ struct CashFlowChart: View {
     FinanceFormatters.currency(DecimalMoney(amount: amount, currency: graph.income.currency))
   }
 
-  private func color(_ kind: CashFlowGraph.Kind) -> Color {
-    switch kind {
-    case .income, .surplus: SureTheme.accent
-    case .expense, .deficit: .orange
-    case .cashFlow: .secondary
+  private func color(_ node: CashFlowGraph.Node) -> Color {
+    // Sure's PWA uses category colors, rather than assigning a color per kind.
+    // Keep structural defaults and CSS interpretation in the presentation layer.
+    if let color = Self.categoryColor(node.categoryColor) { return color }
+    return switch node.kind {
+    case .income, .surplus: Color(red: 16 / 255, green: 168 / 255, blue: 97 / 255)
+    case .deficit: Color(red: 236 / 255, green: 34 / 255, blue: 34 / 255)
+    case .expense, .cashFlow: .secondary
     }
+  }
+
+  static func categoryColor(_ value: String?) -> Color? {
+    guard let value else { return nil }
+    switch value {
+    case "var(--color-success)": return Color(red: 16 / 255, green: 168 / 255, blue: 97 / 255)
+    case "var(--color-destructive)": return Color(red: 236 / 255, green: 34 / 255, blue: 34 / 255)
+    case "var(--color-gray-400)", "var(--color-gray-500)": return .secondary
+    default: break
+    }
+    guard value.hasPrefix("#"), value.count == 7,
+          let rgb = UInt32(value.dropFirst(), radix: 16) else { return nil }
+    return Color(.sRGB, red: Double((rgb >> 16) & 255) / 255,
+      green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255, opacity: 1)
   }
 
   private func kindLabel(_ kind: CashFlowGraph.Kind) -> LocalizedStringKey {

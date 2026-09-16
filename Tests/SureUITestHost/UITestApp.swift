@@ -85,8 +85,8 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
       nodes: empty ? [] : [
         .init(id: "income_salary", name: "Salary", kind: .income, value: 3000, percentage: 100),
         .init(id: "cash_flow_node", name: "Cash Flow", kind: .cashFlow, value: 3000, percentage: 100),
-        .init(id: "expense_housing", name: "Housing", kind: .expense, value: 1500, percentage: 83.3),
-        .init(id: "expense_food", name: "Food", kind: .expense, value: 300, percentage: 16.7),
+        .init(id: "expense_housing", name: "Housing", kind: .expense, value: 1500, percentage: 83.3, categoryColor: "#6172F3"),
+        .init(id: "expense_food", name: "Food", kind: .expense, value: 300, percentage: 16.7, categoryColor: "#F79009"),
         .init(id: "surplus_node", name: "Surplus", kind: .surplus, value: 1200, percentage: 40)
       ], links: empty ? [] : [
         .init(source: 0, target: 1, value: 3000, percentage: 100),

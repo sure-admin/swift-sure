@@ -118,3 +118,7 @@ or browser-session authentication.
 USD 160 spending), without a database or live server. The Swift graph contract
 test verifies its explicit deficit path and drawable layout. Category metadata
 is accepted as additive server data without becoming a native aggregation rule.
+
+The success fixture includes the pinned schema’s optional Sankey node `color`
+field (a synthetic user category hex color). Missing colors on other nodes
+exercise older cache compatibility; category colors survive cache round trips.

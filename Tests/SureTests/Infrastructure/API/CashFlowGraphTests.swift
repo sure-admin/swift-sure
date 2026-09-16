@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import SwiftUI
 @testable import Sure
 
 @Suite("Cash flow graph contract")
@@ -8,10 +9,32 @@ struct CashFlowGraphTests {
   func roundTrip() throws {
     let summary = try summaryFixture()
     let graph = try #require(summary.sankey)
+    #expect(graph.nodes.first { $0.id == "expense_shopping" }?.categoryColor == "#F79009")
     #expect(graph.spending.amount == Decimal(string: "32.345"))
     #expect(graph.income.currency.rawValue == "USD")
     let restored = try JSONDecoder().decode(CashFlowDTO.self, from: JSONEncoder().encode(CashFlowDTO(summary))).record()
     #expect(restored == summary)
+  }
+
+  @Test("Missing, null, and malformed category colors do not invalidate financial data")
+  func categoryColors() throws {
+    var dto = try JSONDecoder().decode(CashFlowDTO.self, from: APIFixture.data(named: "cash-flow-success"))
+    for color in [nil, "not-a-color", "#F79009", "#6172F3"] as [String?] {
+      dto.sankey?.nodes[2].color = color
+      let graph = try #require(dto.record().sankey)
+      #expect(graph.nodes[2].categoryColor == color)
+      #expect((CashFlowChart.categoryColor(color) != nil) == (color?.hasPrefix("#") == true))
+    }
+  }
+
+  @Test("Category hex colors remain distinct and invalid CSS safely falls back")
+  func categoryColorRendering() {
+    #expect(CashFlowChart.categoryColor("#F79009") == Color(.sRGB,
+      red: 247.0 / 255, green: 144.0 / 255, blue: 9.0 / 255, opacity: 1))
+    #expect(CashFlowChart.categoryColor("#F79009") != CashFlowChart.categoryColor("#6172F3"))
+    #expect(CashFlowChart.categoryColor("#GGGGGG") == nil)
+    #expect(CashFlowChart.categoryColor("var(--unknown)") == nil)
+    #expect(CashFlowChart.categoryColor("var(--color-success)") != nil)
   }
 
   @Test("Graph amounts retain currencies with zero and three minor-unit digits", arguments: ["JPY", "BHD"])

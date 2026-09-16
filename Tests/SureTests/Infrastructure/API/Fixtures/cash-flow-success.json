@@ -231,6 +231,7 @@
       },
       {
         "id": "expense_shopping",
+        "color": "#F79009",
         "name": "Shopping",
         "kind": "expense",
         "value": "32.345",

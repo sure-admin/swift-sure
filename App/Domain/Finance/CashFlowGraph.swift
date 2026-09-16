@@ -10,6 +10,8 @@ struct CashFlowGraph: Equatable, Sendable {
     let kind: Kind
     let value: Decimal
     let percentage: Decimal
+    // Opaque user category metadata from Sure; interpreted only by presentation.
+    var categoryColor: String? = nil
   }
   struct Link: Equatable, Sendable {
     let source: Int
