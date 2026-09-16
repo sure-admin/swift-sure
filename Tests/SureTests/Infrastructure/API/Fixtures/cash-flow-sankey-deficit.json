@@ -1,0 +1,52 @@
+{
+  "basis": "net_by_category",
+  "income": "0.0",
+  "spending": "160.0",
+  "net_savings": "-160.0",
+  "nodes": [
+    {
+      "id": "cash_flow_node",
+      "name": "Cash Flow",
+      "kind": "cash_flow",
+      "value": "160.0",
+      "percentage": "100.0",
+      "category_id": null,
+      "filter_value": null,
+      "color": null
+    },
+    {
+      "id": "expense_10000000-0000-0000-0000-000000000160",
+      "name": "Shopping",
+      "kind": "expense",
+      "value": "160.0",
+      "percentage": "100.0",
+      "category_id": "10000000-0000-0000-0000-000000000160",
+      "filter_value": "Shopping",
+      "color": "#123456"
+    },
+    {
+      "id": "deficit_node",
+      "name": "Deficit",
+      "kind": "deficit",
+      "value": "160.0",
+      "percentage": "100.0",
+      "category_id": null,
+      "filter_value": null,
+      "color": null
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "target": 1,
+      "value": "160.0",
+      "percentage": "100.0"
+    },
+    {
+      "source": 2,
+      "target": 0,
+      "value": "160.0",
+      "percentage": "100.0"
+    }
+  ]
+}

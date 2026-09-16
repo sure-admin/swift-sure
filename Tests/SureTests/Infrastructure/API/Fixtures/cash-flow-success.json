@@ -208,5 +208,62 @@
         "amount": "100.0"
       }
     ]
+  },
+  "sankey": {
+    "basis": "net_by_category",
+    "income": "1000.0",
+    "spending": "32.345",
+    "net_savings": "967.655",
+    "nodes": [
+      {
+        "id": "cash_flow_node",
+        "name": "Cash Flow",
+        "kind": "cash_flow",
+        "value": "1000.0",
+        "percentage": "100.0"
+      },
+      {
+        "id": "income_salary",
+        "name": "Salary",
+        "kind": "income",
+        "value": "1000.0",
+        "percentage": "100.0"
+      },
+      {
+        "id": "expense_shopping",
+        "color": "#F79009",
+        "name": "Shopping",
+        "kind": "expense",
+        "value": "32.345",
+        "percentage": "100.0"
+      },
+      {
+        "id": "surplus_node",
+        "name": "Surplus",
+        "kind": "surplus",
+        "value": "967.655",
+        "percentage": "96.8"
+      }
+    ],
+    "links": [
+      {
+        "source": 1,
+        "target": 0,
+        "value": "1000.0",
+        "percentage": "100.0"
+      },
+      {
+        "source": 0,
+        "target": 2,
+        "value": "32.345",
+        "percentage": "100.0"
+      },
+      {
+        "source": 0,
+        "target": 3,
+        "value": "967.655",
+        "percentage": "96.8"
+      }
+    ]
   }
 }

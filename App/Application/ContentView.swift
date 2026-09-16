@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ContentView: View {
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var subscriptionAccess: SubscriptionAccessStore
   var connection: SureConnection
   var analytics: AnalyticsStore
@@ -87,24 +86,5 @@ struct ContentView: View {
       }
     }
     .tabViewStyle(.sidebarAdaptable)
-    .simultaneousGesture(
-      DragGesture(minimumDistance: 24)
-        .onEnded(changeSection)
-    )
-  }
-
-  private func changeSection(_ value: DragGesture.Value) {
-    let horizontalDistance = value.predictedEndTranslation.width
-    let verticalDistance = value.predictedEndTranslation.height
-    guard abs(horizontalDistance) > 60,
-          abs(horizontalDistance) > abs(verticalDistance) * 1.25 else {
-      return
-    }
-
-    let destination = selection.moving(by: horizontalDistance < 0 ? 1 : -1)
-    guard destination != selection else { return }
-    withAnimation(reduceMotion ? nil : .snappy) {
-      selection = destination
-    }
   }
 }

@@ -167,3 +167,15 @@ xcodebuild -project Sure.xcodeproj -scheme 'Sure UI Host' -configuration Debug \
 Continue to run the main Sure suites on iOS and macOS, and the Sure Watch suite
 on a paired simulator for Watch changes. Generated projects and Info.plists
 remain untracked.
+
+### Cash flow chart
+
+Overview's native Sankey chart reads the selected month's server-calculated
+`cash_flow` graph. It shares the existing identity-scoped summary cache and
+reporting month, with downloaded-data, empty, and retry states. Accessible cash
+flow details expose every server node even when a diagram label is too small.
+The chart is available with Sure data; onboarding Wallet spending stays separate.
+This follow-up requires the backend Sankey contract pinned in
+[Docs/SureContractBaseline.md](Docs/SureContractBaseline.md).
+
+<img src="Docs/Images/CashFlowSankey.png" alt="Native cash flow card with synthetic test data" width="360">

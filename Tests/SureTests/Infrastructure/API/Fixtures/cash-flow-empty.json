@@ -208,5 +208,13 @@
         "amount": "0.0"
       }
     ]
+  },
+  "sankey": {
+    "basis": "net_by_category",
+    "income": "0.0",
+    "spending": "0.0",
+    "net_savings": "0.0",
+    "nodes": [],
+    "links": []
   }
 }

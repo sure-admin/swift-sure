@@ -7,11 +7,11 @@ struct CashFlowAPIClient: CashFlowProviding, SpendingComparisonClient {
   func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
     let response = try await transport.send(APIRequest<CashFlowDTO>(method: .get,
       pathComponents: ["api", "v1", "cash_flow"],
-      queryItems: [URLQueryItem(name: "month", value: month.start.iso8601String)]))
+      queryItems: [URLQueryItem(name: "month", value: month.start.iso8601String), URLQueryItem(name: "include", value: "sankey")]))
     let record: CashFlow
     do { record = try response.record() }
     catch { throw SureAPIError.decoding }
-    guard record.month == month else { throw SureAPIError.decoding }
+    guard record.month == month, record.sankey != nil else { throw SureAPIError.decoding }
     return record
   }
 

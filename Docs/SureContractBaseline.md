@@ -2,33 +2,37 @@
 
 ## Supported upstream revision
 
-During the developer and TestFlight phase, this client targets the Sure `main` revision below, which includes merged [backend PR #3545](https://github.com/we-promise/sure/pull/3545):
+This client targets the merged Sure `main` revision below, including the cash-flow
+Sankey contract from [backend PR #3558](https://github.com/we-promise/sure/pull/3558).
 
-- Commit: `d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b`
-- Upstream commit time: 2026-09-14 04:57:17 UTC
-- Commit subject: `Expose cash flow reporting and secure push-device continuity (#3545)`
+- Commit: `e526fac7e0d8a5591d1fc0bc1d275b08fe917e97`
+- Upstream commit time: 2026-09-15 04:40:31 UTC
+- Commit subject: `Add cash_flow Sankey API and instrumented dashboard preview (#3558)`
 
 Permalinks for the contract sources used by this baseline:
 
-- [OpenAPI](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml)
-- [Client architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/clients.md)
-- [Transaction API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/transactions.md)
-- [Balance-sheet controller](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/app/controllers/api/v1/balance_sheet_controller.rb)
-- [Chat API](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/chats.md)
-- [AI architecture](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/hosting/ai.md)
+- [OpenAPI](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/api/openapi.yaml)
+- [Client architecture](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/clients.md)
+- [Transaction API](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/api/transactions.md)
+- [Balance-sheet controller](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/app/controllers/api/v1/balance_sheet_controller.rb)
+- [Chat API](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/api/chats.md)
+- [AI architecture](https://github.com/we-promise/sure/blob/e526fac7e0d8a5591d1fc0bc1d275b08fe917e97/docs/hosting/ai.md)
 
 This is a deliberate compatibility pin, not a claim that Sure has a versioned
 API. Backward compatibility with older self-hosted revisions is not required
 yet. The app should nevertheless tolerate additive optional response fields.
 
-The pin includes `GET /api/v1/cash_flow` and optional installation-proof
-push registration. [Cash flow contract](https://github.com/we-promise/sure/blob/d4d97b8feee229c64331cc9daa3cf75c7b8a1b6b/docs/api/openapi.yaml).
-Existing account, transaction, budget, balance-sheet, chat, and auth fixtures
-remain additive-compatible; new summary fixtures and push-request tests cover
-these operations. The merge preserves all existing GET contracts, shared schemas,
-and push-registration contracts from the previously tested revision; its other
-OpenAPI changes affect trade mutations, which this client does not use. This pin
-is deliberate, not an older-server fallback.
+The pin adds opt-in Sankey graphs to `GET /api/v1/cash_flow?include=sankey`.
+Monthly reporting, account eligibility, FX, refund netting, hierarchy, and flow
+balancing remain server-owned. The client validates the graph, caches it with the
+monthly summary, and computes only drawing geometry. Old cache records without
+a graph remain readable, but a successful live response must contain the
+requested graph. No local Wallet Sankey or connected aggregation fallback exists.
+The native client sends only `month` and `include=sankey`; it never combines
+`include` with `view`, which the merged API rejects. Public API authentication
+remains gated API-key/OAuth. The dashboard's cookie-authenticated route is
+`/dashboard/cash_flow` and is not used by the native client. The merged monthly
+response and graph schemas are unchanged from the reviewed candidate.
 
 ## Current client policy
 

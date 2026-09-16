@@ -97,6 +97,7 @@ struct CachedFinanceRepositoryTests {
     let result = try await harness.repository.fetchSummary(for: expected.month)
     #expect(result == expected)
     #expect(result.spending.amount == Decimal(string: "32.345"))
+    #expect(result.sankey?.spending.amount == Decimal(string: "32.345"))
     #expect(harness.client.summaryMonths.count == 1)
   }
 
