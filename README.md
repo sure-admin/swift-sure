@@ -56,6 +56,11 @@ and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
 
 ## On-device Wallet accounts
 
+Apple Card and Apple Cash accounts and transactions exposed by FinanceKit are
+free to use locally. No current or previous subscription, trial, or Sure login
+is required, including on a fresh install. A subscription is only required for
+Sure backend access.
+
 During initial onboarding or after logout on an iPhone with FinanceKit available, the app opens Accounts without requiring
 Sure sign-in. Allow Access loads the eligible accounts shared through Apple
 Wallet; selecting an account shows its last 31 days of transactions. Wallet data

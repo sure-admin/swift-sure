@@ -427,6 +427,17 @@ struct SureConnectionTests {
     #expect(!harness.credentials.loadFails)
   }
 
+  @Test("A fresh install allows Wallet without ever having subscription access")
+  func walletWithoutSubscription() {
+    let gate = BackendAccessGate()
+    let harness = makeHarness(context: nil, accessGate: gate)
+    #expect(!gate.isAllowed)
+    #expect(!harness.preferences.hasConnectedToSure())
+    #expect(!harness.connection.isConfigured)
+    #expect(!harness.connection.isSignedOut)
+    #expect(harness.connection.allowsWalletPreview)
+  }
+
   @Test("Locked access prevents every sign-in method and still permits logout")
   func subscriptionGateBlocksAuthentication() async throws {
     let gate = BackendAccessGate()

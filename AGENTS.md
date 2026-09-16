@@ -167,6 +167,9 @@ protocols are for meaningful seams and alternate implementations.
   entry until an active trial, paid, or Family Sharing entitlement is verified.
 - Cancellation of renewal does not immediately revoke access. Honor Apple's
   verified entitlement end date and warn when sync will stop.
+- Local FinanceKit accounts and transactions, including eligible Apple Card and
+  Apple Cash data, require no current or previous subscription, trial, or Sure
+  login. Preserve this path on fresh installs and for users who never subscribe.
 - Wallet and on-device Assistant functionality remain free. Entitlement loss
   suspends connectivity without logging out or deleting downloaded records.
 - Use the versioned asynchronous server-read cache for authenticated resources.
