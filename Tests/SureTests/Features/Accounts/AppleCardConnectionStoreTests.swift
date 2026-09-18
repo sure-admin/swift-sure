@@ -97,11 +97,14 @@ struct AppleCardConnectionStoreTests {
     let store = AppleCardConnectionStore(connector: connector, setRequiresReconnect: { requiresReconnect = $0 })
     await store.refresh()
     let lifecycle = ApplicationConnectionLifecycle()
+    let publisher = FinanceKitPublisherLifecycleFake()
     lifecycle.appleCardConnection = store
+    lifecycle.financeKitPublisher = publisher
     await lifecycle.prepareForLogout()
     #expect(store.accounts.isEmpty)
     #expect(store.state == .ready)
     #expect(requiresReconnect)
+    #expect(await publisher.disconnectCallCount() == 1)
     let relaunched = AppleCardConnectionStore(connector: connector, requiresReconnect: requiresReconnect)
     #expect(relaunched.state == .ready)
     let startup = ApplicationConnectionLifecycle()
@@ -206,6 +209,15 @@ struct AppleCardConnectionStoreTests {
     #expect(store.state == .denied)
     #expect(store.accounts.isEmpty)
   }
+}
+
+private actor FinanceKitPublisherLifecycleFake: FinanceKitPublisherLifecycleHandling {
+  private var disconnectCalls = 0
+
+  func resumeIfConfigured() async { }
+  func suspend() async { }
+  func disconnect() async throws { disconnectCalls += 1 }
+  func disconnectCallCount() -> Int { disconnectCalls }
 }
 
 private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Sendable {
