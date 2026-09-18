@@ -6,6 +6,7 @@ struct FinanceKitPublisherEnvironment: Sendable {
 
   var stateURL: URL
   var lockURL: URL
+  var revocationURL: URL
   var keychainAccessGroup: String
 
   static func live(
@@ -26,6 +27,7 @@ struct FinanceKitPublisherEnvironment: Sendable {
     return FinanceKitPublisherEnvironment(
       stateURL: directory.appendingPathComponent("state.json"),
       lockURL: directory.appendingPathComponent("publisher.lock"),
+      revocationURL: directory.appendingPathComponent("revoked"),
       keychainAccessGroup: keychainAccessGroup
     )
   }

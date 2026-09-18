@@ -6,7 +6,7 @@ import FinanceKit
 
 actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
   private var gate: BackendAccessGate
-  private var makeEnvironment: @Sendable () throws -> FinanceKitPublisherEnvironment
+  private nonisolated let makeEnvironment: @Sendable () throws -> FinanceKitPublisherEnvironment
 
   init(
     gate: BackendAccessGate,
@@ -28,6 +28,9 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     let credentialStore = FinanceKitPublisherCredentialStore(
       accessGroup: environment.keychainAccessGroup
     )
+    let revocationStore = FinanceKitPublisherRevocationStore(
+      fileURL: environment.revocationURL
+    )
 
     do {
       let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
@@ -38,8 +41,10 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
       state.configuration = configuration
       do {
         try await stateStore.save(state)
+        try revocationStore.clear()
       } catch {
         try? credentialStore.removeAllCredentials()
+        try? await stateStore.clear()
         throw error
       }
     }
@@ -53,9 +58,14 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     }
     let environment: FinanceKitPublisherEnvironment
     let stateStore: FinanceKitPublisherStateFileStore
+    let revocationStore: FinanceKitPublisherRevocationStore
     let credential: String
     do {
       environment = try makeEnvironment()
+      revocationStore = FinanceKitPublisherRevocationStore(
+        fileURL: environment.revocationURL
+      )
+      guard !revocationStore.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
       stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
       let state = try await stateStore.load()
       guard let configuredPublisher = state.configuration,
@@ -73,7 +83,11 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
       let engine = FinanceKitSyncEngine(
         stateStore: stateStore,
         collector: FinanceKitHistoryChangeCollector(),
-        uploader: FinanceKitHTTPBatchUploader.live(gate: gate, credential: credential),
+        uploader: FinanceKitHTTPBatchUploader.live(
+          gate: gate,
+          credential: credential,
+          canUpload: { !revocationStore.isRevoked }
+        ),
         processLock: FinanceKitProcessLock(url: environment.lockURL)
       )
       _ = try await engine.synchronize()
@@ -86,7 +100,14 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     disableBackgroundDelivery()
   }
 
+  nonisolated func blockBackgroundDelivery() {
+    disableBackgroundDelivery()
+    guard let environment = try? makeEnvironment() else { return }
+    try? FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).revoke()
+  }
+
   func disconnect() async throws {
+    blockBackgroundDelivery()
     disableBackgroundDelivery()
     let environment = try makeEnvironment()
     let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
@@ -109,7 +130,7 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     #endif
   }
 
-  private func disableBackgroundDelivery() {
+  private nonisolated func disableBackgroundDelivery() {
     #if os(iOS) && FINANCEKIT_ENABLED && !targetEnvironment(simulator)
     if #available(iOS 26.0, *) {
       FinanceStore.shared.disableAllBackgroundDelivery()

@@ -9,6 +9,10 @@ struct FinanceKitBackgroundSyncRunner: Sendable {
   func run(changedTypes: Set<FinanceKitBackgroundDataType>) async {
     do {
       let environment = try makeEnvironment()
+      let revocationStore = FinanceKitPublisherRevocationStore(
+        fileURL: environment.revocationURL
+      )
+      guard !revocationStore.isRevoked else { return }
       let stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
       let state = try await stateStore.load()
       guard let configuration = state.configuration else { return }
@@ -26,7 +30,11 @@ struct FinanceKitBackgroundSyncRunner: Sendable {
       let engine = FinanceKitSyncEngine(
         stateStore: stateStore,
         collector: FinanceKitHistoryChangeCollector(),
-        uploader: FinanceKitHTTPBatchUploader.live(gate: gate, credential: credential),
+        uploader: FinanceKitHTTPBatchUploader.live(
+          gate: gate,
+          credential: credential,
+          canUpload: { !revocationStore.isRevoked }
+        ),
         processLock: FinanceKitProcessLock(url: environment.lockURL)
       )
       _ = try await engine.synchronize(changedTypes: changedTypes)

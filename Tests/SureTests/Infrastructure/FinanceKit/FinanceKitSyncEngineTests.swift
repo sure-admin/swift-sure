@@ -4,6 +4,58 @@ import Testing
 
 @Suite("FinanceKit background publisher")
 struct FinanceKitSyncEngineTests {
+  @Test("An empty initial snapshot uploads its completion marker")
+  func emptySnapshot() async throws {
+    let checkpoint = Data("empty-snapshot-checkpoint".utf8)
+    let changes = FinanceKitCollectedChanges(
+      mode: .snapshot,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      events: [],
+      nextCheckpoint: checkpoint
+    )
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(changes))
+    let uploader = FinanceKitUploaderFake()
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+
+    #expect(try await harness.engine.synchronize() == .uploaded(1))
+
+    let batches = await uploader.uploadedBatches()
+    let batch = try #require(batches.first)
+    let payload = try decodePayload(batch)
+    #expect(batches.count == 1)
+    #expect(payload.events.isEmpty)
+    #expect(payload.captureMode == .snapshot)
+    #expect(payload.snapshotComplete)
+    let state = try await store.load()
+    #expect(state.checkpoint == checkpoint)
+    #expect(state.nextSequence == 2)
+    #expect(state.pendingCapture == nil)
+    try? FileManager.default.removeItem(at: harness.directory)
+  }
+
+  @Test("An empty delta advances its checkpoint without uploading")
+  func emptyDelta() async throws {
+    let checkpoint = Data("empty-delta-checkpoint".utf8)
+    let changes = FinanceKitCollectedChanges(
+      mode: .delta,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      events: [],
+      nextCheckpoint: checkpoint
+    )
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(changes))
+    let uploader = FinanceKitUploaderFake()
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+
+    #expect(try await harness.engine.synchronize() == .noChanges)
+    #expect(await uploader.uploadedBatches().isEmpty)
+    let state = try await store.load()
+    #expect(state.checkpoint == checkpoint)
+    #expect(state.nextSequence == 1)
+    try? FileManager.default.removeItem(at: harness.directory)
+  }
+
   @Test("A catch-up larger than 500 records advances its token only after every ordered chunk is accepted")
   func chunkedCatchUp() async throws {
     let checkpoint = Data("checkpoint-2".utf8)

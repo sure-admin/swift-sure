@@ -149,7 +149,9 @@ App and extension share only:
 
 - a revocable publisher token in a device-only shared Keychain access group;
 - configuration, Apple history tokens, and unacknowledged immutable batch bytes
-  in an App Group file protected until first device unlock; and
+  in an App Group file protected until first device unlock;
+- a persistent App Group revocation marker written synchronously on logout and
+  checked before credential access and every upload; and
 - a cross-process file lock preventing the app and extension from advancing the
   same stream concurrently.
 

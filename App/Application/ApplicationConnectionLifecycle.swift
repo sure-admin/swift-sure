@@ -17,6 +17,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     // Wallet reconnect preferences already reflect the latest explicit decision.
     // A persisted Sure logout must not undo Wallet access granted afterward.
     if isExplicitlySignedOut {
+      financeKitPublisher?.blockBackgroundDelivery()
       financeData?.disconnect()
       Task {
         dataCleanupFailure = nil

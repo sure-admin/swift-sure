@@ -13,15 +13,14 @@ struct FinanceKitBatchPlanner: Sendable {
     state: FinanceKitPublisherState,
     changes: FinanceKitCollectedChanges
   ) throws -> FinanceKitPendingCapture? {
-    guard !changes.events.isEmpty else { return nil }
+    if changes.events.isEmpty, changes.mode == .delta { return nil }
     guard state.pendingCapture == nil, state.nextSequence > 0 else {
       throw FinanceKitSyncError.invalidState
     }
 
-    let chunks = try chunks(
-      for: changes,
-      configuration: configuration
-    )
+    let chunks = changes.events.isEmpty
+      ? [[]]
+      : try chunks(for: changes, configuration: configuration)
     let finalSequence = state.nextSequence.addingReportingOverflow(UInt64(chunks.count - 1))
     guard !finalSequence.overflow else {
       throw FinanceKitSyncError.sequenceExhausted

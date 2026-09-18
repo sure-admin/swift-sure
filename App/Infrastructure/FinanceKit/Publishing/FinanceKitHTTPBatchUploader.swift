@@ -3,11 +3,13 @@ import Foundation
 struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
   var dataTransport: any HTTPDataTransport
   var credential: String
+  var canUpload: @Sendable () -> Bool = { true }
 
   func upload(
     _ batch: FinanceKitPendingBatch,
     configuration: FinanceKitPublisherConfiguration
   ) async throws -> FinanceKitBatchReceipt {
+    guard canUpload() else { throw FinanceKitBatchUploadError.publisherRevoked }
     var request = URLRequest(url: configuration.uploadURL)
     request.httpMethod = "POST"
     request.timeoutInterval = 30
@@ -32,7 +34,11 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
     }
   }
 
-  static func live(gate: BackendAccessGate, credential: String) -> FinanceKitHTTPBatchUploader {
+  static func live(
+    gate: BackendAccessGate,
+    credential: String,
+    canUpload: @escaping @Sendable () -> Bool = { true }
+  ) -> FinanceKitHTTPBatchUploader {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.urlCache = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -48,7 +54,8 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
         base: URLSessionHTTPDataTransport(session: session),
         gate: gate
       ),
-      credential: credential
+      credential: credential,
+      canUpload: canUpload
     )
   }
 
