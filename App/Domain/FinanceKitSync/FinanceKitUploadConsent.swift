@@ -35,6 +35,12 @@ struct FinanceKitUploadConsent: Codable, Equatable, Sendable {
     self.remoteProcessingAcknowledged = remoteProcessingAcknowledged
   }
 
+  private enum CodingKeys: String, CodingKey {
+    case version, grantedAt = "granted_at", selectedSourceAccountIDs = "selected_source_account_ids"
+    case uploadAuthorized = "upload_authorized", familyVisibilityAcknowledged = "family_visibility_acknowledged"
+    case remoteProcessingAcknowledged = "remote_processing_acknowledged"
+  }
+
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     try self.init(

@@ -185,3 +185,9 @@ StoreKit and transport gates, exact outbox/receipt state machine, chunking,
 checkpoint custody, history collector, source fidelity, lifecycle suspension,
 and cleanup. It intentionally has no production enrollment call or default
 publisher configuration until those activation gates are met.
+
+## Experimental control plane
+
+The iOS settings surface exposes enrollment, selected-account mapping, activation, health, conflict repair, credential renewal, and remote disconnect only when `FINANCEKIT_ENABLED` is compiled and the background-processing subscription entitlement is current. The client keeps the Apple history checkpoint and durable capture until the server reports the final batch `applied`. A replacement device never guesses that a new device-scoped FinanceKit transaction UUID is an existing ledger transaction; the server quarantines it as a `replacement_identity` conflict for explicit review.
+
+This remains a device-only preview. There is no broad production rollout without the Apple background entitlement, Sure preview access, and explicit family-data consent.

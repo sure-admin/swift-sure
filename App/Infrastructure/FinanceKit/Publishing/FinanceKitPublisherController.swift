@@ -7,15 +7,18 @@ import FinanceKit
 actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
   private var gate: BackendAccessGate
   private nonisolated let makeEnvironment: @Sendable () throws -> FinanceKitPublisherEnvironment
+  private let remoteDisconnect: @Sendable (UUID) async throws -> Void
 
   init(
     gate: BackendAccessGate,
     makeEnvironment: @escaping @Sendable () throws -> FinanceKitPublisherEnvironment = {
       try FinanceKitPublisherEnvironment.live()
-    }
+    },
+    remoteDisconnect: @escaping @Sendable (UUID) async throws -> Void = { _ in }
   ) {
     self.gate = gate
     self.makeEnvironment = makeEnvironment
+    self.remoteDisconnect = remoteDisconnect
   }
 
   func install(
@@ -112,11 +115,12 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     let environment = try makeEnvironment()
     let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
     defer { _ = lock }
-    let credentialStore = FinanceKitPublisherCredentialStore(
-      accessGroup: environment.keychainAccessGroup
-    )
+    let stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    let state = try await stateStore.load()
+    if let connectionID = state.configuration?.connectionID { try await remoteDisconnect(connectionID) }
+    let credentialStore = FinanceKitPublisherCredentialStore(accessGroup: environment.keychainAccessGroup)
     try credentialStore.removeAllCredentials()
-    try await FinanceKitPublisherStateFileStore(fileURL: environment.stateURL).clear()
+    try await stateStore.clear()
   }
 
   private func enableBackgroundDelivery() {

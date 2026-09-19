@@ -8,6 +8,7 @@ struct ContentView: View {
   var financeData: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
+  var financeKitSync: FinanceKitSyncStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -30,7 +31,8 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
+      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
+        financeKitSync: financeKitSync, walletAccounts: appleCardConnection.accounts)
     }
   }
 

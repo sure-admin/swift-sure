@@ -218,6 +218,7 @@ private actor FinanceKitPublisherLifecycleFake: FinanceKitPublisherLifecycleHand
   private nonisolated let blockingCalls = FinanceKitBlockingCallCounter()
   private var disconnectCalls = 0
 
+  func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
   nonisolated func blockBackgroundDelivery() { blockingCalls.increment() }
   func resumeIfConfigured() async { }
   func suspend() async { }

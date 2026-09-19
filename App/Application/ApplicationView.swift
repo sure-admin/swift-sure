@@ -17,6 +17,7 @@ struct ApplicationView: View {
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
   private var financeKitPublisher: any FinanceKitPublisherLifecycleHandling
+  @State private var financeKitSync: FinanceKitSyncStore
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -39,6 +40,7 @@ struct ApplicationView: View {
     _financeData = State(initialValue: finance.financeData)
     _spendingComparison = State(initialValue: finance.spendingComparison)
     _appleCardConnection = State(initialValue: finance.appleCardConnection)
+    _financeKitSync = State(initialValue: finance.financeKitSync)
     self.analytics = analytics
     notificationManager = devices.notifications
     oauthService = services.oauthService
@@ -60,6 +62,7 @@ struct ApplicationView: View {
         financeData: financeData,
         spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,
+        financeKitSync: financeKitSync,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,

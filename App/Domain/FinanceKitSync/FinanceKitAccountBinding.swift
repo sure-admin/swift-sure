@@ -14,6 +14,10 @@ struct FinanceKitAccountBinding: Codable, Equatable, Sendable {
     self.mappingVersion = mappingVersion
   }
 
+  private enum CodingKeys: String, CodingKey {
+    case sourceAccountID = "source_account_id", lineageID = "lineage_id", mappingVersion = "mapping_version"
+  }
+
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     try self.init(
