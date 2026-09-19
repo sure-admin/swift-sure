@@ -32,6 +32,13 @@
           ],
           "embed" : true,
           "target" : "Sure Watch"
+        },
+        {
+          "destinationFilters" : [
+            "iOS"
+          ],
+          "embed" : true,
+          "target" : "Sure FinanceKit Background"
         }
       ],
       "info" : {
@@ -39,6 +46,7 @@
         "properties" : {
           "SurePostHogProjectToken" : "$(SURE_POSTHOG_PROJECT_TOKEN)",
           "SurePostHogHost" : "$(SURE_POSTHOG_HOST)",
+          "SureFinanceKitKeychainAccessGroup" : "$(AppIdentifierPrefix)am.sure.insights.financekit",
           "CFBundleDisplayName" : "Sure",
           "CFBundleShortVersionString" : "0.7.4",
           "CFBundleURLTypes" : [
@@ -52,7 +60,7 @@
           ],
           "CFBundleVersion" : "1",
           "ITSAppUsesNonExemptEncryption" : false,
-          "NSFinancialDataUsageDescription" : "Sure requests access to financial data you choose to share from Wallet when you select Apple Card in Accounts.",
+          "NSFinancialDataUsageDescription" : "Sure uses financial data from Wallet for the on-device account preview and, only when you separately enable it, to sync selected accounts and transactions to your Sure family.",
           "LSApplicationCategoryType" : "public.app-category.finance",
           "UILaunchScreen" : {
 
@@ -112,6 +120,68 @@
         "macOS"
       ],
       "type" : "application"
+    },
+    "Sure FinanceKit Background" : {
+      "type" : "extensionkit-extension",
+      "platform" : "iOS",
+      "supportedDestinations" : [
+        "iOS"
+      ],
+      "info" : {
+        "path" : "FinanceKitBackground\/Info.plist",
+        "properties" : {
+          "CFBundleDisplayName" : "Sure Finance Sync",
+          "CFBundleShortVersionString" : "0.7.4",
+          "CFBundleVersion" : "1",
+          "EXAppExtensionAttributes" : {
+            "EXExtensionPointIdentifier" : "com.apple.financekit.background-delivery"
+          },
+          "ITSAppUsesNonExemptEncryption" : false,
+          "SureFinanceKitKeychainAccessGroup" : "$(AppIdentifierPrefix)am.sure.insights.financekit"
+        }
+      },
+      "settings" : {
+        "base" : {
+          "APPLICATION_EXTENSION_API_ONLY" : "YES",
+          "CODE_SIGN_ENTITLEMENTS" : "FinanceKitBackground\/FinanceKitBackground.entitlements",
+          "CURRENT_PROJECT_VERSION" : "1",
+          "IPHONEOS_DEPLOYMENT_TARGET" : "26.0",
+          "MARKETING_VERSION" : "0.7.4",
+          "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights.financekit-background",
+          "PRODUCT_NAME" : "$(TARGET_NAME)",
+          "SKIP_INSTALL" : "YES",
+          "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : "$(inherited) FINANCEKIT_ENABLED",
+          "SWIFT_VERSION" : "5.0"
+        },
+        "configs" : {
+          "Release" : {
+            "CODE_SIGN_STYLE" : "Automatic"
+          }
+        }
+      },
+      "sources" : [
+        {
+          "path" : "FinanceKitBackground"
+        },
+        {
+          "path" : "App\/Domain\/FinanceKitSync"
+        },
+        {
+          "path" : "App\/Domain\/Subscriptions\/BackendAccessGate.swift"
+        },
+        {
+          "path" : "App\/Domain\/Subscriptions\/SubscriptionProductIDs.swift"
+        },
+        {
+          "path" : "App\/Infrastructure\/API\/Core\/HTTPDataTransport.swift"
+        },
+        {
+          "path" : "App\/Infrastructure\/Purchases\/SubscriptionHTTPDataTransport.swift"
+        },
+        {
+          "path" : "App\/Infrastructure\/FinanceKit\/Publishing"
+        }
+      ]
     },
     "SureTests" : {
       "dependencies" : [

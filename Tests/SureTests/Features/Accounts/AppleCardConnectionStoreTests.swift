@@ -24,8 +24,11 @@ struct AppleCardConnectionStoreTests {
       setRequiresReconnect: { requiresReconnect = $0 }
     )
     let lifecycle = ApplicationConnectionLifecycle()
+    let publisher = FinanceKitPublisherLifecycleFake()
     lifecycle.appleCardConnection = relaunched
+    lifecycle.financeKitPublisher = publisher
     lifecycle.restoreInitialState(isExplicitlySignedOut: true)
+    #expect(publisher.blockBackgroundDeliveryCallCount() == 1)
     await relaunched.refresh()
 
     #expect(!requiresReconnect)
@@ -97,11 +100,14 @@ struct AppleCardConnectionStoreTests {
     let store = AppleCardConnectionStore(connector: connector, setRequiresReconnect: { requiresReconnect = $0 })
     await store.refresh()
     let lifecycle = ApplicationConnectionLifecycle()
+    let publisher = FinanceKitPublisherLifecycleFake()
     lifecycle.appleCardConnection = store
+    lifecycle.financeKitPublisher = publisher
     await lifecycle.prepareForLogout()
     #expect(store.accounts.isEmpty)
     #expect(store.state == .ready)
     #expect(requiresReconnect)
+    #expect(await publisher.disconnectCallCount() == 1)
     let relaunched = AppleCardConnectionStore(connector: connector, requiresReconnect: requiresReconnect)
     #expect(relaunched.state == .ready)
     let startup = ApplicationConnectionLifecycle()
@@ -206,6 +212,27 @@ struct AppleCardConnectionStoreTests {
     #expect(store.state == .denied)
     #expect(store.accounts.isEmpty)
   }
+}
+
+private actor FinanceKitPublisherLifecycleFake: FinanceKitPublisherLifecycleHandling {
+  private nonisolated let blockingCalls = FinanceKitBlockingCallCounter()
+  private var disconnectCalls = 0
+
+  func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
+  nonisolated func blockBackgroundDelivery() { blockingCalls.increment() }
+  func resumeIfConfigured() async { }
+  func suspend() async { }
+  func disconnect() async throws { disconnectCalls += 1 }
+  nonisolated func blockBackgroundDeliveryCallCount() -> Int { blockingCalls.value }
+  func disconnectCallCount() -> Int { disconnectCalls }
+}
+
+private final class FinanceKitBlockingCallCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+
+  var value: Int { lock.withLock { count } }
+  func increment() { lock.withLock { count += 1 } }
 }
 
 private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Sendable {

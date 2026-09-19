@@ -8,6 +8,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
   weak var spendingComparison: SpendingComparisonStore?
+  var financeKitPublisher: (any FinanceKitPublisherLifecycleHandling)?
 
   weak var appleCardConnection: AppleCardConnectionStore?
   var transactionHistoryFactories: [TransactionHistoryStoreFactory] = []
@@ -16,8 +17,13 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     // Wallet reconnect preferences already reflect the latest explicit decision.
     // A persisted Sure logout must not undo Wallet access granted afterward.
     if isExplicitlySignedOut {
+      financeKitPublisher?.blockBackgroundDelivery()
       financeData?.disconnect()
-      Task { await clearDownloadedData() }
+      Task {
+        dataCleanupFailure = nil
+        await clearDownloadedData()
+        await clearFinanceKitPublisher()
+      }
     }
   }
 
@@ -29,30 +35,41 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func prepareForConnectionChange() async {
+    await financeKitPublisher?.suspend()
     spendingComparison?.invalidate()
     financeData?.disconnect(preservingSnapshot: true)
     await notificationLifecycle?.prepareForConnectionChange()
   }
 
   func didFailConnectionChange() async {
+    await financeKitPublisher?.resumeIfConfigured()
     await spendingComparison?.refresh()
   }
 
   func didCommitConnectionChange() async {
+    dataCleanupFailure = nil
     await clearDownloadedData()
+    await clearFinanceKitPublisher()
     analytics?.resetIdentity()
     clearLocalData()
   }
 
   func prepareForLogout() async {
+    dataCleanupFailure = nil
     await clearDownloadedData()
+    await clearFinanceKitPublisher()
     clearLocalData()
     financeData?.disconnect()
     await notificationLifecycle?.prepareForLogout()
   }
 
   private func clearDownloadedData() async {
-    do { try await clearOfflineResponses(); dataCleanupFailure = nil }
+    do { try await clearOfflineResponses() }
+    catch { dataCleanupFailure = .cleanup }
+  }
+
+  private func clearFinanceKitPublisher() async {
+    do { try await financeKitPublisher?.disconnect() }
     catch { dataCleanupFailure = .cleanup }
   }
 

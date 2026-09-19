@@ -14,7 +14,5 @@
 	<array>
 		<string>$(AppIdentifierPrefix)am.sure.insights.financekit</string>
 	</array>
-	<key>aps-environment</key>
-	<string>development</string>
 </dict>
 </plist>

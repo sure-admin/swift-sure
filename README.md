@@ -75,6 +75,12 @@ cached conversations. It does not change the original Wallet records or Apple's
 system permission. While connected to Sure, all reporting uses Sure;
 future Wallet ingestion must upload source transactions for aggregation on Sure.
 
+The iOS 26 FinanceKit background-delivery target and replay-safe publisher core
+are staged behind an unconfigured transport boundary. They cannot upload Wallet
+data until a revised provider contract is merged into Sure, pinned here, and the
+user completes separate upload consent and account mapping. See
+[the FinanceKit device publisher architecture](Docs/FinanceKitSyncArchitecture.md).
+
 ## AI Insight push notifications
 
 The iOS app requests notification permission when the user enables **Notify urgent insights**, registers its APNs token, and uploads the token to Sure through `POST /api/v1/push_subscriptions`. Turning the setting off removes that subscription from Sure.

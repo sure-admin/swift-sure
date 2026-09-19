@@ -5,6 +5,8 @@ struct FinanceAssembly {
   let remoteAssistant: any RemoteAssistantClient
   let financeData: FinanceDataStore
   let appleCardConnection: AppleCardConnectionStore
+  let financeKitPublisher: any FinanceKitPublisherLifecycleHandling
+  let financeKitSync: FinanceKitSyncStore
   let spendingComparison: SpendingComparisonStore
   let transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   let localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -32,6 +34,9 @@ struct FinanceAssembly {
     let financeData = FinanceDataStore(connection: connection, client: repository,
       calendar: .autoupdatingCurrent, now: { .now }, summaries: repository, syncInsights: syncInsights)
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
+    let controlPlane = FinanceKitControlPlaneClient(transport: transport)
+    let financeKitPublisher = FinanceKitPublisherController(gate: accessGate,
+      remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0) })
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector,
       requiresReconnect: preferences.requiresWalletReconnect(),
@@ -63,6 +68,8 @@ struct FinanceAssembly {
     remoteAssistant = repository
     self.financeData = financeData
     self.appleCardConnection = appleCardConnection
+    self.financeKitPublisher = financeKitPublisher
+    self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher)
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory
     self.localTransactionHistoryStoreFactory = localTransactionHistoryStoreFactory

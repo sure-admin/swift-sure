@@ -16,6 +16,8 @@ struct ApplicationView: View {
   private var oauthService: PasskeyOAuthService
   private var mobileSSOService: MobileSSOAuthService
   private var remoteAssistant: any RemoteAssistantClient
+  private var financeKitPublisher: any FinanceKitPublisherLifecycleHandling
+  @State private var financeKitSync: FinanceKitSyncStore
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
@@ -30,6 +32,7 @@ struct ApplicationView: View {
     lifecycle.financeData = finance.financeData
     lifecycle.spendingComparison = finance.spendingComparison
     lifecycle.appleCardConnection = finance.appleCardConnection
+    lifecycle.financeKitPublisher = finance.financeKitPublisher
     lifecycle.transactionHistoryFactories = [finance.transactionHistoryStoreFactory, finance.localTransactionHistoryStoreFactory]
     lifecycle.restoreInitialState(isExplicitlySignedOut: services.initialState.isExplicitlySignedOut)
     _subscriptionAccess = State(initialValue: services.subscriptionAccess)
@@ -37,11 +40,13 @@ struct ApplicationView: View {
     _financeData = State(initialValue: finance.financeData)
     _spendingComparison = State(initialValue: finance.spendingComparison)
     _appleCardConnection = State(initialValue: finance.appleCardConnection)
+    _financeKitSync = State(initialValue: finance.financeKitSync)
     self.analytics = analytics
     notificationManager = devices.notifications
     oauthService = services.oauthService
     mobileSSOService = services.mobileSSOService
     remoteAssistant = finance.remoteAssistant
+    financeKitPublisher = finance.financeKitPublisher
     transactionHistoryStoreFactory = finance.transactionHistoryStoreFactory
     localTransactionHistoryStoreFactory = finance.localTransactionHistoryStoreFactory
     configureNotifications(devices.notifications, services.accessGate)
@@ -57,6 +62,7 @@ struct ApplicationView: View {
         financeData: financeData,
         spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,
+        financeKitSync: financeKitSync,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,
@@ -68,13 +74,15 @@ struct ApplicationView: View {
       .onChange(of: scenePhase) { _, phase in
         if phase == .active { Task { await subscriptionAccess.refresh() } }
       }
-      .onChange(of: subscriptionAccess.hasAccess) { _, allowed in
+      .onChange(of: subscriptionAccess.hasAccess, initial: true) { _, allowed in
         if allowed { Task {
+          await financeKitPublisher.resumeIfConfigured()
           await financeData.refresh()
           await notificationManager.applicationDidFinishLaunching()
           await notificationManager.didConnect()
         } }
         else {
+          Task { await financeKitPublisher.suspend() }
           financeData.suspendSync()
           connection.suspendAuthentication()
           oauthService.cancelAuthentication()
