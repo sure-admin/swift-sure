@@ -19,19 +19,44 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
     request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
     request.setValue(batch.id.uuidString.lowercased(), forHTTPHeaderField: "Idempotency-Key")
     request.setValue(batch.payloadDigest, forHTTPHeaderField: "X-Sure-Payload-SHA256")
-
     let (data, response) = try await dataTransport.data(for: request)
-    guard let http = response as? HTTPURLResponse else {
-      throw FinanceKitBatchUploadError.invalidResponse
+    return try decodeReceipt(data: data, response: response)
+  }
+
+  func status(
+    _ batch: FinanceKitPendingBatch,
+    configuration: FinanceKitPublisherConfiguration
+  ) async throws -> FinanceKitBatchReceipt {
+    guard canUpload() else { throw FinanceKitBatchUploadError.publisherRevoked }
+    let statusURL = configuration.uploadURL.appendingPathComponent(batch.id.uuidString.lowercased())
+    for attempt in 0..<10 {
+      if attempt > 0 { try await Task.sleep(for: .seconds(min(1 << attempt, 30))) }
+      var request = URLRequest(url: statusURL)
+      request.httpMethod = "GET"
+      request.timeoutInterval = 30
+      request.setValue("application/json", forHTTPHeaderField: "Accept")
+      request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
+      let (data, response) = try await dataTransport.data(for: request)
+      let receipt = try decodeReceipt(data: data, response: response)
+      guard receipt.connectionID == configuration.connectionID,
+            receipt.publisherID == configuration.publisherID,
+            receipt.generation == configuration.generation,
+            receipt.streamID == configuration.streamID,
+            receipt.batchID == batch.id,
+            receipt.sequence == batch.sequence,
+            receipt.payloadDigest == batch.payloadDigest else {
+        throw FinanceKitBatchUploadError.invalidResponse
+      }
+      if receipt.status == .applied || receipt.status == .failed { return receipt }
     }
-    guard [200, 202].contains(http.statusCode) else {
-      throw Self.error(for: http)
-    }
-    do {
-      return try Self.decoder().decode(FinanceKitBatchReceipt.self, from: data)
-    } catch {
-      throw FinanceKitBatchUploadError.invalidResponse
-    }
+    throw FinanceKitBatchUploadError.server(504)
+  }
+
+  private func decodeReceipt(data: Data, response: URLResponse) throws -> FinanceKitBatchReceipt {
+    guard let http = response as? HTTPURLResponse else { throw FinanceKitBatchUploadError.invalidResponse }
+    guard [200, 202].contains(http.statusCode) else { throw Self.error(for: http) }
+    do { return try Self.decoder().decode(FinanceKitBatchReceipt.self, from: data) }
+    catch { throw FinanceKitBatchUploadError.invalidResponse }
   }
 
   static func live(

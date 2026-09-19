@@ -328,6 +328,23 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
     )
   }
 
+  func status(
+    _ batch: FinanceKitPendingBatch,
+    configuration: FinanceKitPublisherConfiguration
+  ) throws -> FinanceKitBatchReceipt {
+    FinanceKitBatchReceipt(
+      connectionID: configuration.connectionID,
+      publisherID: configuration.publisherID,
+      generation: configuration.generation,
+      streamID: configuration.streamID,
+      batchID: returnsMismatchedReceipt ? UUID() : batch.id,
+      sequence: batch.sequence,
+      payloadDigest: batch.payloadDigest,
+      status: .applied,
+      acceptedAt: Date(timeIntervalSince1970: 1_700_000_001)
+    )
+  }
+
   func uploadedBatches() -> [FinanceKitPendingBatch] { batches }
 }
 
