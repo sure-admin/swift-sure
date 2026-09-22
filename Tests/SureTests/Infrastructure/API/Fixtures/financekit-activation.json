@@ -1,0 +1,27 @@
+{
+  "protocol_version": 2,
+  "server_url": "https://sure.example",
+  "upload_url": "https://sure.example/api/v1/financekit/publishers/30000000-0000-4000-8000-000000000001/batches",
+  "connection_id": "20000000-0000-4000-8000-000000000001",
+  "publisher_id": "30000000-0000-4000-8000-000000000001",
+  "generation": 3,
+  "stream_id": "40000000-0000-4000-8000-000000000001",
+  "consent": {
+    "version": 1,
+    "granted_at": "2026-09-18T00:00:00.000Z",
+    "selected_source_account_ids": ["00000000-0000-4000-8000-000000000001"],
+    "upload_authorized": true,
+    "family_visibility_acknowledged": true,
+    "remote_processing_acknowledged": true
+  },
+  "account_bindings": [
+    {
+      "source_account_id": "00000000-0000-4000-8000-000000000001",
+      "lineage_id": "10000000-0000-4000-8000-000000000001",
+      "mapping_version": 2
+    }
+  ],
+  "max_records_per_batch": 500,
+  "max_bytes_per_batch": 5000000,
+  "publisher_credential": "publisher-secret"
+}

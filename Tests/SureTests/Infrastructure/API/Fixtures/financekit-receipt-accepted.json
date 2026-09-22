@@ -1,0 +1,13 @@
+{
+  "connection_id": "20000000-0000-4000-8000-000000000001",
+  "publisher_id": "30000000-0000-4000-8000-000000000001",
+  "generation": 3,
+  "stream_id": "40000000-0000-4000-8000-000000000001",
+  "batch_id": "50000000-0000-4000-8000-000000000001",
+  "sequence": 1,
+  "payload_digest": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "status": "accepted",
+  "accepted_at": "2026-09-18T10:00:01.000Z",
+  "applied_at": null,
+  "error_code": null
+}

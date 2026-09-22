@@ -122,7 +122,7 @@ struct ConnectionSettingsView: View {
             NavigationLink {
               FinanceKitSyncView(sync: financeKitSync, accounts: walletAccounts)
             } label: {
-              Label("Experimental Finance sync", systemImage: "arrow.triangle.2.circlepath")
+              Label("Experimental Wallet sync", systemImage: "arrow.triangle.2.circlepath")
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
           }

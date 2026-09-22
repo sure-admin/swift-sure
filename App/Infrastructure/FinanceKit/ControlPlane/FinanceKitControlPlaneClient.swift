@@ -72,10 +72,13 @@ struct FinanceKitConnectionRecord: Decodable, Sendable {
   var repairReason: String?
   var openConflicts: Int
   var lastDeviceContactAt: Date?
+  var lastAcceptedAt: Date?
   var lastImportedAt: Date?
+  var lastDownstreamAt: Date?
   enum CodingKeys: String, CodingKey { case connectionID = "connection_id", status
     case repairReason = "repair_reason", openConflicts = "open_conflicts"
-    case lastDeviceContactAt = "last_device_contact_at", lastImportedAt = "last_imported_at" }
+    case lastDeviceContactAt = "last_device_contact_at", lastAcceptedAt = "last_accepted_at"
+    case lastImportedAt = "last_imported_at", lastDownstreamAt = "last_downstream_at" }
 }
 struct FinanceKitConflictCollection: Decodable, Sendable { var conflicts: [FinanceKitConflictRecord] }
 struct FinanceKitConflictRecord: Decodable, Identifiable, Sendable {

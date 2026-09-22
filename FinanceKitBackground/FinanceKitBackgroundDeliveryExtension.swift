@@ -8,7 +8,7 @@ final class FinanceKitBackgroundDeliveryExtension: BackgroundDeliveryExtension {
 
   func didReceiveData(for types: [FinanceStore.BackgroundDataType]) async {
     let changedTypes = Set(types.compactMap(Self.map))
-    await FinanceKitBackgroundSyncRunner().run(changedTypes: changedTypes)
+    await FinanceKitSyncRunner().runQuietly(changedTypes: changedTypes)
   }
 
   func willTerminate() async { }
