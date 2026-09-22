@@ -77,6 +77,24 @@ Sure applies exchange rates. Those totals remain `Decimal` through the domain
 and are rounded only for display; native account, transaction, and budget values
 continue to use the server's integer minor units.
 
+The experimental FinanceKit control plane and batch protocol are **not** part of
+the pinned revision above. Their fixtures
+(`Tests/SureTests/Infrastructure/API/Fixtures/financekit-*.json`) represent
+protocol 2 as described by upstream
+[PR #3633](https://github.com/we-promise/sure/pull/3633), which is deployed
+behind a flag rather than merged into `main`. The shapes pinned are: activation
+returns a plain `publisher_credential` string beside the configuration fields,
+with no crypto envelope; a receipt carries `connection_id`, `publisher_id`,
+`generation`, `stream_id`, `batch_id`, `sequence`, `payload_digest`, `status`,
+`accepted_at`, `applied_at`, and `error_code`; connection health keeps
+`last_device_contact_at`, `last_accepted_at`, `last_imported_at`, and
+`last_downstream_at` distinct, because accepting a capture and importing it are
+different facts; and a batch protocol error body is `{"error": "<code>"}`.
+
+These fixtures were written from that description rather than verified against a
+running instance. Confirm them and fold the FinanceKit contract into the pin
+above when #3633 merges.
+
 ## Transaction product behavior
 
 The first production transaction surface remains read-only:
