@@ -79,8 +79,9 @@ The replay-safe publisher core ships in the app behind a foreground trigger: an
 explicit **Sync now**, and a debounced sync when the app becomes active. It
 cannot upload Wallet data until a revised provider contract is merged into Sure
 and pinned here, and the user completes separate upload consent and account
-mapping. The iOS 26 background-delivery target is held on a separate branch
-until Apple grants its entitlement, so unattended sync is not available. See
+mapping. This branch also carries the iOS 26 background-delivery target, which
+cannot be signed until Apple grants its entitlement, so unattended sync is not
+available yet. See
 [the FinanceKit device publisher architecture](Docs/FinanceKitSyncArchitecture.md).
 
 ## AI Insight push notifications
