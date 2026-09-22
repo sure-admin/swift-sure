@@ -80,7 +80,7 @@ actor FinanceKitSyncEngine {
     guard finalReceipt.status == .applied else {
       state.requiresRepair = finalReceipt.status == .failed
       try await stateStore.save(state)
-      throw finalReceipt.status == .failed ? FinanceKitSyncError.streamFailed : FinanceKitSyncError.invalidReceipt
+      throw finalReceipt.status == .failed ? FinanceKitSyncError.streamFailed : FinanceKitSyncError.importPending
     }
     let nextSequence = finalBatch.sequence.addingReportingOverflow(1)
     guard !nextSequence.overflow else { throw FinanceKitSyncError.sequenceExhausted }

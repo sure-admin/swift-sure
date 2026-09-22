@@ -17,6 +17,10 @@ struct FinanceKitBatchReceipt: Codable, Equatable, Sendable {
   var payloadDigest: String
   var status: Status
   var acceptedAt: Date
+  /// Set once the server has imported the batch; nil while it is only accepted.
+  var appliedAt: Date?
+  /// The server's reason when `status` is `failed`.
+  var errorCode: String?
 
   private enum CodingKeys: String, CodingKey {
     case connectionID = "connection_id"
@@ -28,5 +32,7 @@ struct FinanceKitBatchReceipt: Codable, Equatable, Sendable {
     case payloadDigest = "payload_digest"
     case status
     case acceptedAt = "accepted_at"
+    case appliedAt = "applied_at"
+    case errorCode = "error_code"
   }
 }

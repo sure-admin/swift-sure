@@ -178,6 +178,83 @@ struct FinanceKitSyncEngineTests {
     try? FileManager.default.removeItem(at: harness.directory)
   }
 
+  @Test("A capture the server has accepted but not imported keeps its outbox and its checkpoint")
+  func acceptedButNotImported() async throws {
+    let changes = FinanceKitCollectedChanges(
+      mode: .delta,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      events: [event(1)],
+      nextCheckpoint: Data("import-pending-checkpoint".utf8)
+    )
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(changes))
+    let uploader = FinanceKitUploaderFake(statusSequence: [.accepted])
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+
+    await #expect(throws: FinanceKitSyncError.importPending) {
+      try await harness.engine.synchronize()
+    }
+
+    let state = try await store.load()
+    #expect(state.requiresRepair == false)
+    #expect(state.checkpoint == nil)
+    #expect(state.nextSequence == 1)
+    #expect(state.pendingCapture?.nextBatchIndex == 1)
+    try? FileManager.default.removeItem(at: harness.directory)
+  }
+
+  @Test("A later pass resumes a pending import without re-collecting or re-uploading")
+  func pendingImportResumes() async throws {
+    let checkpoint = Data("import-resumed-checkpoint".utf8)
+    let changes = FinanceKitCollectedChanges(
+      mode: .delta,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      events: [event(1)],
+      nextCheckpoint: checkpoint
+    )
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(changes))
+    let uploader = FinanceKitUploaderFake(statusSequence: [.processing, .applied])
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+
+    await #expect(throws: FinanceKitSyncError.importPending) {
+      try await harness.engine.synchronize()
+    }
+    #expect(try await harness.engine.synchronize() == .uploaded(0))
+
+    let state = try await store.load()
+    #expect(state.checkpoint == checkpoint)
+    #expect(state.pendingCapture == nil)
+    #expect(state.nextSequence == 2)
+    #expect(await collector.callCount() == 1)
+    #expect(await uploader.uploadedBatches().count == 1)
+    #expect(await uploader.statusCallCount() == 2)
+    try? FileManager.default.removeItem(at: harness.directory)
+  }
+
+  @Test("A failed final receipt fences the stream for repair rather than reporting a pending import")
+  func failedFinalReceipt() async throws {
+    let changes = FinanceKitCollectedChanges(
+      mode: .delta,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      events: [event(1)],
+      nextCheckpoint: Data("fenced-checkpoint".utf8)
+    )
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(changes))
+    let uploader = FinanceKitUploaderFake(statusSequence: [.failed])
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+
+    await #expect(throws: FinanceKitSyncError.streamFailed) {
+      try await harness.engine.synchronize()
+    }
+
+    let state = try await store.load()
+    #expect(state.requiresRepair)
+    #expect(state.checkpoint == nil)
+    try? FileManager.default.removeItem(at: harness.directory)
+  }
+
   private func makeEngine(
     store: MemoryFinanceKitPublisherStateStore,
     collector: FinanceKitCollectorFake,
@@ -300,10 +377,17 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
   private var batches: [FinanceKitPendingBatch] = []
   private var failuresRemaining: Int
   private var returnsMismatchedReceipt: Bool
+  private var statusSequence: [FinanceKitBatchReceipt.Status]
+  private var statusCalls = 0
 
-  init(failuresRemaining: Int = 0, returnsMismatchedReceipt: Bool = false) {
+  init(
+    failuresRemaining: Int = 0,
+    returnsMismatchedReceipt: Bool = false,
+    statusSequence: [FinanceKitBatchReceipt.Status] = []
+  ) {
     self.failuresRemaining = failuresRemaining
     self.returnsMismatchedReceipt = returnsMismatchedReceipt
+    self.statusSequence = statusSequence
   }
 
   func upload(
@@ -332,7 +416,10 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
     _ batch: FinanceKitPendingBatch,
     configuration: FinanceKitPublisherConfiguration
   ) throws -> FinanceKitBatchReceipt {
-    FinanceKitBatchReceipt(
+    statusCalls += 1
+    var status = FinanceKitBatchReceipt.Status.applied
+    if !statusSequence.isEmpty { status = statusSequence.removeFirst() }
+    return FinanceKitBatchReceipt(
       connectionID: configuration.connectionID,
       publisherID: configuration.publisherID,
       generation: configuration.generation,
@@ -340,12 +427,15 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
       batchID: returnsMismatchedReceipt ? UUID() : batch.id,
       sequence: batch.sequence,
       payloadDigest: batch.payloadDigest,
-      status: .applied,
-      acceptedAt: Date(timeIntervalSince1970: 1_700_000_001)
+      status: status,
+      acceptedAt: Date(timeIntervalSince1970: 1_700_000_001),
+      appliedAt: status == .applied ? Date(timeIntervalSince1970: 1_700_000_004) : nil,
+      errorCode: status == .failed ? "stream_fenced" : nil
     )
   }
 
   func uploadedBatches() -> [FinanceKitPendingBatch] { batches }
+  func statusCallCount() -> Int { statusCalls }
 }
 
 private final class LockedFinanceKitIDSource: @unchecked Sendable {

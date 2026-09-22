@@ -220,6 +220,7 @@ private actor FinanceKitPublisherLifecycleFake: FinanceKitPublisherLifecycleHand
 
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
   nonisolated func blockBackgroundDelivery() { blockingCalls.increment() }
+  func configuredConnectionID() async -> UUID? { nil }
   func resumeIfConfigured() async { }
   func suspend() async { }
   func disconnect() async throws { disconnectCalls += 1 }

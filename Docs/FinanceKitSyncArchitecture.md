@@ -138,6 +138,31 @@ Same-source-ID transitions update the same source identity. Different IDs are
 not joined by amount/date heuristics. A pending replacement that cannot be proven
 becomes server review work.
 
+## Triggers
+
+`FinanceKitSyncRunner` assembles the publishing stack and runs one pass. Two
+triggers call it, and nothing else about the stack differs between them:
+
+- the foreground trigger, `run(changedTypes:)`, which returns the outcome and
+  throws so the settings surface can say what happened. It is called by **Sync
+  now** and, debounced, when the scene becomes active. An empty `changedTypes`
+  is the supported request to collect everything since the checkpoint.
+- the background trigger, `runQuietly(changedTypes:)`, which swallows both, so
+  the extension never logs credentials, payloads, account identifiers, or
+  financial data.
+
+The foreground trigger has no iOS floor and needs no entitlement beyond the one
+`am.sure.insights` already ships. The background-delivery extension is
+`@available(iOS 26.0, *)` and needs a FinanceKit background entitlement on a
+second App ID, so it lands separately.
+
+A capture the server has accepted but not yet imported is reported as
+`FinanceKitSyncError.importPending`, distinct from `invalidReceipt`. The pending
+capture and the FinanceKit checkpoint are deliberately retained, so the next
+pass resumes the receipt poll rather than re-collecting. The foreground poll
+stops after about thirty seconds, because a spinner is not the place to wait out
+an import that resumes by itself.
+
 ## iOS background execution and storage
 
 The iOS 26 background-delivery extension subscribes to account, balance, and
@@ -180,14 +205,18 @@ configuration:
 5. test locked-device delivery, extension termination, offline recovery, and
    a no-app-open import on an eligible physical iPhone.
 
-The current slice implements the extension target, App Group/Keychain boundary,
-StoreKit and transport gates, exact outbox/receipt state machine, chunking,
-checkpoint custody, history collector, source fidelity, lifecycle suspension,
-and cleanup. It intentionally has no production enrollment call or default
-publisher configuration until those activation gates are met.
+The current slice implements the App Group/Keychain boundary, StoreKit and
+transport gates, exact outbox/receipt state machine, chunking, checkpoint
+custody, history collector, source fidelity, lifecycle suspension, cleanup, and
+the foreground trigger. It intentionally has no default publisher configuration
+until those activation gates are met. The background-delivery extension target
+is held on a separate branch until the Apple entitlement for
+`am.sure.insights.financekit-background` is granted; the App Group, Keychain
+access group, process lock, and file stores stay here so adding it back needs no
+migration on already-installed devices.
 
 ## Experimental control plane
 
-The iOS settings surface exposes enrollment, selected-account mapping, activation, health, conflict repair, credential renewal, and remote disconnect only when `FINANCEKIT_ENABLED` is compiled and the background-processing subscription entitlement is current. The client keeps the Apple history checkpoint and durable capture until the server reports the final batch `applied`. A replacement device never guesses that a new device-scoped FinanceKit transaction UUID is an existing ledger transaction; the server quarantines it as a `replacement_identity` conflict for explicit review.
+The iOS settings surface exposes enrollment, selected-account mapping, activation, an explicit **Sync now**, health, conflict repair, credential renewal, and remote disconnect only when `FINANCEKIT_ENABLED` is compiled and the background-processing subscription entitlement is current. It shows the server's accepted and imported times separately rather than one "last synced": accepting a capture and importing it are different facts, and collapsing them would claim a freshness Sure cannot vouch for. The client keeps the Apple history checkpoint and durable capture until the server reports the final batch `applied`. A replacement device never guesses that a new device-scoped FinanceKit transaction UUID is an existing ledger transaction; the server quarantines it as a `replacement_identity` conflict for explicit review.
 
 This remains a device-only preview. There is no broad production rollout without the Apple background entitlement, Sure preview access, and explicit family-data consent.

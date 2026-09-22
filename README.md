@@ -75,10 +75,12 @@ cached conversations. It does not change the original Wallet records or Apple's
 system permission. While connected to Sure, all reporting uses Sure;
 future Wallet ingestion must upload source transactions for aggregation on Sure.
 
-The iOS 26 FinanceKit background-delivery target and replay-safe publisher core
-are staged behind an unconfigured transport boundary. They cannot upload Wallet
-data until a revised provider contract is merged into Sure, pinned here, and the
-user completes separate upload consent and account mapping. See
+The replay-safe publisher core ships in the app behind a foreground trigger: an
+explicit **Sync now**, and a debounced sync when the app becomes active. It
+cannot upload Wallet data until a revised provider contract is merged into Sure
+and pinned here, and the user completes separate upload consent and account
+mapping. The iOS 26 background-delivery target is held on a separate branch
+until Apple grants its entitlement, so unattended sync is not available. See
 [the FinanceKit device publisher architecture](Docs/FinanceKitSyncArchitecture.md).
 
 ## AI Insight push notifications

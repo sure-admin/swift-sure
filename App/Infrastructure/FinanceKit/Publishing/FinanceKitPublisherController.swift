@@ -54,6 +54,14 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     await resumeIfConfigured()
   }
 
+  func configuredConnectionID() async -> UUID? {
+    guard let environment = try? makeEnvironment(),
+          let state = try? await FinanceKitPublisherStateFileStore(
+            fileURL: environment.stateURL
+          ).load() else { return nil }
+    return state.configuration?.connectionID
+  }
+
   func resumeIfConfigured() async {
     guard gate.isAllowed else {
       await suspend()

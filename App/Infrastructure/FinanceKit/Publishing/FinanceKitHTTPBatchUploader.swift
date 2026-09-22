@@ -1,9 +1,19 @@
 import Foundation
 
 struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
+  /// The server enqueues its import job on accept, so `applied` normally lands
+  /// within seconds; the periodic sweep is only a recovery path. Five attempts
+  /// spend about thirty seconds behind a foreground spinner, and anything slower
+  /// resumes from the retained pending capture on the next pass.
+  static let defaultStatusAttemptLimit = 5
+
   var dataTransport: any HTTPDataTransport
   var credential: String
   var canUpload: @Sendable () -> Bool = { true }
+  var statusAttemptLimit = Self.defaultStatusAttemptLimit
+  var waitBeforeStatusRetry: @Sendable (Int) async throws -> Void = { attempt in
+    try await Task.sleep(for: .seconds(min(1 << attempt, 30)))
+  }
 
   func upload(
     _ batch: FinanceKitPendingBatch,
@@ -29,8 +39,8 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
   ) async throws -> FinanceKitBatchReceipt {
     guard canUpload() else { throw FinanceKitBatchUploadError.publisherRevoked }
     let statusURL = configuration.uploadURL.appendingPathComponent(batch.id.uuidString.lowercased())
-    for attempt in 0..<10 {
-      if attempt > 0 { try await Task.sleep(for: .seconds(min(1 << attempt, 30))) }
+    for attempt in 0..<statusAttemptLimit {
+      if attempt > 0 { try await waitBeforeStatusRetry(attempt) }
       var request = URLRequest(url: statusURL)
       request.httpMethod = "GET"
       request.timeoutInterval = 30
@@ -49,12 +59,12 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
       }
       if receipt.status == .applied || receipt.status == .failed { return receipt }
     }
-    throw FinanceKitBatchUploadError.server(504)
+    throw FinanceKitSyncError.importPending
   }
 
   private func decodeReceipt(data: Data, response: URLResponse) throws -> FinanceKitBatchReceipt {
     guard let http = response as? HTTPURLResponse else { throw FinanceKitBatchUploadError.invalidResponse }
-    guard [200, 202].contains(http.statusCode) else { throw Self.error(for: http) }
+    guard [200, 202].contains(http.statusCode) else { throw Self.error(for: http, body: data) }
     do { return try Self.decoder().decode(FinanceKitBatchReceipt.self, from: data) }
     catch { throw FinanceKitBatchUploadError.invalidResponse }
   }
@@ -84,8 +94,11 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
     )
   }
 
-  private static func error(for response: HTTPURLResponse) -> FinanceKitBatchUploadError {
-    switch response.statusCode {
+  private static func error(
+    for response: HTTPURLResponse,
+    body: Data
+  ) -> FinanceKitBatchUploadError {
+    let kind: FinanceKitBatchUploadError.Kind = switch response.statusCode {
     case 401: .authentication
     case 403: .authorization
     case 409: .conflict
@@ -96,6 +109,21 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
     case 500...599: .server(response.statusCode)
     default: .invalidResponse
     }
+    return FinanceKitBatchUploadError(kind: kind, code: protocolErrorCode(in: body))
+  }
+
+  /// Protocol errors arrive as `{"error": "<code>"}`. A body that is missing,
+  /// empty, or shaped differently is not an error in itself; the status code
+  /// already classified the failure.
+  private static func protocolErrorCode(in body: Data) -> String? {
+    guard !body.isEmpty,
+          let envelope = try? JSONDecoder().decode(ProtocolErrorEnvelope.self, from: body),
+          !envelope.error.isEmpty else { return nil }
+    return envelope.error
+  }
+
+  private struct ProtocolErrorEnvelope: Decodable {
+    var error: String
   }
 
   private static func decoder() -> JSONDecoder {

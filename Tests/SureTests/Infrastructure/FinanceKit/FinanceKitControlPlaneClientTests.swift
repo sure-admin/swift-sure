@@ -25,16 +25,45 @@ struct FinanceKitControlPlaneClientTests {
     #expect(requests[1].url?.path == "/api/v1/financekit/connections/20000000-0000-4000-8000-000000000001")
   }
 
-  @Test("Decodes activation fixture into validated publisher configuration")
+  @Test("Decodes the activation contract into a validated publisher configuration")
   func activation() async throws {
-    let stub = HTTPDataTransportStub([try .http(json: Self.activationJSON)])
+    let stub = HTTPDataTransportStub([try .http(fixture: "financekit-activation")])
     let transport = SureAPITransport(baseURL: URL(string: "https://sure.example")!, dataTransport: stub,
       authorizer: UnauthenticatedRequestAuthorizer())
     let value = try await FinanceKitControlPlaneClient(transport: transport)
       .activate(connectionID: UUID(uuidString: "20000000-0000-4000-8000-000000000001")!)
-    #expect(try value.configuration().accountBindings.count == 1)
+
+    // Rails returns a plain credential string beside the config fields; there is
+    // no crypto envelope to unwrap.
     #expect(value.publisherCredential == "publisher-secret")
+    let configuration = try value.configuration()
+    #expect(configuration.protocolVersion == FinanceKitPublisherConfiguration.currentProtocolVersion)
+    #expect(configuration.connectionID == UUID(uuidString: "20000000-0000-4000-8000-000000000001"))
+    #expect(configuration.publisherID == UUID(uuidString: "30000000-0000-4000-8000-000000000001"))
+    #expect(configuration.generation == 3)
+    #expect(configuration.streamID == UUID(uuidString: "40000000-0000-4000-8000-000000000001"))
+    #expect(configuration.uploadURL.path == "/api/v1/financekit/publishers/30000000-0000-4000-8000-000000000001/batches")
+    #expect(configuration.maxRecordsPerBatch == 500)
+    #expect(configuration.maxBytesPerBatch == 5_000_000)
+    #expect(configuration.accountBindings.map(\.mappingVersion) == [2])
+    #expect(configuration.accountBindings.map(\.lineageID) == [UUID(uuidString: "10000000-0000-4000-8000-000000000001")!])
+    #expect(configuration.consent.selectedSourceAccountIDs == [UUID(uuidString: "00000000-0000-4000-8000-000000000001")!])
+    #expect(configuration.consent.grantedAt == Date(timeIntervalSince1970: 1_789_689_600))
   }
 
-  private static let activationJSON = #"{"protocol_version":2,"server_url":"https://sure.example","upload_url":"https://sure.example/api/v1/financekit/publishers/30000000-0000-4000-8000-000000000001/batches","connection_id":"20000000-0000-4000-8000-000000000001","publisher_id":"30000000-0000-4000-8000-000000000001","generation":1,"stream_id":"40000000-0000-4000-8000-000000000001","consent":{"version":1,"granted_at":"2026-09-18T00:00:00Z","selected_source_account_ids":["00000000-0000-4000-8000-000000000001"],"upload_authorized":true,"family_visibility_acknowledged":true,"remote_processing_acknowledged":true},"account_bindings":[{"source_account_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":1}],"max_records_per_batch":500,"max_bytes_per_batch":5000000,"publisher_credential":"publisher-secret"}"#
+  @Test("Keeps the server's device-contact, accepted, imported and downstream times apart")
+  func healthTimestampsStayDistinct() async throws {
+    let stub = HTTPDataTransportStub([try .http(fixture: "financekit-connection-health")])
+    let transport = SureAPITransport(baseURL: URL(string: "https://sure.example")!, dataTransport: stub,
+      authorizer: UnauthenticatedRequestAuthorizer())
+    let health = try await FinanceKitControlPlaneClient(transport: transport)
+      .health(connectionID: UUID(uuidString: "20000000-0000-4000-8000-000000000001")!)
+
+    #expect(health.status == "active")
+    #expect(health.openConflicts == 1)
+    #expect(health.lastDeviceContactAt == Date(timeIntervalSince1970: 1_789_725_600))
+    #expect(health.lastAcceptedAt == Date(timeIntervalSince1970: 1_789_725_601))
+    #expect(health.lastImportedAt == Date(timeIntervalSince1970: 1_789_725_604))
+    #expect(health.lastDownstreamAt == Date(timeIntervalSince1970: 1_789_725_900))
+  }
 }
