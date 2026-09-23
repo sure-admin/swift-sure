@@ -4,6 +4,23 @@ import Testing
 
 @Suite("FinanceKit publisher lifecycle")
 struct FinanceKitPublisherControllerTests {
+  @Test("A rejected saved batch is inspected after relaunch without upload or mutation")
+  func inspectRejectedBatch() async throws {
+    let environment = environment()
+    defer { try? FileManager.default.removeItem(at: environment.stateURL.deletingLastPathComponent()) }
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    var state = pendingState(try configuration())
+    state.requiresRepair = true
+    state.batchRejection = .invalidPayload
+    state.pendingCapture?.batches[0].body = try APIFixture.data(named: "financekit-booked-missing-posted-at")
+    try await store.save(state)
+    let controller = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment })
+    #expect(await controller.batchValidationIssue() == .init(eventIndex: 0, field: .postedAt, rule: .requiredForBooked))
+    #expect(try await store.load() == state)
+    try FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).revoke()
+    #expect(await controller.batchValidationIssue() == nil)
+  }
+
   @Test("Remote disconnect failure still deletes credentials, checkpoint and pending state")
   func remoteFailureClearsLocalData() async throws {
     let environment = environment()

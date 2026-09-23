@@ -10,6 +10,7 @@ protocol FinanceKitPublisherLifecycleHandling: Sendable {
   func configuredConnectionID() async -> UUID?
   func requiresRepair() async -> Bool
   func batchRejection() async -> FinanceKitBatchRejection?
+  func batchValidationIssue() async -> FinanceKitEventValidationIssue?
   func resumeIfConfigured() async
   func suspend() async
   func disconnect() async throws
@@ -18,4 +19,5 @@ protocol FinanceKitPublisherLifecycleHandling: Sendable {
 extension FinanceKitPublisherLifecycleHandling {
   func requiresRepair() async -> Bool { false }
   func batchRejection() async -> FinanceKitBatchRejection? { nil }
+  func batchValidationIssue() async -> FinanceKitEventValidationIssue? { nil }
 }

@@ -46,6 +46,8 @@ final class SourceBoundaryUITests: XCTestCase {
     let diagnostic = app.staticTexts["wallet-sync-batch-rejection"]
     XCTAssertTrue(diagnostic.waitForExistence(timeout: 10))
     XCTAssertTrue(diagnostic.label.contains("HTTP 422: invalid_payload"))
+    XCTAssertTrue(diagnostic.label.contains("events[7].transaction.posted_at"))
+    XCTAssertTrue(diagnostic.label.contains("A booked transaction has no posting date"))
     XCTAssertTrue(app.buttons["Repair Wallet sync"].exists)
     XCTAssertFalse(app.buttons["Sync Wallet accounts to your Sure family"].exists)
   }

@@ -13,10 +13,24 @@ final class FinanceKitSyncStore {
   static let foregroundSyncInterval: TimeInterval = 60
 
   private(set) var state: State = .idle
+  private(set) var batchValidationIssue: FinanceKitEventValidationIssue?
   private(set) var batchRejection: FinanceKitBatchRejection?
   var rejectionMessage: String? {
     guard let batchRejection else { return nil }
     let reason = batchRejection == .unknown ? "unrecognized protocol error" : batchRejection.rawValue
+    if let issue = batchValidationIssue {
+      let location = issue.eventIndex.map { "events[\($0)].\(issue.field.rawValue)" } ?? issue.field.rawValue
+      let rule: String = switch issue.rule {
+      case .requiredForBooked: "A booked transaction has no posting date. Sure requires posted_at."
+      case .nonblank: "Sure requires nonblank text."
+      case .textLimit(let limit): "Text exceeds Sure’s limit of \(limit) Unicode code points."
+      case .supportedStatus: "The transaction status is not supported by Sure."
+      case .notAfterCapture: "The timestamp is later than captured_at."
+      case .uniqueIdentity: "This record identity appears more than once in the batch."
+      case .readablePayload: "The saved batch could not be decoded for local inspection."
+      }
+      return "Sure rejected a Wallet batch (HTTP 422: \(reason)). Local check: \(location). \(rule) Uploads remain paused. Report this diagnostic before repairing again."
+    }
     return "Sure rejected a Wallet batch (HTTP 422: \(reason)). Automatic retries are paused. Repair starts a new Wallet snapshot; if the error returns, report this code."
   }
   private(set) var health: FinanceKitConnectionRecord?
@@ -118,6 +132,7 @@ final class FinanceKitSyncStore {
       case .repairRequired:
         localRepairRequired = true
         batchRejection = await publisher.batchRejection()
+        batchValidationIssue = await publisher.batchValidationIssue()
         state = .repairRequired
       case .notConfigured:
         clearStatus()
@@ -128,6 +143,7 @@ final class FinanceKitSyncStore {
       }
     } catch let error as FinanceKitBatchUploadError where error.kind == .rejected {
       batchRejection = FinanceKitBatchRejection(serverCode: error.code)
+      batchValidationIssue = await publisher.batchValidationIssue()
       localRepairRequired = true
       state = .repairRequired
     } catch FinanceKitSyncError.importPending {
@@ -175,6 +191,7 @@ final class FinanceKitSyncStore {
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
     guard !localRepairRequired, !(await publisher.requiresRepair()) else {
       if let rejection = await publisher.batchRejection() { batchRejection = rejection }
+      batchValidationIssue = await publisher.batchValidationIssue()
       state = .repairRequired
       return
     }
@@ -190,6 +207,7 @@ final class FinanceKitSyncStore {
 
   private func clearStatus() {
     health = nil
+    batchValidationIssue = nil
     batchRejection = nil
     conflicts = []
     localRepairRequired = false
@@ -204,6 +222,7 @@ final class FinanceKitSyncStore {
     guard await publisher.configuredConnectionID() != nil else { clearStatus(); return }
     do {
       try await publisher.repair()
+      batchValidationIssue = nil
       batchRejection = nil
       localRepairRequired = false
       await refreshStatus()

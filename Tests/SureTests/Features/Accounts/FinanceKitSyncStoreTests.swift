@@ -75,6 +75,20 @@ struct FinanceKitSyncStoreTests {
     #expect(store.rejectionMessage?.contains("HTTP 422") == true)
   }
 
+  @Test("Opening an existing rejection explains the offending field without syncing")
+  func existingRejectionExplainsField() async {
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection, rejection: .invalidPayload)
+    let transport = HTTPDataTransportStub(Self.refreshResponses)
+    let store = store(transport: transport, publisher: publisher)
+    await store.refresh()
+    #expect(store.rejectionMessage?.contains("events[0].transaction.posted_at") == true)
+    #expect(store.rejectionMessage?.contains("A booked transaction has no posting date") == true)
+    #expect(await transport.requests().isEmpty)
+    await store.repair()
+    #expect(store.batchValidationIssue == nil)
+    #expect(store.rejectionMessage == nil)
+  }
+
   @Test("Relaunch restores the rejection; explicit repair clears it")
   func restoresValidationRejection() async {
     let publisher = FinanceKitPublisherStub(connectionID: Self.connection, rejection: .duplicateRecord)
@@ -395,6 +409,9 @@ private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   func repair() async throws { repairs += 1; rejection = nil }
   func requiresRepair() async -> Bool { rejection != nil }
   func batchRejection() async -> FinanceKitBatchRejection? { rejection }
+  func batchValidationIssue() async -> FinanceKitEventValidationIssue? {
+    rejection == .invalidPayload ? .init(eventIndex: 0, field: .postedAt, rule: .requiredForBooked) : nil
+  }
   func resumeIfConfigured() async { }
   func suspend() async { }
   func disconnect() async throws { connection = nil }

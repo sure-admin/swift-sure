@@ -191,3 +191,15 @@ of known validation codes, fences automatic retries, and retains the original
 outbox and checkpoint until explicit repair starts a new stream. Unknown response
 text is neither persisted nor displayed. These diagnostics do not identify the
 specific field when upstream returns the generic `invalid_payload` code.
+
+The client can locally inspect the retained rejected batch for common event
+violations, without retrying or modifying it. The synthetic
+`financekit-booked-missing-posted-at.json` fixture demonstrates a booked record
+whose optional FinanceKit posting date is absent: the current Swift mapping
+omits `posted_at`, while the pinned validator requires it for `booked`. Diagnostics
+identify an event index, field, and rule only. They also check text limits using
+Unicode code points (Ruby string semantics), supported statuses, capture-relative
+dates, and duplicate identities. This inspection is partial and does not replace
+server validation; lack of a local finding is not a claim that the payload is valid.
+Do not substitute transaction dates for missing posting dates, reclassify booked
+records, or drop financial records to make this contract mismatch disappear.

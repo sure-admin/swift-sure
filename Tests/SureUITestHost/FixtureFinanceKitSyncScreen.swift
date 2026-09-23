@@ -36,6 +36,9 @@ private struct FixturePublisher: FinanceKitPublisherLifecycleHandling {
   var rejection: FinanceKitBatchRejection?
   func requiresRepair() async -> Bool { rejection != nil }
   func batchRejection() async -> FinanceKitBatchRejection? { rejection }
+  func batchValidationIssue() async -> FinanceKitEventValidationIssue? {
+    rejection == nil ? nil : .init(eventIndex: 7, field: .postedAt, rule: .requiredForBooked)
+  }
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
   func blockBackgroundDelivery() { }
   func configuredConnectionID() async -> UUID? {

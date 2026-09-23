@@ -149,6 +149,14 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     return state.batchRejection
   }
 
+  func batchValidationIssue() async -> FinanceKitEventValidationIssue? {
+    guard let environment = try? makeEnvironment(),
+          !FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).isRevoked,
+          let state = try? await FinanceKitPublisherStateFileStore(fileURL: environment.stateURL).load(),
+          state.batchRejection != nil, let batch = state.pendingCapture?.currentBatch else { return nil }
+    return FinanceKitRejectedBatchInspector().inspect(batch.body)
+  }
+
   func resumeIfConfigured() async {
     guard gate.isAllowed else {
       await suspend()
