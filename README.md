@@ -175,3 +175,6 @@ xcodebuild -project Sure.xcodeproj -scheme 'Sure UI Host' -configuration Debug \
 Continue to run the main Sure suites on iOS and macOS, and the Sure Watch suite
 on a paired simulator for Watch changes. Generated projects and Info.plists
 remain untracked.
+
+For the experimental foreground Wallet publisher, see the
+[FinanceKit device-test checklist](Docs/FinanceKitDeviceTesting.md).

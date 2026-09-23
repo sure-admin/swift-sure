@@ -10,6 +10,7 @@ on:
       - "Docs/SpendingComparison.md"
       - "Docs/PurchaseAccessPlan.md"
       - "Docs/FinanceKitSyncArchitecture.md"
+      - "Docs/FinanceKitDeviceTesting.md"
       - "appStoreConnect/**"
       - "Watch/**"
       - "Project.json"

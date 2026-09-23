@@ -72,6 +72,21 @@ struct FinanceKitHTTPBatchUploaderTests {
     }
   }
 
+  @Test("Revocation during a receipt retry prevents another authenticated request")
+  func revocationDuringRetry() async throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let revocation = FinanceKitPublisherRevocationStore(fileURL: folder.appendingPathComponent("revoked"))
+    let stub = HTTPDataTransportStub([try .http(fixture: "financekit-receipt-accepted")])
+    let uploader = FinanceKitHTTPBatchUploader(dataTransport: stub, credential: "test-only",
+      canUpload: { !revocation.isRevoked }, waitBeforeStatusRetry: { _ in try revocation.revoke() })
+    let configuration = try Self.configuration()
+    await #expect(throws: FinanceKitBatchUploadError.publisherRevoked) {
+      try await uploader.status(Self.batch, configuration: configuration)
+    }
+    #expect(await stub.requests().count == 1)
+  }
+
   private func makeUploader(_ stub: HTTPDataTransportStub) -> FinanceKitHTTPBatchUploader {
     FinanceKitHTTPBatchUploader(
       dataTransport: stub,

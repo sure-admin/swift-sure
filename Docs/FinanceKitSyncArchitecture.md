@@ -151,8 +151,11 @@ triggers call it, and nothing else about the stack differs between them:
   the extension never logs credentials, payloads, account identifiers, or
   financial data.
 
-The foreground trigger has no iOS floor and needs no entitlement beyond the one
-`am.sure.insights` already ships. The background-delivery extension is
+The foreground trigger requires FinanceKit availability and the
+`com.apple.developer.financekit` entitlement. This app supports iOS 18 or later;
+eligible accounts and regions are determined by FinanceKit at runtime. The
+foreground path does not require the separate background-delivery entitlement.
+The background-delivery extension is
 `@available(iOS 26.0, *)` and needs a FinanceKit background entitlement on a
 second App ID, so it lands separately.
 

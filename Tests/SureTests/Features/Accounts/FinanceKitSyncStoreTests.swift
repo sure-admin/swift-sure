@@ -91,6 +91,136 @@ struct FinanceKitSyncStoreTests {
     #expect(store.health?.lastImportedAt == Date(timeIntervalSince1970: 1_789_725_604))
   }
 
+  @Test("Local repair outcome survives a health refresh")
+  func repairOutcomeIsVisible() async {
+    let store = makeStore(responses: Self.refreshResponses, recorder: SyncRecorder(result: { .repairRequired }))
+    await store.refresh()
+    await store.sync()
+    await store.refresh()
+    #expect(store.state == .repairRequired)
+  }
+
+  @Test("Missing configuration clears previously displayed health")
+  func notConfiguredClearsHealth() async {
+    let store = makeStore(responses: Self.refreshResponses, recorder: SyncRecorder(result: { .notConfigured }))
+    await store.refresh()
+    await store.sync()
+    #expect(store.state == .idle)
+    #expect(store.health == nil)
+    #expect(store.conflicts.isEmpty)
+  }
+
+  @Test("Logout clears the connection for refresh, repair and renewal")
+  func logoutClearsConnection() async throws {
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    let transport = HTTPDataTransportStub(Self.refreshResponses)
+    let store = store(transport: transport, publisher: publisher)
+    await store.refresh()
+    try await publisher.disconnect()
+    await store.refresh()
+    await store.repair()
+    await store.renew()
+    #expect(store.state == .idle)
+    #expect(store.health == nil)
+    #expect(await transport.requests().count == 2)
+  }
+
+  @Test("Existing durable configuration prevents another enrollment before refresh")
+  func configuredEnrollmentDoesNotCreateConnection() async {
+    let transport = HTTPDataTransportStub(Self.refreshResponses)
+    let store = store(transport: transport, publisher: FinanceKitPublisherStub(connectionID: Self.connection))
+    await store.enroll(accounts: [Self.account])
+    #expect(store.state == .active)
+    #expect(await transport.requests().allSatisfy { $0.httpMethod == "GET" })
+  }
+
+  @Test("All accounts are validated before any remote enrollment")
+  func invalidAccountsDoNotEnroll() async {
+    let transport = HTTPDataTransportStub([])
+    let store = store(transport: transport, publisher: FinanceKitPublisherStub(connectionID: nil))
+    var missingBalance = Self.account
+    missingBalance.id = UUID(uuidString: "00000000-0000-4000-8000-000000000002")!
+    missingBalance.balance = nil
+    await store.enroll(accounts: [Self.account, missingBalance])
+    #expect(await transport.requests().isEmpty)
+    #expect(store.state == .failed("Wallet sync couldn’t be enabled. Try again."))
+  }
+
+  @Test("Mapping, activation and installation failures remove the new remote connection", arguments: [0, 1, 2])
+  func enrollmentRollback(stage: Int) async throws {
+    var responses: [HTTPDataTransportStub.Result] = [
+      try .http(json: #"{"available":true}"#), try .http(fixture: "financekit-connection-health", status: 201)
+    ]
+    if stage > 0 { responses.append(try .http(json: Self.mappingJSON)) }
+    if stage > 1 { responses.append(try .http(fixture: "financekit-activation")) }
+    else { responses.append(.failure(URLError(.notConnectedToInternet))) }
+    responses.append(try .http(status: 204))
+    let transport = HTTPDataTransportStub(responses)
+    let publisher = FinanceKitPublisherStub(connectionID: nil, failInstall: stage == 2)
+    let store = store(transport: transport, publisher: publisher)
+    await store.enroll(accounts: [Self.account])
+    let requests = await transport.requests()
+    #expect(requests.last?.httpMethod == "DELETE")
+    #expect(requests.last?.url?.path == "/api/v1/financekit/connections/20000000-0000-4000-8000-000000000001")
+    #expect(store.state == .failed("Wallet sync couldn’t be enabled. Try again."))
+  }
+
+  @Test("Successful enrollment installs one publisher and refreshes its health")
+  func successfulEnrollment() async throws {
+    let transport = HTTPDataTransportStub([
+      try .http(json: #"{"available":true}"#), try .http(fixture: "financekit-connection-health", status: 201),
+      try .http(json: Self.mappingJSON), try .http(fixture: "financekit-activation")
+    ] + Self.refreshResponses)
+    let publisher = FinanceKitPublisherStub(connectionID: nil)
+    let store = store(transport: transport, publisher: publisher)
+    await store.enroll(accounts: [Self.account])
+    #expect(store.state == .active)
+    #expect(await publisher.configuredConnectionID() == Self.connection)
+    #expect(await transport.requests().map(\.httpMethod) == ["GET", "POST", "PUT", "POST", "GET", "GET"])
+  }
+
+  @Test("Failed rollback is retried before another enrollment")
+  func failedRollbackPreventsDuplicate() async throws {
+    let transport = HTTPDataTransportStub([
+      try .http(json: #"{"available":true}"#), try .http(fixture: "financekit-connection-health", status: 201),
+      .failure(URLError(.notConnectedToInternet)), .failure(URLError(.notConnectedToInternet)),
+      .failure(URLError(.notConnectedToInternet))
+    ])
+    let store = store(transport: transport, publisher: FinanceKitPublisherStub(connectionID: nil))
+    await store.enroll(accounts: [Self.account])
+    await store.enroll(accounts: [Self.account])
+    #expect(await transport.requests().map(\.httpMethod) == ["GET", "POST", "PUT", "DELETE", "DELETE"])
+  }
+
+  @Test("Overlapping enrollment and refresh cannot start another connection")
+  func duplicateEnrollmentIsRejected() async throws {
+    let gate = EnrollmentGate()
+    let transport = HTTPDataTransportStub([try .http(json: #"{"available":false}"#)])
+    let store = FinanceKitSyncStore(
+      client: FinanceKitControlPlaneClient(transport: SureAPITransport(baseURL: URL(string: "https://sure.example")!,
+        dataTransport: transport, authorizer: UnauthenticatedRequestAuthorizer())),
+      publisher: FinanceKitPublisherStub(connectionID: nil), entitlementExpiration: { await gate.wait() })
+    let first = Task { await store.enroll(accounts: [Self.account]) }
+    await gate.waitUntilStarted()
+    await store.refresh()
+    await store.enroll(accounts: [Self.account])
+    #expect(store.state == .enrolling)
+    await gate.resume()
+    await first.value
+    #expect(await transport.requests().count == 1)
+  }
+
+  private static let account = LocalFinancialAccount(
+    id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, name: "Wallet", institutionName: "Wallet",
+    kind: .liability, balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))
+  private static let mappingJSON = #"{"source_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":2}"#
+
+  private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub) -> FinanceKitSyncStore {
+    FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
+      baseURL: URL(string: "https://sure.example")!, dataTransport: transport, authorizer: UnauthenticatedRequestAuthorizer())),
+      publisher: publisher, entitlementExpiration: { Date.distantFuture }, runSync: { _ in .noChanges })
+  }
+
   private static var refreshResponses: [HTTPDataTransportStub.Result] {
     [
       try! .http(fixture: "financekit-connection-health"),
@@ -98,7 +228,7 @@ struct FinanceKitSyncStoreTests {
     ]
   }
 
-  private static let connection = UUID(uuidString: "20000000-0000-4000-8000-000000000001")!
+  private nonisolated static let connection = UUID(uuidString: "20000000-0000-4000-8000-000000000001")!
 
   private func makeStore(
     responses: [HTTPDataTransportStub.Result],
@@ -121,16 +251,20 @@ struct FinanceKitSyncStoreTests {
 }
 
 private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
-  private let connection: UUID?
+  private var connection: UUID?
+  private let failInstall: Bool
 
-  init(connectionID: UUID?) { connection = connectionID }
+  init(connectionID: UUID?, failInstall: Bool = false) { connection = connectionID; self.failInstall = failInstall }
 
-  func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
+  func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws {
+    if failInstall { throw FinanceKitSyncError.invalidState }
+    connection = configuration.connectionID
+  }
   nonisolated func blockBackgroundDelivery() { }
   func configuredConnectionID() async -> UUID? { connection }
   func resumeIfConfigured() async { }
   func suspend() async { }
-  func disconnect() async throws { }
+  func disconnect() async throws { connection = nil }
 }
 
 private final class SyncRecorder: @unchecked Sendable {
@@ -161,4 +295,21 @@ private final class TestClock: @unchecked Sendable {
   func advance(_ interval: TimeInterval) {
     lock.withLock { value = value.addingTimeInterval(interval) }
   }
+}
+
+private actor EnrollmentGate {
+  private var continuation: CheckedContinuation<Date?, Never>?
+  private var started: CheckedContinuation<Void, Never>?
+  func wait() async -> Date? {
+    await withCheckedContinuation {
+      continuation = $0
+      started?.resume()
+      started = nil
+    }
+  }
+  func waitUntilStarted() async {
+    if continuation != nil { return }
+    await withCheckedContinuation { started = $0 }
+  }
+  func resume() { continuation?.resume(returning: .distantFuture); continuation = nil }
 }

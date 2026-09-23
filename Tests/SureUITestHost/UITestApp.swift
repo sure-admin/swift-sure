@@ -4,6 +4,7 @@ import SwiftUI
 /// It has no production composition root, entitlements, SDK startup, or services.
 @main
 struct UITestApp: App {
+  private let scenario: String
   private let connection: FixtureConnection
   private let client: FixtureClient
   private let finance: FinanceDataStore
@@ -13,6 +14,7 @@ struct UITestApp: App {
 
   init() {
     let scenario = ProcessInfo.processInfo.environment["SURE_SCENARIO"] ?? "onboarding"
+    self.scenario = scenario
     let connection = FixtureConnection(preview: scenario == "onboarding")
     let client = FixtureClient(failFirst: scenario == "failure")
     let wallet = AppleCardConnectionStore(connector: FixtureWallet())
@@ -26,15 +28,19 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      TabView {
-        Tab("Accounts", systemImage: "building.columns") {
-          AccountsView(data: finance, allowsWalletPreview: connection.allowsWalletPreview,
-            hasSyncAccess: connection.isConfigured, appleCardConnection: wallet,
-            transactionHistoryStoreFactory: factory, localTransactionHistoryStoreFactory: factory)
-        }
-        Tab("Spending", systemImage: "chart.xyaxis.line") {
-          ScrollView { SpendingComparisonCard(store: comparison).padding() }
-            .task { if connection.allowsWalletPreview { await wallet.refresh() } }
+      if scenario == "wallet-sync" {
+        FixtureFinanceKitSyncScreen()
+      } else {
+        TabView {
+          Tab("Accounts", systemImage: "building.columns") {
+            AccountsView(data: finance, allowsWalletPreview: connection.allowsWalletPreview,
+              hasSyncAccess: connection.isConfigured, appleCardConnection: wallet,
+              transactionHistoryStoreFactory: factory, localTransactionHistoryStoreFactory: factory)
+          }
+          Tab("Spending", systemImage: "chart.xyaxis.line") {
+            ScrollView { SpendingComparisonCard(store: comparison).padding() }
+              .task { if connection.allowsWalletPreview { await wallet.refresh() } }
+          }
         }
       }
     }

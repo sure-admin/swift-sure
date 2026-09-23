@@ -73,12 +73,12 @@ struct ApplicationView: View {
       .task { await subscriptionAccess.monitor() }
       .onChange(of: scenePhase) { _, phase in
         if phase == .active {
-          Task { await subscriptionAccess.refresh() }
-          #if os(iOS) && FINANCEKIT_ENABLED
-          // Debounced in the store: the process lock would serialise a re-entry
-          // anyway, but losing that race is not something to show the user.
-          if subscriptionAccess.hasAccess { Task { await financeKitSync.syncOnForeground() } }
-          #endif
+          Task {
+            await subscriptionAccess.refresh()
+            #if os(iOS) && FINANCEKIT_ENABLED
+            if subscriptionAccess.hasAccess { await financeKitSync.syncOnForeground() }
+            #endif
+          }
         }
       }
       .onChange(of: subscriptionAccess.hasAccess, initial: true) { _, allowed in

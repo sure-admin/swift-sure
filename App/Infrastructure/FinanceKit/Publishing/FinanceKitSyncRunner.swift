@@ -41,7 +41,10 @@ struct FinanceKitSyncRunner: Sendable {
       uploader: FinanceKitHTTPBatchUploader.live(
         gate: gate,
         credential: credential,
-        canUpload: { !revocationStore.isRevoked }
+        canUpload: {
+          !revocationStore.isRevoked &&
+            (try? credentialStore.credential(for: configuration.publisherID)) == credential
+        }
       ),
       processLock: FinanceKitProcessLock(url: environment.lockURL)
     )

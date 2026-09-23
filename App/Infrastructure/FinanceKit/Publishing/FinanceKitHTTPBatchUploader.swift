@@ -41,6 +41,8 @@ struct FinanceKitHTTPBatchUploader: FinanceKitBatchUploading {
     let statusURL = configuration.uploadURL.appendingPathComponent(batch.id.uuidString.lowercased())
     for attempt in 0..<statusAttemptLimit {
       if attempt > 0 { try await waitBeforeStatusRetry(attempt) }
+      try Task.checkCancellation()
+      guard canUpload() else { throw FinanceKitBatchUploadError.publisherRevoked }
       var request = URLRequest(url: statusURL)
       request.httpMethod = "GET"
       request.timeoutInterval = 30

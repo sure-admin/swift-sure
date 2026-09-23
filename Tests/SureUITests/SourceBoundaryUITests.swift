@@ -40,6 +40,22 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testWalletEnrollmentShowsAccessibleProgress() throws {
+    let app = launch("wallet-sync")
+    let consent = app.switches["I understand this shares financial data with my Sure family"]
+    XCTAssertTrue(consent.waitForExistence(timeout: 10))
+    consent.switches.firstMatch.tap()
+    let enroll = app.buttons["Sync Wallet accounts to your Sure family"]
+    XCTAssertTrue(enroll.isEnabled)
+    enroll.tap()
+    XCTAssertTrue(app.descendants(matching: .any)["wallet-sync-enrollment-progress"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.buttons["Sync Wallet accounts to your Sure family"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    app.buttons["Finish fixture enrollment"].tap()
+    XCTAssertTrue(app.buttons["Sync Wallet accounts to your Sure family"].waitForExistence(timeout: 10))
+  }
+
+  @MainActor
   private func launch(_ scenario: String) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchEnvironment["SURE_SCENARIO"] = scenario

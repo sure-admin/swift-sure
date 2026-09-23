@@ -15,6 +15,9 @@ struct FinanceKitSyncView: View {
         Toggle("I understand this shares financial data with my Sure family", isOn: $consent)
         switch sync.state {
         case .active, .syncing, .importing: activeControls
+        case .enrolling:
+          ProgressView("Enabling Wallet sync…")
+            .accessibilityIdentifier("wallet-sync-enrollment-progress")
         case .repairRequired:
           Label("Repair required", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
           Button("Repair Wallet sync") { Task { await sync.repair() } }
