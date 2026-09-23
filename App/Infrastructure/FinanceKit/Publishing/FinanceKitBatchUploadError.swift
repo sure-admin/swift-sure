@@ -27,6 +27,7 @@ struct FinanceKitBatchUploadError: Error, Equatable, Sendable {
     self.code = code
   }
 
+  static let publisherUnauthorized = FinanceKitBatchUploadError(kind: .authentication, code: "publisher_unauthorized")
   static let authentication = FinanceKitBatchUploadError(kind: .authentication)
   static let authorization = FinanceKitBatchUploadError(kind: .authorization)
   static let conflict = FinanceKitBatchUploadError(kind: .conflict)

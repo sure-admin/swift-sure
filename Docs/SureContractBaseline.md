@@ -77,23 +77,33 @@ Sure applies exchange rates. Those totals remain `Decimal` through the domain
 and are rounded only for display; native account, transaction, and budget values
 continue to use the server's integer minor units.
 
-The experimental FinanceKit control plane and batch protocol are **not** part of
-the pinned revision above. Their fixtures
+The FinanceKit control plane and batch protocol use a scoped supplemental pin:
+[PR #3633's merge, `355648ce5d67b5b68fff5723ca5298467047e72e`](https://github.com/we-promise/sure/commit/355648ce5d67b5b68fff5723ca5298467047e72e).
+The general API baseline above remains unchanged. The FinanceKit fixtures
 (`Tests/SureTests/Infrastructure/API/Fixtures/financekit-*.json`) represent
-protocol 2 as described by upstream
-[PR #3633](https://github.com/we-promise/sure/pull/3633), which is deployed
-behind a flag rather than merged into `main`. The shapes pinned are: activation
-returns a plain `publisher_credential` string beside the configuration fields,
-with no crypto envelope; a receipt carries `connection_id`, `publisher_id`,
-`generation`, `stream_id`, `batch_id`, `sequence`, `payload_digest`, `status`,
-`accepted_at`, `applied_at`, and `error_code`; connection health keeps
-`last_device_contact_at`, `last_accepted_at`, `last_imported_at`, and
-`last_downstream_at` distinct, because accepting a capture and importing it are
-different facts; and a batch protocol error body is `{"error": "<code>"}`.
+protocol 2. Activation returns a plain `publisher_credential` string beside the
+configuration; receipts distinguish acceptance from import and bind the full
+publisher/stream/batch identity.
 
-These fixtures were written from that description rather than verified against a
-running instance. Confirm them and fold the FinanceKit contract into the pin
-above when #3633 merges.
+Publisher authentication and renewal were checked against this revision's
+[OpenAPI](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/docs/api/openapi.yaml),
+[batch controller](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/controllers/api/v1/financekit/batches_controller.rb),
+and [publisher model](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/models/financekit_item.rb):
+
+- Batch upload and receipt lookup use `Authorization: Bearer <publisher_credential>`,
+  independently of user OAuth/API-key authorization.
+- Invalid publisher credentials return HTTP 401 with
+  `{"error":"publisher_unauthorized"}` (the corresponding sanitized fixture).
+- Credential renewal immediately replaces the server's credential digest without
+  changing generation, stream, sequence, or predecessor digest. Repair changes
+  generation and stream and resets sequence continuity.
+- The client locks rotation and credential installation against uploads, preserves
+  pending batches on renewal, and retries a rejected foreground pass only once
+  after renewing the publisher credential. Other failures do not trigger rotation.
+
+These are offline contract checks, not proof of any particular deployment's
+configuration. Adoption of the broader merged server revision still requires the
+normal baseline review.
 
 ## Transaction product behavior
 

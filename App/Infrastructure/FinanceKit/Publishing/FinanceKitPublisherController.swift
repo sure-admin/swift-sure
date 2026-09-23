@@ -5,6 +5,12 @@ import FinanceKit
 #endif
 
 actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
+  typealias RemoteUpdate = @Sendable (UUID) async throws -> (
+    configuration: FinanceKitPublisherConfiguration, credential: String
+  )
+
+  private let remoteRenew: RemoteUpdate
+  private let remoteRepair: RemoteUpdate
   private var gate: BackendAccessGate
   private nonisolated let makeEnvironment: @Sendable () throws -> FinanceKitPublisherEnvironment
   private nonisolated let makeCredentialStore: @Sendable (String) -> any FinanceKitPublisherCredentialStoring
@@ -18,8 +24,12 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     makeCredentialStore: @escaping @Sendable (String) -> any FinanceKitPublisherCredentialStoring = {
       FinanceKitPublisherCredentialStore(accessGroup: $0)
     },
+    remoteRenew: @escaping RemoteUpdate = { _ in throw FinanceKitSyncError.invalidState },
+    remoteRepair: @escaping RemoteUpdate = { _ in throw FinanceKitSyncError.invalidState },
     remoteDisconnect: @escaping @Sendable (UUID) async throws -> Void = { _ in }
   ) {
+    self.remoteRenew = remoteRenew
+    self.remoteRepair = remoteRepair
     self.gate = gate
     self.makeEnvironment = makeEnvironment
     self.remoteDisconnect = remoteDisconnect
@@ -57,6 +67,62 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     await resumeIfConfigured()
   }
 
+  func renewCredential() async throws {
+    try await updatePublisher(.renewal)
+  }
+
+  func repair() async throws {
+    try await updatePublisher(.repair)
+  }
+
+  private enum PublisherUpdate { case renewal, repair }
+
+  private func updatePublisher(_ operation: PublisherUpdate) async throws {
+    try gate.check()
+    let environment = try makeEnvironment()
+    // Rotation invalidates the server's previous credential immediately. Hold the
+    // same lock as uploads BEFORE the control-plane request, through installation.
+    let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
+    defer { _ = lock }
+    let revocation = FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL)
+    guard !revocation.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    var state = try await store.load()
+    guard let previous = state.configuration else { throw FinanceKitSyncError.invalidState }
+    if operation == .repair {
+      // If repair succeeds remotely but local installation fails, do not send
+      // the retained outbox into the replacement stream. A later repair can retry.
+      state.requiresRepair = true
+      try await store.save(state)
+    }
+    try gate.check()
+    guard !revocation.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
+    let update = try await (operation == .repair ? remoteRepair : remoteRenew)(previous.connectionID)
+    try Task.checkCancellation()
+    try gate.check()
+    guard !revocation.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
+    let configuration = update.configuration
+    guard configuration.connectionID == previous.connectionID,
+          configuration.publisherID == previous.publisherID,
+          configuration.serverURL == previous.serverURL else { throw FinanceKitSyncError.invalidState }
+    if operation == .repair {
+      guard configuration.generation > previous.generation,
+            configuration.streamID != previous.streamID else { throw FinanceKitSyncError.invalidState }
+      state = .empty
+    } else {
+      guard configuration.generation == previous.generation,
+            configuration.streamID == previous.streamID,
+            configuration.accountBindings == previous.accountBindings,
+            configuration.consent == previous.consent else { throw FinanceKitSyncError.invalidState }
+    }
+    state.configuration = configuration
+    // Renewal changes the secret, not the stream. Retain exact pending bytes,
+    // sequence, digest chain, and checkpoint so a rejected batch is replayable.
+    try makeCredentialStore(environment.keychainAccessGroup)
+      .saveCredential(update.credential, for: configuration.publisherID)
+    try await store.save(state)
+  }
+
   func configuredConnectionID() async -> UUID? {
     guard let environment = try? makeEnvironment(),
           let state = try? await FinanceKitPublisherStateFileStore(
@@ -84,8 +150,6 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     let environment: FinanceKitPublisherEnvironment
     let stateStore: FinanceKitPublisherStateFileStore
     let revocationStore: FinanceKitPublisherRevocationStore
-    let credential: String
-    let publisherID: UUID
     let credentialStore: any FinanceKitPublisherCredentialStoring
     do {
       environment = try makeEnvironment()
@@ -96,27 +160,32 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
       stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
       let state = try await stateStore.load()
       credentialStore = makeCredentialStore(environment.keychainAccessGroup)
-      guard let configuredPublisher = state.configuration,
-            let storedCredential = try credentialStore.credential(for: configuredPublisher.publisherID) else { throw FinanceKitSyncError.invalidState }
-      credential = storedCredential
-      publisherID = configuredPublisher.publisherID
+      guard state.configuration != nil else { throw FinanceKitSyncError.invalidState }
     } catch {
       disableBackgroundDelivery()
       return
     }
 
     enableBackgroundDelivery()
+    let uploadGate = gate
     do {
       let engine = FinanceKitSyncEngine(
         stateStore: stateStore,
         collector: FinanceKitHistoryChangeCollector(),
-        uploader: FinanceKitHTTPBatchUploader.live(
-          gate: gate,
-          credential: credential,
-          canUpload: {
-            !revocationStore.isRevoked && (try? credentialStore.credential(for: publisherID)) == credential
+        makeUploader: { configuration in
+          guard !revocationStore.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
+          guard let credential = try credentialStore.credential(for: configuration.publisherID) else {
+            throw FinanceKitSyncError.invalidState
           }
-        ),
+          return FinanceKitHTTPBatchUploader.live(
+            gate: uploadGate,
+            credential: credential,
+            canUpload: {
+              !revocationStore.isRevoked &&
+                (try? credentialStore.credential(for: configuration.publisherID)) == credential
+            }
+          )
+        },
         processLock: FinanceKitProcessLock(url: environment.lockURL)
       )
       _ = try await engine.synchronize()

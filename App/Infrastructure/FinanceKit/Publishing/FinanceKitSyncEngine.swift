@@ -3,7 +3,7 @@ import Foundation
 actor FinanceKitSyncEngine {
   private var stateStore: any FinanceKitPublisherStateStoring
   private var collector: any FinanceKitChangeCollecting
-  private var uploader: any FinanceKitBatchUploading
+  private var makeUploader: @Sendable (FinanceKitPublisherConfiguration) throws -> any FinanceKitBatchUploading
   private var processLock: FinanceKitProcessLock
   private var planner: FinanceKitBatchPlanner
 
@@ -16,7 +16,21 @@ actor FinanceKitSyncEngine {
   ) {
     self.stateStore = stateStore
     self.collector = collector
-    self.uploader = uploader
+    self.makeUploader = { _ in uploader }
+    self.processLock = processLock
+    self.planner = planner
+  }
+
+  init(
+    stateStore: any FinanceKitPublisherStateStoring,
+    collector: any FinanceKitChangeCollecting,
+    makeUploader: @escaping @Sendable (FinanceKitPublisherConfiguration) throws -> any FinanceKitBatchUploading,
+    processLock: FinanceKitProcessLock,
+    planner: FinanceKitBatchPlanner = FinanceKitBatchPlanner()
+  ) {
+    self.stateStore = stateStore
+    self.collector = collector
+    self.makeUploader = makeUploader
     self.processLock = processLock
     self.planner = planner
   }
@@ -30,6 +44,9 @@ actor FinanceKitSyncEngine {
     var state = try await stateStore.load()
     guard let configuration = state.configuration else { return .notConfigured }
     guard !state.requiresRepair else { return .repairRequired }
+    // Resolve the credential against this configuration while holding the lock,
+    // so neither a renewal nor a repair can leave an uploader with a stale secret.
+    let uploader = try makeUploader(configuration)
 
     if state.pendingCapture == nil {
       let changes: FinanceKitCollectedChanges

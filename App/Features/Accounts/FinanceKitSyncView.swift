@@ -6,7 +6,7 @@ struct FinanceKitSyncView: View {
   var wallet: AppleCardConnectionStore
   @State private var consent = false
 
-  private var isBusy: Bool { sync.state == .syncing || sync.state == .importing }
+  private var isBusy: Bool { sync.isBusy || sync.state == .importing }
 
   var body: some View {
     Form {
@@ -69,6 +69,7 @@ struct FinanceKitSyncView: View {
     timestamp("Last accepted by Sure", sync.health?.lastAcceptedAt)
     timestamp("Last imported into your family", sync.health?.lastImportedAt)
     Button("Renew publisher credential") { Task { await sync.renew() } }
+      .disabled(sync.isBusy)
   }
 
   private func timestamp(_ label: String, _ value: Date?) -> some View {

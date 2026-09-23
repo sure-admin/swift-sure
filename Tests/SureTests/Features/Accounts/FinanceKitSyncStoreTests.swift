@@ -210,6 +210,88 @@ struct FinanceKitSyncStoreTests {
     #expect(await transport.requests().count == 1)
   }
 
+  @Test("Publisher authorization recovers once and never loops", arguments: [false, true])
+  func rejectedPublisherRecovery(alwaysReject: Bool) async throws {
+    let attempts = PublisherSyncAttempts(alwaysReject: alwaysReject)
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    let transport = HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses)
+    let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
+      baseURL: URL(string: "https://sure.example")!, dataTransport: transport,
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher,
+      runSync: { _ in try await attempts.run() })
+    await store.refresh()
+    await store.sync()
+    #expect(await attempts.count == 2)
+    #expect(await publisher.renewals == 1)
+    #expect(await transport.requests().allSatisfy { $0.httpMethod == "GET" })
+    if alwaysReject {
+      #expect(store.state == .failed("Wallet sync couldn’t finish. Try again."))
+    } else {
+      #expect(store.state == .active)
+    }
+  }
+
+  @Test("Other upload failures never rotate the publisher credential", arguments: [
+    FinanceKitBatchUploadError.authentication, .authorization, .publisherRevoked, .server(503)
+  ])
+  func otherFailuresDoNotRenew(error: FinanceKitBatchUploadError) async {
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
+      baseURL: URL(string: "https://sure.example")!, dataTransport: HTTPDataTransportStub(Self.refreshResponses),
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, runSync: { _ in throw error })
+    await store.refresh()
+    await store.sync()
+    #expect(await publisher.renewals == 0)
+  }
+
+  @Test("Repeated renew, repair, refresh, and sync actions cannot overlap a renewal")
+  func renewalRejectsOverlappingActions() async {
+    let barrier = EnrollmentGate()
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection, beforeRenew: { _ = await barrier.wait() })
+    let transport = HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses)
+    let store = store(transport: transport, publisher: publisher)
+    await store.refresh()
+    let renewal = Task { await store.renew() }
+    await barrier.waitUntilStarted()
+    #expect(store.isBusy)
+    await store.renew()
+    await store.repair()
+    await store.refresh()
+    await store.syncOnForeground()
+    await store.sync()
+    #expect(await publisher.renewals == 1)
+    #expect(await publisher.repairs == 0)
+    #expect(await transport.requests().count == 2)
+    await barrier.resume()
+    await renewal.value
+    #expect(!store.isBusy)
+    #expect(store.state == .active)
+    #expect(await transport.requests().count == 4)
+  }
+
+  @Test("Renewal cannot be started while a foreground batch is uploading")
+  func uploadingBlocksRenewal() async {
+    let barrier = EnrollmentGate()
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
+      baseURL: URL(string: "https://sure.example")!,
+      dataTransport: HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses),
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, runSync: { _ in
+        _ = await barrier.wait()
+        return .uploaded(1)
+      })
+    await store.refresh()
+    let upload = Task { await store.sync() }
+    await barrier.waitUntilStarted()
+    await store.renew()
+    await store.repair()
+    #expect(await publisher.renewals == 0)
+    #expect(await publisher.repairs == 0)
+    await barrier.resume()
+    await upload.value
+    #expect(store.state == .active)
+  }
+
   private static let account = LocalFinancialAccount(
     id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, name: "Wallet", institutionName: "Wallet",
     kind: .liability, balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))
@@ -254,7 +336,10 @@ private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   private var connection: UUID?
   private let failInstall: Bool
 
-  init(connectionID: UUID?, failInstall: Bool = false) { connection = connectionID; self.failInstall = failInstall }
+  private let beforeRenew: @Sendable () async -> Void
+  init(connectionID: UUID?, failInstall: Bool = false, beforeRenew: @escaping @Sendable () async -> Void = {}) {
+    connection = connectionID; self.failInstall = failInstall; self.beforeRenew = beforeRenew
+  }
 
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws {
     if failInstall { throw FinanceKitSyncError.invalidState }
@@ -262,6 +347,10 @@ private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   }
   nonisolated func blockBackgroundDelivery() { }
   func configuredConnectionID() async -> UUID? { connection }
+  private(set) var renewals = 0
+  private(set) var repairs = 0
+  func renewCredential() async throws { renewals += 1; await beforeRenew() }
+  func repair() async throws { repairs += 1 }
   func resumeIfConfigured() async { }
   func suspend() async { }
   func disconnect() async throws { connection = nil }
@@ -312,4 +401,15 @@ private actor EnrollmentGate {
     await withCheckedContinuation { started = $0 }
   }
   func resume() { continuation?.resume(returning: .distantFuture); continuation = nil }
+}
+
+private actor PublisherSyncAttempts {
+  private(set) var count = 0
+  private var alwaysReject: Bool
+  init(alwaysReject: Bool) { self.alwaysReject = alwaysReject }
+  func run() throws -> FinanceKitSyncOutcome {
+    count += 1
+    if count == 1 || alwaysReject { throw FinanceKitBatchUploadError.publisherUnauthorized }
+    return .uploaded(1)
+  }
 }

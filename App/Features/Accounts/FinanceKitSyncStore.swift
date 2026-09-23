@@ -26,6 +26,8 @@ final class FinanceKitSyncStore {
   private var localRepairRequired = false
   private var lastForegroundSyncAt: Date?
   private var isSyncing = false
+  private var isUpdatingPublisher = false
+  var isBusy: Bool { enrollmentInProgress || isSyncing || isUpdatingPublisher }
 
   init(client: FinanceKitControlPlaneClient, publisher: any FinanceKitPublisherLifecycleHandling,
        entitlementExpiration: @escaping @Sendable () async -> Date? = {
@@ -42,7 +44,7 @@ final class FinanceKitSyncStore {
   }
 
   func enroll(accounts: [LocalFinancialAccount]) async {
-    guard !enrollmentInProgress, !isSyncing else { return }
+    guard !isBusy else { return }
     enrollmentInProgress = true
     defer { enrollmentInProgress = false }
     state = .enrolling
@@ -101,12 +103,12 @@ final class FinanceKitSyncStore {
   /// Collects everything since the checkpoint and uploads it. An empty hint set
   /// is the supported "collect everything" request, not a workaround.
   func sync() async {
-    guard case .active = state else { return }
+    guard !isBusy, case .active = state else { return }
     state = .syncing
     isSyncing = true
     defer { isSyncing = false }
     do {
-      switch try await runSync([]) {
+      switch try await syncWithCredentialRecovery() {
       case .repairRequired:
         localRepairRequired = true
         state = .repairRequired
@@ -129,10 +131,22 @@ final class FinanceKitSyncStore {
     }
   }
 
+  private func syncWithCredentialRecovery() async throws -> FinanceKitSyncOutcome {
+    do {
+      return try await runSync([])
+    } catch let error as FinanceKitBatchUploadError where error == .publisherUnauthorized {
+      try Task.checkCancellation()
+      // Only the dedicated publisher credential is renewed; never refresh OAuth
+      // or re-enroll. A second rejection escapes without another rotation loop.
+      try await publisher.renewCredential()
+      return try await runSync([])
+    }
+  }
+
   /// The scene-phase entry point: refreshes health, then syncs if this device is
   /// still a configured publisher and the last attempt is old enough.
   func syncOnForeground() async {
-    guard !isSyncing, !enrollmentInProgress else { return }
+    guard !isBusy else { return }
     let moment = now()
     if let last = lastForegroundSyncAt, moment.timeIntervalSince(last) < Self.foregroundSyncInterval { return }
     lastForegroundSyncAt = moment
@@ -142,7 +156,7 @@ final class FinanceKitSyncStore {
   }
 
   func refresh() async {
-    guard !enrollmentInProgress, !isSyncing else { return }
+    guard !isBusy else { return }
     await refreshStatus()
   }
 
@@ -171,25 +185,30 @@ final class FinanceKitSyncStore {
   }
 
   func repair() async {
-    guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
+    guard !isBusy else { return }
+    isUpdatingPublisher = true
+    defer { isUpdatingPublisher = false }
+    guard await publisher.configuredConnectionID() != nil else { clearStatus(); return }
     do {
-      let activation = try await client.repair(connectionID: connectionID)
-      try await publisher.install(configuration: activation.configuration(), credential: activation.publisherCredential)
+      try await publisher.repair()
       localRepairRequired = false
       await refreshStatus()
     } catch { state = .failed("Wallet sync repair failed.") }
   }
 
   func renew() async {
-    guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
+    guard !isBusy else { return }
+    isUpdatingPublisher = true
+    defer { isUpdatingPublisher = false }
+    guard await publisher.configuredConnectionID() != nil else { clearStatus(); return }
     do {
-      let activation = try await client.renew(connectionID: connectionID)
-      try await publisher.install(configuration: activation.configuration(), credential: activation.publisherCredential)
+      try await publisher.renewCredential()
       await refreshStatus()
     } catch { state = .failed("Wallet sync credential renewal failed.") }
   }
 
   func resolve(_ conflict: FinanceKitConflictRecord, keepingSure: Bool) async {
+    guard !isBusy else { return }
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
     do { _ = try await client.resolve(connectionID: connectionID, conflictID: conflict.id,
       resolution: keepingSure ? "keep_sure" : "retry_after_repair"); await refresh() }

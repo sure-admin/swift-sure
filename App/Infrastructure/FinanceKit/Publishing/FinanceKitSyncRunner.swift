@@ -22,30 +22,30 @@ struct FinanceKitSyncRunner: Sendable {
     )
     guard !revocationStore.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
     let stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
-    let state = try await stateStore.load()
-    guard let configuration = state.configuration else { return .notConfigured }
-
     let credentialStore = FinanceKitPublisherCredentialStore(
       accessGroup: environment.keychainAccessGroup
     )
-    guard let credential = try credentialStore.credential(
-      for: configuration.publisherID
-    ) else { throw FinanceKitSyncError.invalidState }
 
     let gate = BackendAccessGate()
     gate.update(expiration: await entitlementReader.expiration())
-    try gate.check()
     let engine = FinanceKitSyncEngine(
       stateStore: stateStore,
       collector: FinanceKitHistoryChangeCollector(),
-      uploader: FinanceKitHTTPBatchUploader.live(
-        gate: gate,
-        credential: credential,
-        canUpload: {
-          !revocationStore.isRevoked &&
-            (try? credentialStore.credential(for: configuration.publisherID)) == credential
+      makeUploader: { configuration in
+        try gate.check()
+        guard !revocationStore.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
+        guard let credential = try credentialStore.credential(for: configuration.publisherID) else {
+          throw FinanceKitSyncError.invalidState
         }
-      ),
+        return FinanceKitHTTPBatchUploader.live(
+          gate: gate,
+          credential: credential,
+          canUpload: {
+            !revocationStore.isRevoked &&
+              (try? credentialStore.credential(for: configuration.publisherID)) == credential
+          }
+        )
+      },
       processLock: FinanceKitProcessLock(url: environment.lockURL)
     )
     return try await engine.synchronize(changedTypes: changedTypes)

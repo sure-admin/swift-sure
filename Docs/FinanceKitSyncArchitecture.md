@@ -35,8 +35,8 @@ Local Wallet access and remote upload are separate decisions:
   balance, merchant, and transaction data becomes visible to the user's Sure
   family and may reach enrichment destinations configured on that Sure instance.
 - A Sure logout disables background delivery, removes the scoped publisher
-  credential and protected outbox, clears local Wallet presentation, and requires
-  an explicit Wallet reconnect. It does not claim to delete records already
+  credential and protected outbox. Authorized local Wallet accounts remain
+  accessible independently of the Sure session. It does not claim to delete records already
   accepted by Sure.
 - Entitlement loss disables delivery and the final HTTP gate. It preserves the
   publisher configuration and unacknowledged outbox so verified access can
@@ -79,6 +79,15 @@ that publisher and upload operation. The extension receives no API key, OAuth
 access token, or refresh token. The upload URL is accepted only when it is HTTPS,
 has the authenticated server's origin, stays below the configured base path, and
 contains no user info, query, or fragment. Upload sessions reject redirects.
+
+Credential renewal and repair acquire the same cross-process lock as the sync
+engine before contacting the control plane. The lock remains held until the
+returned credential and configuration are installed. Uploaders read credentials
+only after acquiring that lock. Renewal preserves the checkpoint, sequence,
+digest chain, and exact pending capture; only explicit repair resets a stream.
+The foreground runner handles `publisher_unauthorized` with at most one renewal
+and replay per pass. It never substitutes an OAuth token or creates a replacement
+connection to recover a batch authentication failure.
 
 Each immutable batch binds:
 

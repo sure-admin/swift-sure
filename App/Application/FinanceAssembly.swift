@@ -35,6 +35,14 @@ struct FinanceAssembly {
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let controlPlane = FinanceKitControlPlaneClient(transport: transport)
     let financeKitPublisher = FinanceKitPublisherController(gate: accessGate,
+      remoteRenew: {
+        let activation = try await controlPlane.renew(connectionID: $0)
+        return (try activation.configuration(), activation.publisherCredential)
+      },
+      remoteRepair: {
+        let activation = try await controlPlane.repair(connectionID: $0)
+        return (try activation.configuration(), activation.publisherCredential)
+      },
       remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0) })
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector

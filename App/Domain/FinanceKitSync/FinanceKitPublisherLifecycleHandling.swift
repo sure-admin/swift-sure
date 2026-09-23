@@ -2,6 +2,8 @@ import Foundation
 
 protocol FinanceKitPublisherLifecycleHandling: Sendable {
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws
+  func renewCredential() async throws
+  func repair() async throws
   func blockBackgroundDelivery() throws
   /// The connection this device publishes to, read back from durable publisher
   /// state so a relaunched app can reach the control plane without re-enrolling.

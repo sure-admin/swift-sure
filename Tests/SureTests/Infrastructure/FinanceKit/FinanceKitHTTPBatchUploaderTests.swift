@@ -4,6 +4,32 @@ import Testing
 
 @Suite("FinanceKit batch uploader")
 struct FinanceKitHTTPBatchUploaderTests {
+  @Test("Uploads and receipts use the publisher credential unchanged")
+  func publisherAuthorization() async throws {
+    let stub = HTTPDataTransportStub([
+      try .http(fixture: "financekit-receipt-accepted", status: 202),
+      try .http(fixture: "financekit-receipt-applied")
+    ])
+    let uploader = makeUploader(stub)
+    _ = try await uploader.upload(Self.batch, configuration: Self.configuration())
+    _ = try await uploader.status(Self.batch, configuration: Self.configuration())
+    let requests = await stub.requests()
+    #expect(requests.map(\.httpMethod) == ["POST", "GET"])
+    #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == "Bearer publisher-secret" })
+    #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Api-Key") == nil })
+    #expect(requests.first?.httpBody == Self.batch.body)
+    #expect(requests.first?.value(forHTTPHeaderField: "Idempotency-Key") == Self.batch.id.uuidString.lowercased())
+  }
+
+  @Test("Publisher rejection is classified without retrying or substituting OAuth")
+  func unauthorizedPublisher() async throws {
+    let stub = HTTPDataTransportStub([try .http(fixture: "financekit-publisher-unauthorized", status: 401)])
+    await #expect(throws: FinanceKitBatchUploadError.publisherUnauthorized) {
+      try await makeUploader(stub).upload(Self.batch, configuration: Self.configuration())
+    }
+    #expect(await stub.requests().count == 1)
+  }
+
   @Test("A foreground receipt poll gives up after about thirty seconds as a pending import")
   func pollStopsAtTheAttemptLimit() async throws {
     let accepted = try HTTPDataTransportStub.Result.http(fixture: "financekit-receipt-accepted")

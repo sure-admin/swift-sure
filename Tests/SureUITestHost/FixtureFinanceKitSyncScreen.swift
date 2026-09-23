@@ -36,6 +36,8 @@ private struct FixturePublisher: FinanceKitPublisherLifecycleHandling {
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
   func blockBackgroundDelivery() { }
   func configuredConnectionID() async -> UUID? { nil }
+  func renewCredential() async throws { }
+  func repair() async throws { }
   func resumeIfConfigured() async { }
   func suspend() async { }
   func disconnect() async throws { }
