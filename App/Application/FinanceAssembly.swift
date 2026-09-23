@@ -17,7 +17,6 @@ struct FinanceAssembly {
     let transport = services.transport
     let accessGate = services.accessGate
     let lifecycle = services.lifecycle
-    let preferences = services.preferences
     let cache = ServerReadCache(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("am.sure.insights/server-reads", isDirectory: true))
     let repository = CachedFinanceRepository(base: apiClient, history: apiClient,
@@ -38,9 +37,7 @@ struct FinanceAssembly {
     let financeKitPublisher = FinanceKitPublisherController(gate: accessGate,
       remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0) })
     let appleCardConnection = AppleCardConnectionStore(
-      connector: financeKitConnector,
-      requiresReconnect: preferences.requiresWalletReconnect(),
-      setRequiresReconnect: preferences.setRequiresWalletReconnect
+      connector: financeKitConnector
     )
 
     let spendingComparison = SpendingComparisonStore(

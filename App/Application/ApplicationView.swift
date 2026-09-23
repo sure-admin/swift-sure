@@ -71,6 +71,10 @@ struct ApplicationView: View {
         now: { .now }
       )
       .task { await subscriptionAccess.monitor() }
+      .task(id: scenePhase) {
+        guard scenePhase == .active else { return }
+        await appleCardConnection.refresh()
+      }
       .onChange(of: scenePhase) { _, phase in
         if phase == .active {
           Task {

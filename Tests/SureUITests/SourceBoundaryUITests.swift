@@ -16,10 +16,11 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
-  func testConnectedViewsUseSureData() throws {
+  func testConnectedAccountsIncludeWalletWhileReportingUsesSure() throws {
     let app = launch("connected")
     XCTAssertTrue(app.staticTexts["Sure Checking"].waitForExistence(timeout: 10))
-    XCTAssertFalse(app.staticTexts["Apple Card Preview"].exists)
+    XCTAssertTrue(app.staticTexts["Apple Card Preview"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Apple Wallet, on-device account"].exists)
     app.buttons["Spending"].firstMatch.tap()
     XCTAssertTrue(app.buttons["About spending comparison"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.staticTexts["Wallet spending · On this device"].exists)

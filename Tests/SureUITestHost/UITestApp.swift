@@ -33,7 +33,7 @@ struct UITestApp: App {
       } else {
         TabView {
           Tab("Accounts", systemImage: "building.columns") {
-            AccountsView(data: finance, allowsWalletPreview: connection.allowsWalletPreview,
+            AccountsView(data: finance,
               hasSyncAccess: connection.isConfigured, appleCardConnection: wallet,
               transactionHistoryStoreFactory: factory, localTransactionHistoryStoreFactory: factory)
           }

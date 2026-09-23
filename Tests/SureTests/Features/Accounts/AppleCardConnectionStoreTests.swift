@@ -11,27 +11,16 @@ struct AppleCardConnectionStoreTests {
       id: UUID(), name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
     )
     let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
-    var requiresReconnect = true
-    let firstLaunch = AppleCardConnectionStore(
-      connector: connector, requiresReconnect: requiresReconnect,
-      setRequiresReconnect: { requiresReconnect = $0 }
-    )
+    let firstLaunch = AppleCardConnectionStore(connector: connector)
     await firstLaunch.connect()
-    #expect(!requiresReconnect)
-
-    let relaunched = AppleCardConnectionStore(
-      connector: connector, requiresReconnect: requiresReconnect,
-      setRequiresReconnect: { requiresReconnect = $0 }
-    )
+    let relaunched = AppleCardConnectionStore(connector: connector)
     let lifecycle = ApplicationConnectionLifecycle()
     let publisher = FinanceKitPublisherLifecycleFake()
-    lifecycle.appleCardConnection = relaunched
     lifecycle.financeKitPublisher = publisher
     lifecycle.restoreInitialState(isExplicitlySignedOut: true)
     #expect(publisher.blockBackgroundDeliveryCallCount() == 1)
     await relaunched.refresh()
 
-    #expect(!requiresReconnect)
     #expect(relaunched.state == .authorized)
     #expect(relaunched.accounts == [account])
     #expect(connector.authorizationRequestCount == 1)
@@ -73,52 +62,55 @@ struct AppleCardConnectionStoreTests {
     #expect(store.accounts == [bank, credit])
   }
 
-  @Test("A Wallet response arriving after logout is discarded")
-  func lateWalletResponse() async {
-    let gate = WalletRequestGate()
-    let connector = AppleCardConnectorFake(status: .authorized, accounts: [
-      LocalFinancialAccount(id: UUID(), name: "Old account", institutionName: "Wallet", kind: .asset, balance: nil)
-    ])
-    connector.beforeFetch = { await gate.suspend() }
-    let store = AppleCardConnectionStore(connector: connector)
-    let request = Task { await store.refresh() }
-    await gate.waitUntilStarted()
-    store.disconnect()
-    await gate.complete()
-    await request.value
-    #expect(store.accounts.isEmpty)
-    #expect(store.state == .ready)
-  }
-
-  @Test("Logout clears Wallet data and requires an explicit reconnect")
-  func logout() async {
+  @Test("Sure login, replacement, failed connection, and logout preserve Wallet access")
+  func sureSessionChangesPreserveWallet() async {
     let account = LocalFinancialAccount(
       id: UUID(), name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
     )
     let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
-    var requiresReconnect = false
-    let store = AppleCardConnectionStore(connector: connector, setRequiresReconnect: { requiresReconnect = $0 })
+    let store = AppleCardConnectionStore(connector: connector)
     await store.refresh()
     let lifecycle = ApplicationConnectionLifecycle()
     let publisher = FinanceKitPublisherLifecycleFake()
-    lifecycle.appleCardConnection = store
     lifecycle.financeKitPublisher = publisher
-    await lifecycle.prepareForLogout()
-    #expect(store.accounts.isEmpty)
-    #expect(store.state == .ready)
-    #expect(requiresReconnect)
-    #expect(await publisher.disconnectCallCount() == 1)
-    let relaunched = AppleCardConnectionStore(connector: connector, requiresReconnect: requiresReconnect)
-    #expect(relaunched.state == .ready)
-    let startup = ApplicationConnectionLifecycle()
-    startup.appleCardConnection = relaunched
-    startup.restoreInitialState(isExplicitlySignedOut: true)
-    await relaunched.refresh()
-    #expect(relaunched.accounts.isEmpty)
-    #expect(connector.accountRequestCount == 1)
-    await store.connect()
+    lifecycle.appleCardConnection = store
+    await lifecycle.prepareForConnectionChange()
+    await lifecycle.didCommitConnectionChange()
     #expect(store.accounts == [account])
-    #expect(!requiresReconnect)
+    #expect(store.walletSpendingAccess.isAuthorized)
+    await lifecycle.didConnect()
+    #expect(store.accounts == [account])
+    #expect(store.walletSpendingAccess.isAuthorized)
+    await lifecycle.prepareForConnectionChange()
+    await lifecycle.didFailConnectionChange()
+    #expect(store.accounts == [account])
+    await lifecycle.prepareForLogout()
+    lifecycle.didLogOut()
+    #expect(store.accounts == [account])
+    #expect(store.state == .authorized)
+    #expect(await publisher.disconnectCallCount() == 2)
+    let relaunched = AppleCardConnectionStore(connector: connector)
+    await relaunched.refresh()
+    #expect(relaunched.accounts == [account])
+    #expect(connector.authorizationRequestCount == 0)
+  }
+
+  @Test("Temporary refresh errors retain accounts; revoked permission clears them")
+  func failedRefreshKeepsAccounts() async {
+    let account = LocalFinancialAccount(
+      id: UUID(), name: "Apple Card", institutionName: "Wallet", kind: .liability, balance: nil
+    )
+    let connector = AppleCardConnectorFake(status: .authorized, accounts: [account])
+    let store = AppleCardConnectionStore(connector: connector)
+    await store.refresh()
+    connector.failFetch = true
+    await store.refresh()
+    #expect(store.accounts == [account])
+    guard case .failed = store.state else { Issue.record("Expected refresh failure"); return }
+    connector.status = .denied
+    await store.refresh()
+    #expect(store.accounts.isEmpty)
+    #expect(!store.walletSpendingAccess.isAuthorized)
   }
 
   @Test("Fresh local Wallet access loads Card and Cash without a Sure session or subscription")
@@ -244,7 +236,7 @@ private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Send
   var statusRequestCount = 0
   var authorizationRequestCount = 0
   var accountRequestCount = 0
-  var beforeFetch: (@Sendable () async -> Void)?
+  var failFetch = false
 
   init(
     isAvailable: Bool = true,
@@ -270,30 +262,7 @@ private final class AppleCardConnectorFake: AppleCardConnecting, @unchecked Send
 
   func fetchAccounts() async throws -> [LocalFinancialAccount] {
     accountRequestCount += 1
-    await beforeFetch?()
+    if failFetch { throw DataFailure.offline }
     return accounts
-  }
-}
-
-private actor WalletRequestGate {
-  private var continuation: CheckedContinuation<Void, Never>?
-  private var waiters: [CheckedContinuation<Void, Never>] = []
-
-  func suspend() async {
-    await withCheckedContinuation { continuation in
-      self.continuation = continuation
-      waiters.forEach { $0.resume() }
-      waiters = []
-    }
-  }
-
-  func waitUntilStarted() async {
-    guard continuation == nil else { return }
-    await withCheckedContinuation { waiters.append($0) }
-  }
-
-  func complete() {
-    continuation?.resume()
-    continuation = nil
   }
 }

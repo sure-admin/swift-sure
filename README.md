@@ -51,7 +51,7 @@ Before the first successful Sure connection and after explicit logout, authorize
 populate an explicitly labeled local preview. Its posted-debit calculation stays
 on-device, excludes transfers, and does not combine currencies. Connected,
 offline, and suspended sessions use Sure data. Logging out restores the Wallet
-entry point; Allow Access reconnects it without restoring cached Sure records. See [spending comparison](Docs/SpendingComparison.md)
+spending preview without revoking local account access or restoring cached Sure records. See [spending comparison](Docs/SpendingComparison.md)
 and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
 
 ## On-device Wallet accounts
@@ -64,14 +64,17 @@ Sure backend access.
 During initial onboarding or after logout on an iPhone with FinanceKit available, the app opens Accounts without requiring
 Sure sign-in. Allow Access loads the eligible accounts shared through Apple
 Wallet; selecting an account shows its last 31 days of transactions. Wallet data
-stays on the device. All accounts shared by FinanceKit are included, including
+stays on the device unless separate Wallet sync consent is granted. Authorized
+accounts remain listed alongside Sure accounts, identified by the Apple Wallet
+icon and an On Device label, across login, logout, and subscription changes. All accounts shared by FinanceKit are included, including
 supported banks outside Apple’s own products, even when no balance is available.
 Accounts refreshes when opened and when the app returns to the foreground.
 Eligibility is controlled by Apple and the institution; card activity visible in
 Wallet alone does not guarantee that FinanceKit exposes it to apps.
 
-Logging out clears app-held financial data, transaction windows, insights, and
-cached conversations. It does not change the original Wallet records or Apple's
+Logging out clears downloaded Sure financial data, transaction windows, insights,
+and cached conversations, and disconnects the Wallet publisher. Local Wallet
+accounts remain accessible while system permission is granted. It does not change the original Wallet records or Apple's
 system permission. While connected to Sure, all reporting uses Sure;
 future Wallet ingestion must upload source transactions for aggregation on Sure.
 

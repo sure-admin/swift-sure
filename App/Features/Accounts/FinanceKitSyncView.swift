@@ -3,7 +3,7 @@ import SwiftUI
 #if os(iOS) && FINANCEKIT_ENABLED
 struct FinanceKitSyncView: View {
   @Bindable var sync: FinanceKitSyncStore
-  var accounts: [LocalFinancialAccount]
+  var wallet: AppleCardConnectionStore
   @State private var consent = false
 
   private var isBusy: Bool { sync.state == .syncing || sync.state == .importing }
@@ -22,8 +22,8 @@ struct FinanceKitSyncView: View {
           Label("Repair required", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
           Button("Repair Wallet sync") { Task { await sync.repair() } }
         default:
-          Button("Sync Wallet accounts to your Sure family") { Task { await sync.enroll(accounts: accounts) } }
-            .disabled(!consent || accounts.isEmpty)
+          Button("Sync Wallet accounts to your Sure family") { Task { await sync.enroll(accounts: wallet.accounts) } }
+            .disabled(!consent || wallet.accounts.isEmpty || wallet.state != .authorized)
         }
         ForEach(sync.conflicts) { conflict in
           VStack(alignment: .leading) {
@@ -38,7 +38,10 @@ struct FinanceKitSyncView: View {
       }
     }
     .navigationTitle("Wallet sync")
-    .task { await sync.refresh() }
+    .task {
+      await wallet.refresh()
+      await sync.refresh()
+    }
   }
 
   @ViewBuilder private var activeControls: some View {

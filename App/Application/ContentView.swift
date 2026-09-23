@@ -32,7 +32,7 @@ struct ContentView: View {
     }
     .sheet(isPresented: $showingConnectionSettings) {
       ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
-        financeKitSync: financeKitSync, walletAccounts: appleCardConnection.accounts)
+        financeKitSync: financeKitSync, wallet: appleCardConnection)
     }
   }
 
@@ -74,7 +74,6 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
-          allowsWalletPreview: connection.allowsWalletPreview,
           hasSyncAccess: subscriptionAccess.hasAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,

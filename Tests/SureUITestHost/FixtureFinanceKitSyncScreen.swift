@@ -4,10 +4,7 @@ import SwiftUI
 struct FixtureFinanceKitSyncScreen: View {
   @State private var sync: FinanceKitSyncStore
   private let gate: FixtureEnrollmentGate
-  private let accounts = [LocalFinancialAccount(
-    id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, name: "Wallet fixture",
-    institutionName: "Wallet", kind: .liability,
-    balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))]
+  @State private var wallet = AppleCardConnectionStore(connector: FixtureSyncWallet())
 
   init() {
     let gate = FixtureEnrollmentGate()
@@ -22,7 +19,7 @@ struct FixtureFinanceKitSyncScreen: View {
   var body: some View {
     NavigationStack {
       VStack {
-        FinanceKitSyncView(sync: sync, accounts: accounts)
+        FinanceKitSyncView(sync: sync, wallet: wallet)
         Button("Finish fixture enrollment") { Task { await gate.resume() } }
       }
     }
@@ -46,4 +43,15 @@ private struct FixturePublisher: FinanceKitPublisherLifecycleHandling {
 
 private struct FixtureUnusedTransport: HTTPDataTransport {
   func data(for request: URLRequest) async throws -> (Data, URLResponse) { throw URLError(.notConnectedToInternet) }
+}
+
+private struct FixtureSyncWallet: AppleCardConnecting {
+  var isAvailable: Bool { true }
+  func authorizationStatus() async throws -> AppleCardAuthorization { .authorized }
+  func requestAuthorization() async throws -> AppleCardAuthorization { .authorized }
+  func fetchAccounts() async throws -> [LocalFinancialAccount] {
+    [.init(id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!,
+      name: "Wallet fixture", institutionName: "Wallet", kind: .liability,
+      balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))]
+  }
 }

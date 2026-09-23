@@ -35,14 +35,6 @@ struct UserDefaultsConnectionPreferences: ConnectionPreferences, @unchecked Send
   func hasConnectedToSure() -> Bool { defaults.bool(forKey: "sureHasConnected") }
   func setHasConnectedToSure(_ connected: Bool) { defaults.set(connected, forKey: "sureHasConnected") }
 
-  func requiresWalletReconnect() -> Bool {
-    defaults.bool(forKey: "sureRequiresWalletReconnect")
-  }
-
-  func setRequiresWalletReconnect(_ required: Bool) {
-    defaults.set(required, forKey: "sureRequiresWalletReconnect")
-  }
-
   private enum StorageKey {
     static let serverURL = "sureServerURL"
     static let isExplicitlySignedOut = "sureExplicitlySignedOut"

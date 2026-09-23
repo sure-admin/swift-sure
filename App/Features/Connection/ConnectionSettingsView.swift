@@ -6,7 +6,7 @@ struct ConnectionSettingsView: View {
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
-  var walletAccounts: [LocalFinancialAccount] = []
+  var wallet: AppleCardConnectionStore? = nil
 
   var body: some View {
     NavigationStack {
@@ -118,9 +118,9 @@ struct ConnectionSettingsView: View {
           }
 
           #if os(iOS) && FINANCEKIT_ENABLED
-          if let financeKitSync {
+          if let financeKitSync, let wallet {
             NavigationLink {
-              FinanceKitSyncView(sync: financeKitSync, accounts: walletAccounts)
+              FinanceKitSyncView(sync: financeKitSync, wallet: wallet)
             } label: {
               Label("Experimental Wallet sync", systemImage: "arrow.triangle.2.circlepath")
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

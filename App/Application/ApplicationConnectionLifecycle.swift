@@ -14,8 +14,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   var transactionHistoryFactories: [TransactionHistoryStoreFactory] = []
 
   func restoreInitialState(isExplicitlySignedOut: Bool) {
-    // Wallet reconnect preferences already reflect the latest explicit decision.
-    // A persisted Sure logout must not undo Wallet access granted afterward.
+    // Sure session cleanup never revokes independent on-device Wallet access.
     if isExplicitlySignedOut {
       dataCleanupFailure = nil
       do { try financeKitPublisher?.blockBackgroundDelivery() }
@@ -29,6 +28,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   }
 
   func didConnect() async {
+    await appleCardConnection?.refresh()
     await financeData?.restoreSnapshotIfAvailable()
     await financeData?.refresh()
     await spendingComparison?.refresh()
@@ -76,7 +76,6 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
 
   private func clearLocalData() {
     spendingComparison?.invalidate()
-    appleCardConnection?.disconnect()
     transactionHistoryFactories.forEach { $0.invalidateStores() }
   }
 
