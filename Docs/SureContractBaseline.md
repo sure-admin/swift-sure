@@ -182,3 +182,12 @@ Adopt a newer Sure `main` revision deliberately:
 5. Run contract tests plus iOS, macOS, and Watch builds before committing.
 
 Do not silently move this pin as part of unrelated feature work.
+
+Batch validation diagnostics also follow the pinned
+[`Financekit::Payload` validator](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/models/financekit/payload.rb).
+The `financekit-batch-invalid-payload.json` fixture represents its HTTP 422
+`{"error":"invalid_payload"}` response. The publisher persists only a closed set
+of known validation codes, fences automatic retries, and retains the original
+outbox and checkpoint until explicit repair starts a new stream. Unknown response
+text is neither persisted nor displayed. These diagnostics do not identify the
+specific field when upstream returns the generic `invalid_payload` code.

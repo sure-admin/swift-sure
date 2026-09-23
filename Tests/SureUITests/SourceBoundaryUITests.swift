@@ -41,6 +41,16 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testWalletRejectionShowsAccessibleProtocolCodeAndRepair() throws {
+    let app = launch("wallet-rejection")
+    let diagnostic = app.staticTexts["wallet-sync-batch-rejection"]
+    XCTAssertTrue(diagnostic.waitForExistence(timeout: 10))
+    XCTAssertTrue(diagnostic.label.contains("HTTP 422: invalid_payload"))
+    XCTAssertTrue(app.buttons["Repair Wallet sync"].exists)
+    XCTAssertFalse(app.buttons["Sync Wallet accounts to your Sure family"].exists)
+  }
+
+  @MainActor
   func testWalletEnrollmentShowsAccessibleProgress() throws {
     let app = launch("wallet-sync")
     let consent = app.switches["I understand this shares financial data with my Sure family"]

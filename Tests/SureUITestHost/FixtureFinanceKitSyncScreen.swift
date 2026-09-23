@@ -6,14 +6,14 @@ struct FixtureFinanceKitSyncScreen: View {
   private let gate: FixtureEnrollmentGate
   @State private var wallet = AppleCardConnectionStore(connector: FixtureSyncWallet())
 
-  init() {
+  init(rejection: FinanceKitBatchRejection? = nil) {
     let gate = FixtureEnrollmentGate()
     self.gate = gate
     _sync = State(initialValue: FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: SureAPITransport(
         baseURL: URL(string: "https://sure.example")!, dataTransport: FixtureUnusedTransport(),
         authorizer: UnauthenticatedRequestAuthorizer())),
-      publisher: FixturePublisher(), entitlementExpiration: { await gate.wait() }, runSync: { _ in .notConfigured }))
+      publisher: FixturePublisher(rejection: rejection), entitlementExpiration: { await gate.wait() }, runSync: { _ in .notConfigured }))
   }
 
   var body: some View {
@@ -33,9 +33,14 @@ private actor FixtureEnrollmentGate {
 }
 
 private struct FixturePublisher: FinanceKitPublisherLifecycleHandling {
+  var rejection: FinanceKitBatchRejection?
+  func requiresRepair() async -> Bool { rejection != nil }
+  func batchRejection() async -> FinanceKitBatchRejection? { rejection }
   func install(configuration: FinanceKitPublisherConfiguration, credential: String) async throws { }
   func blockBackgroundDelivery() { }
-  func configuredConnectionID() async -> UUID? { nil }
+  func configuredConnectionID() async -> UUID? {
+    rejection == nil ? nil : UUID(uuidString: "20000000-0000-4000-8000-000000000001")
+  }
   func renewCredential() async throws { }
   func repair() async throws { }
   func resumeIfConfigured() async { }

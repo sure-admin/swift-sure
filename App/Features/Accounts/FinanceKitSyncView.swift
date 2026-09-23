@@ -20,7 +20,13 @@ struct FinanceKitSyncView: View {
             .accessibilityIdentifier("wallet-sync-enrollment-progress")
         case .repairRequired:
           Label("Repair required", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+          if let message = sync.rejectionMessage {
+            Text(message)
+              .accessibilityIdentifier("wallet-sync-batch-rejection")
+              .textSelection(.enabled)
+          }
           Button("Repair Wallet sync") { Task { await sync.repair() } }
+            .disabled(sync.isBusy)
         default:
           Button("Sync Wallet accounts to your Sure family") { Task { await sync.enroll(accounts: wallet.accounts) } }
             .disabled(!consent || wallet.accounts.isEmpty || wallet.state != .authorized)

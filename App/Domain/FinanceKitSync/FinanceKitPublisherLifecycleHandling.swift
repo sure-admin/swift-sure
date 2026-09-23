@@ -9,6 +9,7 @@ protocol FinanceKitPublisherLifecycleHandling: Sendable {
   /// state so a relaunched app can reach the control plane without re-enrolling.
   func configuredConnectionID() async -> UUID?
   func requiresRepair() async -> Bool
+  func batchRejection() async -> FinanceKitBatchRejection?
   func resumeIfConfigured() async
   func suspend() async
   func disconnect() async throws
@@ -16,4 +17,5 @@ protocol FinanceKitPublisherLifecycleHandling: Sendable {
 
 extension FinanceKitPublisherLifecycleHandling {
   func requiresRepair() async -> Bool { false }
+  func batchRejection() async -> FinanceKitBatchRejection? { nil }
 }

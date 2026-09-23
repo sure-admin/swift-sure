@@ -255,6 +255,42 @@ struct FinanceKitSyncEngineTests {
     try? FileManager.default.removeItem(at: harness.directory)
   }
 
+  @Test("Validation rejection survives relaunch without replaying or advancing the outbox")
+  func validationRejection() async throws {
+    let store = MemoryFinanceKitPublisherStateStore(state: configuredState())
+    let collector = FinanceKitCollectorFake(behavior: .changes(.init(mode: .snapshot,
+      capturedAt: Date(timeIntervalSince1970: 1_700_000_000), events: [event(1)],
+      nextCheckpoint: Data("next-checkpoint".utf8))))
+    let error = FinanceKitBatchUploadError(kind: .rejected, code: "invalid_payload")
+    let uploader = FinanceKitUploaderFake(uploadError: error)
+    let harness = try makeEngine(store: store, collector: collector, uploader: uploader)
+    defer { try? FileManager.default.removeItem(at: harness.directory) }
+    await #expect(throws: error) { try await harness.engine.synchronize() }
+    let state = try await store.load()
+    #expect(state.requiresRepair)
+    #expect(state.batchRejection == .invalidPayload)
+    #expect(state.checkpoint == nil)
+    #expect(state.nextSequence == 1)
+    #expect(state.pendingCapture?.nextBatchIndex == 0)
+    #expect(state.pendingCapture?.batches == (await uploader.uploadedBatches()))
+
+    let restored = try JSONDecoder().decode(FinanceKitPublisherState.self, from: JSONEncoder().encode(state))
+    let relaunched = try makeEngine(store: MemoryFinanceKitPublisherStateStore(state: restored),
+      collector: collector, uploader: uploader)
+    defer { try? FileManager.default.removeItem(at: relaunched.directory) }
+    #expect(try await relaunched.engine.synchronize() == .repairRequired)
+    #expect(await uploader.uploadedBatches().count == 1)
+    #expect(await collector.callCount() == 1)
+  }
+
+  @Test("Publisher state written before rejection diagnostics remains readable")
+  func previousStateSchema() throws {
+    let encoded = try JSONEncoder().encode(configuredState())
+    // nil optional properties are omitted, matching the previous schema.
+    #expect(!String(decoding: encoded, as: UTF8.self).contains("batchRejection"))
+    #expect(try JSONDecoder().decode(FinanceKitPublisherState.self, from: encoded).batchRejection == nil)
+  }
+
   private func makeEngine(
     store: MemoryFinanceKitPublisherStateStore,
     collector: FinanceKitCollectorFake,
@@ -379,12 +415,15 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
   private var returnsMismatchedReceipt: Bool
   private var statusSequence: [FinanceKitBatchReceipt.Status]
   private var statusCalls = 0
+  private var uploadError: FinanceKitBatchUploadError?
 
   init(
+    uploadError: FinanceKitBatchUploadError? = nil,
     failuresRemaining: Int = 0,
     returnsMismatchedReceipt: Bool = false,
     statusSequence: [FinanceKitBatchReceipt.Status] = []
   ) {
+    self.uploadError = uploadError
     self.failuresRemaining = failuresRemaining
     self.returnsMismatchedReceipt = returnsMismatchedReceipt
     self.statusSequence = statusSequence
@@ -395,6 +434,7 @@ private actor FinanceKitUploaderFake: FinanceKitBatchUploading {
     configuration: FinanceKitPublisherConfiguration
   ) throws -> FinanceKitBatchReceipt {
     batches.append(batch)
+    if let uploadError { throw uploadError }
     if failuresRemaining > 0 {
       failuresRemaining -= 1
       throw Failure.interrupted

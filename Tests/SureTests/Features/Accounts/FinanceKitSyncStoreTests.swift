@@ -50,6 +50,46 @@ struct FinanceKitSyncStoreTests {
     #expect(store.state == .failed("Wallet sync couldn’t finish. Try again."))
   }
 
+  @Test("Validation code stays visible through refresh and foreground without another upload")
+  func validationFailureIsActionable() async {
+    let recorder = SyncRecorder(result: { throw FinanceKitBatchUploadError(kind: .rejected, code: "invalid_timestamp") })
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder)
+    await store.refresh()
+    await store.sync()
+    await store.refresh()
+    await store.syncOnForeground()
+    #expect(store.state == .repairRequired)
+    #expect(store.rejectionMessage?.contains("HTTP 422: invalid_timestamp") == true)
+    #expect(recorder.recordedCalls.count == 1)
+  }
+
+  @Test("Unknown response text is never included in persisted or displayed diagnostics")
+  func unknownValidationCode() async {
+    let secret = "unexpected server text containing private data"
+    let recorder = SyncRecorder(result: { throw FinanceKitBatchUploadError(kind: .rejected, code: secret) })
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder)
+    await store.refresh()
+    await store.sync()
+    #expect(store.batchRejection == .unknown)
+    #expect(store.rejectionMessage?.contains(secret) == false)
+    #expect(store.rejectionMessage?.contains("HTTP 422") == true)
+  }
+
+  @Test("Relaunch restores the rejection; explicit repair clears it")
+  func restoresValidationRejection() async {
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection, rejection: .duplicateRecord)
+    let transport = HTTPDataTransportStub(Self.refreshResponses)
+    let store = store(transport: transport, publisher: publisher)
+    await store.refresh()
+    #expect(store.state == .repairRequired)
+    #expect(store.rejectionMessage?.contains("duplicate_record") == true)
+    #expect(await transport.requests().isEmpty)
+    await store.repair()
+    #expect(store.state == .active)
+    #expect(store.rejectionMessage == nil)
+    #expect(await publisher.repairs == 1)
+  }
+
   @Test("Re-entering the foreground twice in a minute syncs once")
   func foregroundSyncIsDebounced() async throws {
     let recorder = SyncRecorder()
@@ -335,9 +375,11 @@ struct FinanceKitSyncStoreTests {
 private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   private var connection: UUID?
   private let failInstall: Bool
+  private var rejection: FinanceKitBatchRejection?
 
   private let beforeRenew: @Sendable () async -> Void
-  init(connectionID: UUID?, failInstall: Bool = false, beforeRenew: @escaping @Sendable () async -> Void = {}) {
+  init(connectionID: UUID?, failInstall: Bool = false, rejection: FinanceKitBatchRejection? = nil, beforeRenew: @escaping @Sendable () async -> Void = {}) {
+    self.rejection = rejection
     connection = connectionID; self.failInstall = failInstall; self.beforeRenew = beforeRenew
   }
 
@@ -350,7 +392,9 @@ private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   private(set) var renewals = 0
   private(set) var repairs = 0
   func renewCredential() async throws { renewals += 1; await beforeRenew() }
-  func repair() async throws { repairs += 1 }
+  func repair() async throws { repairs += 1; rejection = nil }
+  func requiresRepair() async -> Bool { rejection != nil }
+  func batchRejection() async -> FinanceKitBatchRejection? { rejection }
   func resumeIfConfigured() async { }
   func suspend() async { }
   func disconnect() async throws { connection = nil }

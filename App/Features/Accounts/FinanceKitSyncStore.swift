@@ -13,6 +13,12 @@ final class FinanceKitSyncStore {
   static let foregroundSyncInterval: TimeInterval = 60
 
   private(set) var state: State = .idle
+  private(set) var batchRejection: FinanceKitBatchRejection?
+  var rejectionMessage: String? {
+    guard let batchRejection else { return nil }
+    let reason = batchRejection == .unknown ? "unrecognized protocol error" : batchRejection.rawValue
+    return "Sure rejected a Wallet batch (HTTP 422: \(reason)). Automatic retries are paused. Repair starts a new Wallet snapshot; if the error returns, report this code."
+  }
   private(set) var health: FinanceKitConnectionRecord?
   private(set) var conflicts: [FinanceKitConflictRecord] = []
   private let client: FinanceKitControlPlaneClient
@@ -111,6 +117,7 @@ final class FinanceKitSyncStore {
       switch try await syncWithCredentialRecovery() {
       case .repairRequired:
         localRepairRequired = true
+        batchRejection = await publisher.batchRejection()
         state = .repairRequired
       case .notConfigured:
         clearStatus()
@@ -119,6 +126,10 @@ final class FinanceKitSyncStore {
       case .busy:
         state = .active
       }
+    } catch let error as FinanceKitBatchUploadError where error.kind == .rejected {
+      batchRejection = FinanceKitBatchRejection(serverCode: error.code)
+      localRepairRequired = true
+      state = .repairRequired
     } catch FinanceKitSyncError.importPending {
       state = .importing
     } catch FinanceKitSyncError.streamFailed {
@@ -163,6 +174,7 @@ final class FinanceKitSyncStore {
   private func refreshStatus() async {
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
     guard !localRepairRequired, !(await publisher.requiresRepair()) else {
+      if let rejection = await publisher.batchRejection() { batchRejection = rejection }
       state = .repairRequired
       return
     }
@@ -178,6 +190,7 @@ final class FinanceKitSyncStore {
 
   private func clearStatus() {
     health = nil
+    batchRejection = nil
     conflicts = []
     localRepairRequired = false
     lastForegroundSyncAt = nil
@@ -191,6 +204,7 @@ final class FinanceKitSyncStore {
     guard await publisher.configuredConnectionID() != nil else { clearStatus(); return }
     do {
       try await publisher.repair()
+      batchRejection = nil
       localRepairRequired = false
       await refreshStatus()
     } catch { state = .failed("Wallet sync repair failed.") }

@@ -77,7 +77,17 @@ actor FinanceKitSyncEngine {
 
     var uploadedCount = 0
     while var capture = state.pendingCapture, let batch = capture.currentBatch {
-      let receipt = try await uploader.upload(batch, configuration: configuration)
+      let receipt: FinanceKitBatchReceipt
+      do {
+        receipt = try await uploader.upload(batch, configuration: configuration)
+      } catch let error as FinanceKitBatchUploadError where error.kind == .rejected {
+        // Replaying identical bytes cannot fix validation. Preserve the outbox
+        // and checkpoint until explicit server repair establishes a new stream.
+        state.batchRejection = FinanceKitBatchRejection(serverCode: error.code)
+        state.requiresRepair = true
+        try await stateStore.save(state)
+        throw error
+      }
       try validate(receipt, for: batch, configuration: configuration)
       guard receipt.status != .failed else {
         state.requiresRepair = true

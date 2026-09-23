@@ -30,6 +30,15 @@ struct FinanceKitHTTPBatchUploaderTests {
     #expect(await stub.requests().count == 1)
   }
 
+  @Test("A 422 preserves the validation code from the response JSON")
+  func validationResponse() async throws {
+    let stub = HTTPDataTransportStub([try .http(fixture: "financekit-batch-invalid-payload", status: 422)])
+    await #expect(throws: FinanceKitBatchUploadError(kind: .rejected, code: "invalid_payload")) {
+      try await makeUploader(stub).upload(Self.batch, configuration: Self.configuration())
+    }
+    #expect(await stub.requests().count == 1)
+  }
+
   @Test("A foreground receipt poll gives up after about thirty seconds as a pending import")
   func pollStopsAtTheAttemptLimit() async throws {
     let accepted = try HTTPDataTransportStub.Result.http(fixture: "financekit-receipt-accepted")

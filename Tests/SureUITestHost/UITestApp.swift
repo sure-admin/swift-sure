@@ -28,7 +28,9 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      if scenario == "wallet-sync" {
+      if scenario == "wallet-rejection" {
+        FixtureFinanceKitSyncScreen(rejection: .invalidPayload)
+      } else if scenario == "wallet-sync" {
         FixtureFinanceKitSyncScreen()
       } else {
         TabView {
