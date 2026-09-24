@@ -13,10 +13,14 @@ protocol FinanceKitPublisherLifecycleHandling: Sendable {
   func batchValidationIssue() async -> FinanceKitEventValidationIssue?
   func resumeIfConfigured() async
   func suspend() async
+  func hasPendingConsentWithdrawal() async -> Bool
+  func stopKeepingHistory() async throws
   func disconnect() async throws
 }
 
 extension FinanceKitPublisherLifecycleHandling {
+  func hasPendingConsentWithdrawal() async -> Bool { false }
+  func stopKeepingHistory() async throws { try await disconnect() }
   func requiresRepair() async -> Bool { false }
   func batchRejection() async -> FinanceKitBatchRejection? { nil }
   func batchValidationIssue() async -> FinanceKitEventValidationIssue? { nil }

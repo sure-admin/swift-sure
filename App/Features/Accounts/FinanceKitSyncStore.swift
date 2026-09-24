@@ -12,6 +12,10 @@ final class FinanceKitSyncStore {
   /// worth showing anyone.
   static let foregroundSyncInterval: TimeInterval = 60
 
+  private(set) var consentAcknowledged: Bool
+  var showsConsentWithdrawalConfirmation = false
+  private(set) var needsDisconnectRetry = false
+  private let preferences: any FinanceKitSyncPreferences
   private(set) var state: State = .idle
   private(set) var batchValidationIssue: FinanceKitEventValidationIssue?
   private(set) var batchRejection: FinanceKitBatchRejection?
@@ -50,6 +54,7 @@ final class FinanceKitSyncStore {
   var isBusy: Bool { enrollmentInProgress || isSyncing || isUpdatingPublisher }
 
   init(client: FinanceKitControlPlaneClient, publisher: any FinanceKitPublisherLifecycleHandling,
+       preferences: any FinanceKitSyncPreferences,
        entitlementExpiration: @escaping @Sendable () async -> Date? = {
          await FinanceKitBackgroundEntitlementReader().expiration()
        },
@@ -58,13 +63,49 @@ final class FinanceKitSyncStore {
          try await FinanceKitSyncRunner().run(changedTypes: $0)
        },
        now: @escaping @Sendable () -> Date = { .now }) {
+    self.preferences = preferences
+    self.consentAcknowledged = preferences.consentAcknowledged ?? false
+    self.needsDisconnectRetry = preferences.consentWithdrawalPending
     self.client = client; self.publisher = publisher
     self.entitlementExpiration = entitlementExpiration; self.makeID = makeID
     self.runSync = runSync; self.now = now
   }
 
-  func enroll(accounts: [LocalFinancialAccount]) async {
+  func requestConsentChange(_ enabled: Bool) {
+    guard !isBusy, !needsDisconnectRetry else { return }
+    if enabled {
+      consentAcknowledged = true
+      preferences.consentAcknowledged = true
+    } else if consentAcknowledged {
+      showsConsentWithdrawalConfirmation = true
+    }
+  }
+
+  func stopKeepingHistory() async {
     guard !isBusy else { return }
+    showsConsentWithdrawalConfirmation = false
+    isUpdatingPublisher = true
+    defer { isUpdatingPublisher = false }
+    do {
+      // Revoke locally before persisting the off choice, including when offline.
+      try publisher.blockBackgroundDelivery()
+      consentAcknowledged = false
+      preferences.consentAcknowledged = false
+      needsDisconnectRetry = true
+      preferences.consentWithdrawalPending = true
+      try await publisher.stopKeepingHistory()
+      needsDisconnectRetry = false
+      preferences.consentWithdrawalPending = false
+      clearStatus()
+    } catch {
+      state = .failed(consentAcknowledged
+        ? "Wallet sync couldn’t be stopped. Try again."
+        : "Wallet uploads are stopped on this device. Sure hasn’t confirmed disconnection. Retry to finish; synchronized transactions will be kept.")
+    }
+  }
+
+  func enroll(accounts: [LocalFinancialAccount]) async {
+    guard !isBusy, consentAcknowledged, !needsDisconnectRetry else { return }
     enrollmentInProgress = true
     defer { enrollmentInProgress = false }
     state = .enrolling
@@ -123,7 +164,7 @@ final class FinanceKitSyncStore {
   /// Collects everything since the checkpoint and uploads it. An empty hint set
   /// is the supported "collect everything" request, not a workaround.
   func sync() async {
-    guard !isBusy, case .active = state else { return }
+    guard !isBusy, consentAcknowledged, !needsDisconnectRetry, case .active = state else { return }
     state = .syncing
     isSyncing = true
     defer { isSyncing = false }
@@ -173,7 +214,7 @@ final class FinanceKitSyncStore {
   /// The scene-phase entry point: refreshes health, then syncs if this device is
   /// still a configured publisher and the last attempt is old enough.
   func syncOnForeground() async {
-    guard !isBusy else { return }
+    guard !isBusy, !showsConsentWithdrawalConfirmation else { return }
     let moment = now()
     if let last = lastForegroundSyncAt, moment.timeIntervalSince(last) < Self.foregroundSyncInterval { return }
     lastForegroundSyncAt = moment
@@ -188,7 +229,19 @@ final class FinanceKitSyncStore {
   }
 
   private func refreshStatus() async {
+    let pendingWithdrawal = await publisher.hasPendingConsentWithdrawal()
+    if needsDisconnectRetry || pendingWithdrawal {
+      needsDisconnectRetry = true
+      consentAcknowledged = false
+      preferences.consentAcknowledged = false
+      state = .failed("Wallet uploads are stopped on this device. Retry to finish disconnecting from Sure; synchronized transactions will be kept.")
+      return
+    }
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
+    if preferences.consentAcknowledged == nil {
+      consentAcknowledged = true
+      preferences.consentAcknowledged = true
+    }
     guard !localRepairRequired, !(await publisher.requiresRepair()) else {
       if let rejection = await publisher.batchRejection() { batchRejection = rejection }
       batchValidationIssue = await publisher.batchValidationIssue()

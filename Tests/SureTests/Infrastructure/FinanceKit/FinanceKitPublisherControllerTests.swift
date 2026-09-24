@@ -4,6 +4,38 @@ import Testing
 
 @Suite("FinanceKit publisher lifecycle")
 struct FinanceKitPublisherControllerTests {
+  @Test("Consent withdrawal fences uploads and preserves only retry metadata after a remote failure")
+  func consentWithdrawalRetries() async throws {
+    let environment = environment()
+    defer { try? FileManager.default.removeItem(at: environment.stateURL.deletingLastPathComponent()) }
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    let state = pendingState(try configuration())
+    try await store.save(state)
+    let credentials = PublisherCredentials()
+    let first = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
+      makeCredentialStore: { _ in credentials }, remoteDisconnect: { id in
+        #expect(id == state.configuration?.connectionID)
+        #expect(FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).isRevoked)
+        #expect(credentials.isEmpty)
+        throw URLError(.notConnectedToInternet)
+      })
+    await #expect(throws: URLError.self) { try await first.stopKeepingHistory() }
+    let pending = try await store.load()
+    #expect(pending.consentWithdrawalPending == true)
+    #expect(pending.pendingCapture == nil)
+    #expect(pending.checkpoint == nil)
+    #expect(pending.configuration == state.configuration)
+    #expect(await first.configuredConnectionID() == nil)
+    let retry = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
+      makeCredentialStore: { _ in credentials }, remoteDisconnect: { id in
+        #expect(id == state.configuration?.connectionID)
+      })
+    #expect(await retry.hasPendingConsentWithdrawal())
+    try await retry.stopKeepingHistory()
+    #expect(try await store.load() == .empty)
+    #expect(await retry.hasPendingConsentWithdrawal() == false)
+  }
+
   @Test("A rejected saved batch is inspected after relaunch without upload or mutation")
   func inspectRejectedBatch() async throws {
     let environment = environment()

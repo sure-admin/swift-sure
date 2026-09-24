@@ -225,6 +225,33 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     }
   }
 
+  func hasPendingConsentWithdrawal() async -> Bool {
+    guard let environment = try? makeEnvironment(),
+          let state = try? await FinanceKitPublisherStateFileStore(fileURL: environment.stateURL).load()
+    else { return false }
+    return state.consentWithdrawalPending == true
+  }
+
+  func stopKeepingHistory() async throws {
+    try blockBackgroundDelivery()
+    let environment = try makeEnvironment()
+    let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
+    defer { _ = lock }
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    var state = try await store.load()
+    let connectionID = state.configuration?.connectionID
+    // Retain only the configuration needed to retry revocation after a lost
+    // response. Uploads are already fenced by the durable revocation marker.
+    state.consentWithdrawalPending = connectionID != nil
+    state.checkpoint = nil
+    state.pendingCapture = nil
+    state.batchRejection = nil
+    try await store.save(state)
+    try makeCredentialStore(environment.keychainAccessGroup).removeAllCredentials()
+    if let connectionID { try await remoteDisconnect(connectionID) }
+    try await store.clear()
+  }
+
   func disconnect() async throws {
     // Attempt each local cleanup even if revocation, decoding, or remote deletion fails.
     var failure: (any Error)?

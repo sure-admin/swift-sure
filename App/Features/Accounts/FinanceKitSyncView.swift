@@ -4,7 +4,6 @@ import SwiftUI
 struct FinanceKitSyncView: View {
   @Bindable var sync: FinanceKitSyncStore
   var wallet: AppleCardConnectionStore
-  @State private var consent = false
 
   private var isBusy: Bool { sync.isBusy || sync.state == .importing }
 
@@ -12,24 +11,31 @@ struct FinanceKitSyncView: View {
     Form {
       Section("Experimental Wallet sync") {
         Text("Sync selected Wallet accounts to your Sure family. Sure collects and uploads while the app is open; unattended background sync comes later. You can turn this off at any time.")
-        Toggle("I understand this shares financial data with my Sure family", isOn: $consent)
-        switch sync.state {
-        case .active, .syncing, .importing: activeControls
-        case .enrolling:
-          ProgressView("Enabling Wallet sync…")
-            .accessibilityIdentifier("wallet-sync-enrollment-progress")
-        case .repairRequired:
-          Label("Repair required", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-          if let message = sync.rejectionMessage {
-            Text(message)
-              .accessibilityIdentifier("wallet-sync-batch-rejection")
-              .textSelection(.enabled)
-          }
-          Button("Repair Wallet sync") { Task { await sync.repair() } }
+        Toggle("I understand this shares financial data with my Sure family", isOn: Binding(
+          get: { sync.consentAcknowledged }, set: { sync.requestConsentChange($0) }))
+          .disabled(sync.isBusy || sync.needsDisconnectRetry)
+        if sync.needsDisconnectRetry {
+          Button("Retry disconnect") { Task { await sync.stopKeepingHistory() } }
             .disabled(sync.isBusy)
-        default:
-          Button("Sync Wallet accounts to your Sure family") { Task { await sync.enroll(accounts: wallet.accounts) } }
-            .disabled(!consent || wallet.accounts.isEmpty || wallet.state != .authorized)
+        } else {
+          switch sync.state {
+          case .active, .syncing, .importing: activeControls
+          case .enrolling:
+            ProgressView("Enabling Wallet sync…")
+              .accessibilityIdentifier("wallet-sync-enrollment-progress")
+          case .repairRequired:
+            Label("Repair required", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            if let message = sync.rejectionMessage {
+              Text(message)
+                .accessibilityIdentifier("wallet-sync-batch-rejection")
+                .textSelection(.enabled)
+            }
+            Button("Repair Wallet sync") { Task { await sync.repair() } }
+              .disabled(sync.isBusy)
+          default:
+            Button("Sync Wallet accounts to your Sure family") { Task { await sync.enroll(accounts: wallet.accounts) } }
+              .disabled(!sync.consentAcknowledged || sync.isBusy || wallet.accounts.isEmpty || wallet.state != .authorized)
+          }
         }
         ForEach(sync.conflicts) { conflict in
           VStack(alignment: .leading) {
@@ -44,6 +50,12 @@ struct FinanceKitSyncView: View {
       }
     }
     .navigationTitle("Wallet sync")
+    .alert("Stop Wallet sync?", isPresented: $sync.showsConsentWithdrawalConfirmation) {
+      Button("Keep synchronized transactions") { Task { await sync.stopKeepingHistory() } }
+      Button("Cancel", role: .cancel) { }
+    } message: {
+      Text("Stop sending Wallet data to Sure? Previously synchronized transactions can stay on the server. Deleting synchronized transactions isn’t available from this app yet.")
+    }
     .task {
       await wallet.refresh()
       await sync.refresh()

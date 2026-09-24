@@ -203,3 +203,14 @@ dates, and duplicate identities. This inspection is partial and does not replace
 server validation; lack of a local finding is not a claim that the payload is valid.
 Do not substitute transaction dates for missing posting dates, reclassify booked
 records, or drop financial records to make this contract mismatch disappear.
+
+Wallet consent is now a persisted client preference, with existing configured
+publishers migrated from their already-recorded consent. Withdrawing consent stops
+local delivery before remote disconnection. A failed disconnection retains a
+revoked configuration for retry, and the off choice survives relaunch. The pinned
+`DELETE /api/v1/financekit/connections/{id}` operation explicitly retains imported
+history. Upstream `main` was also checked for this change and still exposes no
+FinanceKit-specific transaction deletion option. The confirmation dialog therefore
+explains that deletion is unavailable rather than deleting accounts, resetting a family, or guessing
+at a transaction filter. Supporting that choice requires a documented server
+operation scoped to Wallet-ingested records.

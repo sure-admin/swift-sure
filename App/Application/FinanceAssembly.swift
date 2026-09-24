@@ -74,7 +74,8 @@ struct FinanceAssembly {
     self.financeData = financeData
     self.appleCardConnection = appleCardConnection
     self.financeKitPublisher = financeKitPublisher
-    self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher)
+    self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher,
+      preferences: UserDefaultsFinanceKitSyncPreferences(defaults: .standard))
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory
     self.localTransactionHistoryStoreFactory = localTransactionHistoryStoreFactory

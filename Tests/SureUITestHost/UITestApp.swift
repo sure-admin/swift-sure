@@ -28,7 +28,9 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      if scenario == "wallet-rejection" {
+      if scenario == "wallet-consent" {
+        FixtureFinanceKitSyncScreen(persistConsent: true)
+      } else if scenario == "wallet-rejection" {
         FixtureFinanceKitSyncScreen(rejection: .invalidPayload)
       } else if scenario == "wallet-sync" {
         FixtureFinanceKitSyncScreen()

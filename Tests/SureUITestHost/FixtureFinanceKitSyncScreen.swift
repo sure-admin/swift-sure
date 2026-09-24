@@ -6,14 +6,22 @@ struct FixtureFinanceKitSyncScreen: View {
   private let gate: FixtureEnrollmentGate
   @State private var wallet = AppleCardConnectionStore(connector: FixtureSyncWallet())
 
-  init(rejection: FinanceKitBatchRejection? = nil) {
+  init(rejection: FinanceKitBatchRejection? = nil, persistConsent: Bool = false) {
+    let preferences: any FinanceKitSyncPreferences
+    if persistConsent {
+      let defaults = UserDefaults(suiteName: "sure-ui-tests-wallet-consent")!
+      if ProcessInfo.processInfo.environment["SURE_RESET_WALLET_CONSENT"] == "1" {
+        defaults.removePersistentDomain(forName: "sure-ui-tests-wallet-consent")
+      }
+      preferences = UserDefaultsFinanceKitSyncPreferences(defaults: defaults)
+    } else { preferences = FixtureSyncPreferences() }
     let gate = FixtureEnrollmentGate()
     self.gate = gate
     _sync = State(initialValue: FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: SureAPITransport(
         baseURL: URL(string: "https://sure.example")!, dataTransport: FixtureUnusedTransport(),
         authorizer: UnauthenticatedRequestAuthorizer())),
-      publisher: FixturePublisher(rejection: rejection), entitlementExpiration: { await gate.wait() }, runSync: { _ in .notConfigured }))
+      publisher: FixturePublisher(rejection: rejection), preferences: preferences, entitlementExpiration: { await gate.wait() }, runSync: { _ in .notConfigured }))
   }
 
   var body: some View {
@@ -64,4 +72,10 @@ private struct FixtureSyncWallet: AppleCardConnecting {
       name: "Wallet fixture", institutionName: "Wallet", kind: .liability,
       balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))]
   }
+}
+
+@MainActor
+private final class FixtureSyncPreferences: FinanceKitSyncPreferences {
+  var consentWithdrawalPending = false
+  var consentAcknowledged: Bool?
 }

@@ -5,6 +5,72 @@ import Testing
 @MainActor
 @Suite("FinanceKit foreground sync")
 struct FinanceKitSyncStoreTests {
+  @Test("Consent survives recreation, and cancelling withdrawal leaves it on")
+  func persistentConsent() async {
+    let preferences = TestSyncPreferences()
+    let publisher = FinanceKitPublisherStub(connectionID: nil)
+    let transport = HTTPDataTransportStub([])
+    let first = store(transport: transport, publisher: publisher, preferences: preferences)
+    #expect(!first.consentAcknowledged)
+    first.requestConsentChange(true)
+    let second = store(transport: transport, publisher: publisher, preferences: preferences)
+    #expect(second.consentAcknowledged)
+    second.requestConsentChange(false)
+    #expect(second.showsConsentWithdrawalConfirmation)
+    #expect(preferences.consentAcknowledged == true)
+    second.showsConsentWithdrawalConfirmation = false
+    #expect(second.consentAcknowledged)
+    #expect(await transport.requests().isEmpty)
+    await second.stopKeepingHistory()
+    #expect(preferences.consentAcknowledged == false)
+    #expect(!store(transport: transport, publisher: publisher, preferences: preferences).consentAcknowledged)
+  }
+
+  @Test("Previously configured publishers migrate consent once without overriding an explicit off choice")
+  func migratesConsent() async {
+    let preferences = TestSyncPreferences()
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    let first = store(transport: HTTPDataTransportStub(Self.refreshResponses), publisher: publisher, preferences: preferences)
+    await first.refresh()
+    #expect(first.consentAcknowledged)
+    #expect(preferences.consentAcknowledged == true)
+    preferences.consentAcknowledged = false
+    let second = store(transport: HTTPDataTransportStub(Self.refreshResponses), publisher: publisher, preferences: preferences)
+    await second.refresh()
+    #expect(!second.consentAcknowledged)
+  }
+
+  @Test("Enrollment cannot bypass the persisted consent choice")
+  func enrollmentRequiresConsent() async {
+    let transport = HTTPDataTransportStub([])
+    let model = store(transport: transport, publisher: FinanceKitPublisherStub(connectionID: nil), preferences: TestSyncPreferences(false))
+    await model.enroll(accounts: [Self.account])
+    #expect(await transport.requests().isEmpty)
+    #expect(model.state == .idle)
+  }
+
+  @Test("Offline withdrawal stays off after relaunch and can finish disconnecting later")
+  func offlineWithdrawal() async {
+    let preferences = TestSyncPreferences(true)
+    let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
+    await publisher.setDisconnectFailures(1)
+    let transport = HTTPDataTransportStub([])
+    let first = store(transport: transport, publisher: publisher, preferences: preferences)
+    await first.stopKeepingHistory()
+    #expect(!first.consentAcknowledged)
+    #expect(first.needsDisconnectRetry)
+    #expect(preferences.consentWithdrawalPending)
+    let second = store(transport: transport, publisher: publisher, preferences: preferences)
+    await second.refresh()
+    #expect(second.needsDisconnectRetry)
+    #expect(!second.consentAcknowledged)
+    await second.stopKeepingHistory()
+    #expect(!second.needsDisconnectRetry)
+    #expect(!preferences.consentWithdrawalPending)
+    #expect(second.state == .idle)
+    #expect(await transport.requests().isEmpty)
+  }
+
   @Test("Sync now collects everything since the checkpoint")
   func syncCollectsEverything() async throws {
     let recorder = SyncRecorder()
@@ -253,7 +319,7 @@ struct FinanceKitSyncStoreTests {
     let store = FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: SureAPITransport(baseURL: URL(string: "https://sure.example")!,
         dataTransport: transport, authorizer: UnauthenticatedRequestAuthorizer())),
-      publisher: FinanceKitPublisherStub(connectionID: nil), entitlementExpiration: { await gate.wait() })
+      publisher: FinanceKitPublisherStub(connectionID: nil), preferences: TestSyncPreferences(true), entitlementExpiration: { await gate.wait() })
     let first = Task { await store.enroll(accounts: [Self.account]) }
     await gate.waitUntilStarted()
     await store.refresh()
@@ -271,7 +337,7 @@ struct FinanceKitSyncStoreTests {
     let transport = HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses)
     let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
       baseURL: URL(string: "https://sure.example")!, dataTransport: transport,
-      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher,
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, preferences: TestSyncPreferences(true),
       runSync: { _ in try await attempts.run() })
     await store.refresh()
     await store.sync()
@@ -292,7 +358,7 @@ struct FinanceKitSyncStoreTests {
     let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
     let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
       baseURL: URL(string: "https://sure.example")!, dataTransport: HTTPDataTransportStub(Self.refreshResponses),
-      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, runSync: { _ in throw error })
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, preferences: TestSyncPreferences(true), runSync: { _ in throw error })
     await store.refresh()
     await store.sync()
     #expect(await publisher.renewals == 0)
@@ -330,7 +396,7 @@ struct FinanceKitSyncStoreTests {
     let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
       baseURL: URL(string: "https://sure.example")!,
       dataTransport: HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses),
-      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, runSync: { _ in
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: publisher, preferences: TestSyncPreferences(true), runSync: { _ in
         _ = await barrier.wait()
         return .uploaded(1)
       })
@@ -351,10 +417,10 @@ struct FinanceKitSyncStoreTests {
     kind: .liability, balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))
   private static let mappingJSON = #"{"source_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":2}"#
 
-  private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub) -> FinanceKitSyncStore {
+  private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub, preferences: (any FinanceKitSyncPreferences)? = nil) -> FinanceKitSyncStore {
     FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
       baseURL: URL(string: "https://sure.example")!, dataTransport: transport, authorizer: UnauthenticatedRequestAuthorizer())),
-      publisher: publisher, entitlementExpiration: { Date.distantFuture }, runSync: { _ in .noChanges })
+      publisher: publisher, preferences: preferences ?? TestSyncPreferences(true), entitlementExpiration: { Date.distantFuture }, runSync: { _ in .noChanges })
   }
 
   private static var refreshResponses: [HTTPDataTransportStub.Result] {
@@ -379,7 +445,7 @@ struct FinanceKitSyncStoreTests {
     )
     return FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: transport),
-      publisher: FinanceKitPublisherStub(connectionID: connectionID),
+      publisher: FinanceKitPublisherStub(connectionID: connectionID), preferences: TestSyncPreferences(true),
       runSync: { try recorder.run($0) },
       now: now
     )
@@ -414,7 +480,12 @@ private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
   }
   func resumeIfConfigured() async { }
   func suspend() async { }
-  func disconnect() async throws { connection = nil }
+  private var disconnectFailures = 0
+  func setDisconnectFailures(_ count: Int) { disconnectFailures = count }
+  func disconnect() async throws {
+    if disconnectFailures > 0 { disconnectFailures -= 1; throw URLError(.notConnectedToInternet) }
+    connection = nil
+  }
 }
 
 private final class SyncRecorder: @unchecked Sendable {
@@ -473,4 +544,11 @@ private actor PublisherSyncAttempts {
     if count == 1 || alwaysReject { throw FinanceKitBatchUploadError.publisherUnauthorized }
     return .uploaded(1)
   }
+}
+
+@MainActor
+private final class TestSyncPreferences: FinanceKitSyncPreferences {
+  var consentWithdrawalPending = false
+  var consentAcknowledged: Bool?
+  init(_ value: Bool? = nil) { consentAcknowledged = value }
 }

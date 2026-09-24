@@ -11,6 +11,7 @@ struct FinanceKitPublisherState: Codable, Equatable, Sendable {
   var pendingCapture: FinanceKitPendingCapture?
   var requiresRepair: Bool
   var lastAcceptedAt: Date?
+  var consentWithdrawalPending: Bool? = nil
   var batchRejection: FinanceKitBatchRejection? = nil
 
   static var empty: FinanceKitPublisherState {
