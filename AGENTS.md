@@ -73,7 +73,7 @@ Keep `App/` in this feature-oriented layout:
 App/
   Application/       App entry points, composition root, platform delegates
   Domain/            UI-independent financial types and rules
-  Features/          Overview, Accounts, Budget, Assistant, Transactions
+  Features/          Overview, Accounts, Budget, Assistant, Transactions, FirstRun
   Infrastructure/    API, authentication, persistence, notifications, devices
   DesignSystem/      Reusable SwiftUI styling and controls
 Shared/              Cross-target value types only

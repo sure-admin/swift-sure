@@ -11,6 +11,7 @@ struct ApplicationView: View {
   @State private var financeData: FinanceDataStore
   @State private var spendingComparison: SpendingComparisonStore
   @State private var appleCardConnection: AppleCardConnectionStore
+  @State private var firstRun: FirstRunStore?
   private var analytics: AnalyticsStore
   private var notificationManager: NotificationManager
   private var oauthService: PasskeyOAuthService
@@ -32,6 +33,7 @@ struct ApplicationView: View {
     lifecycle.appleCardConnection = finance.appleCardConnection
     lifecycle.transactionHistoryFactories = [finance.transactionHistoryStoreFactory, finance.localTransactionHistoryStoreFactory]
     lifecycle.restoreInitialState(isExplicitlySignedOut: services.initialState.isExplicitlySignedOut)
+    _firstRun = State(initialValue: FirstRunAssembly(connection: services, finance: finance).store)
     _subscriptionAccess = State(initialValue: services.subscriptionAccess)
     _connection = State(initialValue: services.connection)
     _financeData = State(initialValue: finance.financeData)
@@ -57,6 +59,7 @@ struct ApplicationView: View {
         financeData: financeData,
         spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,
+        firstRun: firstRun,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
         transactionHistoryStoreFactory: transactionHistoryStoreFactory,
