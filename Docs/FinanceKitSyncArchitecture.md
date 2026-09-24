@@ -221,11 +221,12 @@ The current slice implements the App Group/Keychain boundary, StoreKit and
 transport gates, exact outbox/receipt state machine, chunking, checkpoint
 custody, history collector, source fidelity, lifecycle suspension, cleanup, and
 the foreground trigger. It intentionally has no default publisher configuration
-until those activation gates are met. The background-delivery extension target
-is held on a separate branch until the Apple entitlement for
-`am.sure.insights.financekit-background` is granted; the App Group, Keychain
-access group, process lock, and file stores stay here so adding it back needs no
-migration on already-installed devices.
+until those activation gates are met. This branch also restores the
+background-delivery extension target; it cannot be signed until Apple grants the
+FinanceKit background entitlement for `am.sure.insights.financekit-background`,
+and its target deploys at iOS 26.0, neither of which constrains the foreground
+path. The extension adds a trigger and nothing else: `didReceiveData(for:)`
+calls the same `FinanceKitSyncRunner`.
 
 ## Experimental control plane
 
