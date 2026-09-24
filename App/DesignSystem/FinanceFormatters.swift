@@ -31,6 +31,17 @@ enum FinanceFormatters {
     currency(amount: money.amount, code: money.currency, compact: true)
   }
 
+  /// Rounded to whole currency units, for headline figures such as "$524 less".
+  static func wholeCurrency(_ money: DecimalMoney, locale: Locale = .autoupdatingCurrent) -> String {
+    var value = money.amount
+    var rounded = Decimal.zero
+    NSDecimalRound(&rounded, &value, 0, .plain)
+    if codeFormattedCurrencies.contains(money.currency.rawValue) {
+      return "\(money.currency.rawValue) \(rounded.formatted(.number.precision(.fractionLength(0)).locale(locale)))"
+    }
+    return rounded.formatted(.currency(code: money.currency.rawValue).precision(.fractionLength(0)).locale(locale))
+  }
+
   static func currency(
     _ breakdown: MoneyBreakdown,
     compact: Bool,
