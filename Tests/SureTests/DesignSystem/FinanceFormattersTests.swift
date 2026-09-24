@@ -40,4 +40,24 @@ struct FinanceFormattersTests {
       locale: locale
     ) == "-$12.35")
   }
+
+  @Test("Whole-unit headlines round half up and keep Sure currency codes")
+  func wholeCurrency() throws {
+    let usd = try #require(CurrencyCode("USD"))
+    let usdc = try #require(CurrencyCode("USDC"))
+    let locale = Locale(identifier: "en_US")
+
+    #expect(FinanceFormatters.wholeCurrency(
+      DecimalMoney(amount: Decimal(string: "523.65")!, currency: usd), locale: locale
+    ) == "$524")
+    #expect(FinanceFormatters.wholeCurrency(
+      DecimalMoney(amount: Decimal(string: "212.20")!, currency: usd), locale: locale
+    ) == "$212")
+    #expect(FinanceFormatters.wholeCurrency(
+      DecimalMoney(amount: 0, currency: usd), locale: locale
+    ) == "$0")
+    #expect(FinanceFormatters.wholeCurrency(
+      DecimalMoney(amount: 12, currency: usdc), locale: locale
+    ).hasPrefix("USDC "))
+  }
 }
