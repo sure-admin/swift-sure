@@ -54,6 +54,13 @@ offline, and suspended sessions use Sure data. Logging out restores the Wallet
 entry point; Allow Access reconnects it without restoring cached Sure records. See [spending comparison](Docs/SpendingComparison.md)
 and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
 
+## First run
+
+A fresh iPhone install with no Sure connection opens a full-screen launch hero
+that pitches the on-device Wallet preview and Sure's live demo. Its copy is
+parameterized by design variant and region; see [first run](Docs/FirstRun.md)
+for the launch arguments that switch them.
+
 ## On-device Wallet accounts
 
 Apple Card and Apple Cash accounts and transactions exposed by FinanceKit are
