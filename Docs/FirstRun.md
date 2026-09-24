@@ -56,10 +56,9 @@ The chart cards are drawn natively from `FirstRunShowcase` sample figures, the
 equivalent of marketing screenshots. They are labeled as illustrations for
 VoiceOver and never shown as account data.
 
-Add a portrait lake photo (at least 1290 × 2796) to the asset catalog as
-`FirstRunBackdrop` to replace the drawn fallback scene. The design used Moraine
-Lake from Wikimedia Commons (public domain); bundle it rather than loading it
-remotely.
+The bundled `FirstRunBackdrop` is [Moraine Lake, photographed by Gorgo](https://commons.wikimedia.org/wiki/File:Moraine_Lake_17092005.jpg)
+and released into the public domain by its author. The original 2048 × 1536
+photo is cropped to fill the screen, with a gradient behind the pitch copy.
 
 ## Not yet implemented
 
