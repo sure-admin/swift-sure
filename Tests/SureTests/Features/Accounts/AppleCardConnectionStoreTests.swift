@@ -5,6 +5,18 @@ import Testing
 @MainActor
 @Suite("Apple Card connection")
 struct AppleCardConnectionStoreTests {
+  @Test("Only explicitly synchronized source identities disappear from the local list")
+  func hidesMappedAccountsOnly() async {
+    let first = LocalFinancialAccount(id: UUID(), name: "Apple Card", institutionName: "Apple",
+      kind: .liability, balance: nil)
+    var sameName = first; sameName.id = UUID()
+    let store = AppleCardConnectionStore(connector: AppleCardConnectorFake(status: .authorized, accounts: [first, sameName]))
+    await store.refresh()
+    #expect(store.accounts(excludingSyncedSourceIDs: [first.id]) == [sameName])
+    #expect(store.accounts(excludingSyncedSourceIDs: []) == [first, sameName])
+    #expect(store.accounts == [first, sameName]) // Local access and sync collection remain available.
+  }
+
   @Test("Wallet approval survives a signed-out cold launch")
   func walletApprovalSurvivesRelaunch() async {
     let account = LocalFinancialAccount(

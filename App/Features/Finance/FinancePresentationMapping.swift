@@ -12,7 +12,8 @@ enum FinancePresentationMapping {
       institution: record.institutionName ?? "Institution unavailable",
       kind: kind,
       balance: record.balance,
-      tintName: tintName(identifier: record.id)
+      tintName: tintName(identifier: record.id),
+      isLiability: record.classification == "liability"
     )
   }
 

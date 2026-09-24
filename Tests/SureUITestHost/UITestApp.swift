@@ -16,7 +16,7 @@ struct UITestApp: App {
     let scenario = ProcessInfo.processInfo.environment["SURE_SCENARIO"] ?? "onboarding"
     self.scenario = scenario
     let connection = FixtureConnection(preview: scenario == "onboarding")
-    let client = FixtureClient(failFirst: scenario == "failure")
+    let client = FixtureClient(failFirst: scenario == "failure", syncedWallet: scenario == "wallet-synced")
     let wallet = AppleCardConnectionStore(connector: FixtureWallet())
     self.connection = connection; self.client = client; self.wallet = wallet
     finance = FinanceDataStore(connection: connection, client: client, calendar: .current,
@@ -73,9 +73,18 @@ private struct FixtureWallet: AppleCardConnecting {
 private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, SpendingComparisonClient, WalletSpendingComparisonProviding {
   static let date = ISO8601DateFormatter().date(from: "2024-02-15T12:00:00Z")!
   private var failFirst: Bool
-  init(failFirst: Bool) { self.failFirst = failFirst }
+  private var syncedWallet: Bool
+  init(failFirst: Bool, syncedWallet: Bool = false) { self.failFirst = failFirst; self.syncedWallet = syncedWallet }
   func fetchAccounts() async throws -> [FinanceAccount] {
-    [.init(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, name: "Sure Checking",
+    if syncedWallet {
+      return [.init(id: UUID(uuidString: "00000000-0000-4000-8000-000000000002")!, name: "Synchronized Apple Card",
+        institution: "Institution unavailable", kind: .credit,
+        balance: Money(minorUnits: 12500, currency: CurrencyCode("USD")!), tintName: "orange", isLiability: true,
+        walletSourceAccountID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!),
+        .init(id: UUID(uuidString: "00000000-0000-4000-8000-000000000003")!, name: "Apple Card (Monthly)",
+          institution: "Aggregator", kind: .credit, balance: Money(minorUnits: 9900, currency: CurrencyCode("USD")!), tintName: "orange")]
+    }
+    return [.init(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, name: "Sure Checking",
       institution: "Sure", kind: .cash, balance: Money(minorUnits: 50000, currency: CurrencyCode("USD")!), tintName: "blue")]
   }
   func fetchBalanceSheet() async throws -> BalanceSheetRecord { throw DataFailure.unavailable }

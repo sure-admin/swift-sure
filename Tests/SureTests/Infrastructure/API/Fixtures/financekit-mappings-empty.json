@@ -1,0 +1,17 @@
+{
+  "connection_id": "20000000-0000-4000-8000-000000000001",
+  "status": "active",
+  "repair_reason": null,
+  "open_conflicts": 1,
+  "last_device_contact_at": "2026-09-18T10:00:00.000Z",
+  "last_accepted_at": "2026-09-18T10:00:01.000Z",
+  "last_imported_at": "2026-09-18T10:00:04.000Z",
+  "last_downstream_at": "2026-09-18T10:05:00.000Z",
+  "accounts": [],
+  "pagination": {
+    "page": 1,
+    "per_page": 100,
+    "total_count": 0,
+    "total_pages": 0
+  }
+}

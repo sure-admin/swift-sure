@@ -214,3 +214,24 @@ FinanceKit-specific transaction deletion option. The confirmation dialog therefo
 explains that deletion is unavailable rather than deleting accounts, resetting a family, or guessing
 at a transaction filter. Supporting that choice requires a documented server
 operation scoped to Wallet-ingested records.
+
+
+Wallet account presentation uses the pinned FinanceKit connection detail operation
+(`GET /api/v1/financekit/connections/{id}`, every page). Its mapping `source_id`
+and nullable `account_id` link on-device Wallet accounts to canonical Sure accounts;
+account names and balances are never used as identity. Only a mapping to an account
+actually present in the validated account collection suppresses a local card.
+Source identity is retained in the existing authenticated account cache, survives
+stopping uploads, and is cleared with that cache on logout. The client labels these
+canonical cards “Apple Wallet” and uses the Wallet icon; the generic account API
+currently omits FinanceKit institution provenance. This is a client presentation
+label, not a mutation of server institution data or the source's institution name.
+
+Sure's pinned `Financekit::Mapping.balance` stores CreditCard debit balances as
+positive debt and credit balances as negative overpayments. The upload keeps this
+contract unchanged. `FinanceAccount.balance` retains the server value; account
+cards render liabilities with their sign inverted exactly once in Decimal, so debt
+appears negative and overpayments positive, matching the local Wallet convention.
+Assets preserve their signed balance (including overdrafts). Older cached cards
+infer liability presentation from their existing account kind until refreshed.
+Net worth still comes exclusively from Sure's balance-sheet endpoint.

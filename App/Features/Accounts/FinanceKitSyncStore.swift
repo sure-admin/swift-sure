@@ -39,6 +39,7 @@ final class FinanceKitSyncStore {
   }
   private(set) var health: FinanceKitConnectionRecord?
   private(set) var conflicts: [FinanceKitConflictRecord] = []
+  private let accountsDidChange: @MainActor () async -> Void
   private let client: FinanceKitControlPlaneClient
   private let publisher: any FinanceKitPublisherLifecycleHandling
   private let entitlementExpiration: @Sendable () async -> Date?
@@ -55,6 +56,7 @@ final class FinanceKitSyncStore {
 
   init(client: FinanceKitControlPlaneClient, publisher: any FinanceKitPublisherLifecycleHandling,
        preferences: any FinanceKitSyncPreferences,
+       accountsDidChange: @escaping @MainActor () async -> Void = {},
        entitlementExpiration: @escaping @Sendable () async -> Date? = {
          await FinanceKitBackgroundEntitlementReader().expiration()
        },
@@ -63,6 +65,7 @@ final class FinanceKitSyncStore {
          try await FinanceKitSyncRunner().run(changedTypes: $0)
        },
        now: @escaping @Sendable () -> Date = { .now }) {
+    self.accountsDidChange = accountsDidChange
     self.preferences = preferences
     self.consentAcknowledged = preferences.consentAcknowledged ?? false
     self.needsDisconnectRetry = preferences.consentWithdrawalPending
@@ -146,6 +149,7 @@ final class FinanceKitSyncStore {
       try await publisher.install(configuration: activation.configuration(), credential: activation.publisherCredential)
       localRepairRequired = false
       await refreshStatus()
+      await accountsDidChange()
     } catch {
       if let createdConnectionID {
         pendingEnrollmentCleanup = createdConnectionID
@@ -252,9 +256,11 @@ final class FinanceKitSyncStore {
       let value = try await client.health(connectionID: connectionID)
       let conflicts = try await client.conflicts(connectionID: connectionID).conflicts
       guard await publisher.configuredConnectionID() == connectionID else { clearStatus(); return }
+      let importedAccounts = value.lastImportedAt != nil && value.lastImportedAt != health?.lastImportedAt
       health = value
       self.conflicts = conflicts
       state = value.status == "repair_required" ? .repairRequired : .active
+      if importedAccounts { await accountsDidChange() }
     } catch { state = .failed("Wallet sync status is unavailable.") }
   }
 

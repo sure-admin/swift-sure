@@ -96,6 +96,13 @@ final class FinanceDataStore {
     ])
   }
 
+  func refreshAccounts() async {
+    guard connection.isConfigured, !disconnected else { return }
+    _ = await accountsResource.load(now: now, metadata: { await self.client.readMetadata(for: "accounts") }) {
+      try await self.client.fetchAccounts()
+    }
+  }
+
   func selectPreviousReportingMonth() async { await selectMonth(offset: -1) }
   func selectNextReportingMonth() async { if reporting.canSelectNext { await selectMonth(offset: 1) } }
   private func selectMonth(offset: Int) async {

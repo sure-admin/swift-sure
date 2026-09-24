@@ -18,6 +18,10 @@ final class AppleCardConnectionStore: WalletSpendingAccessProviding {
   private(set) var state: State = .idle
   private(set) var accounts: [LocalFinancialAccount] = []
 
+  func accounts(excludingSyncedSourceIDs sourceIDs: Set<UUID>) -> [LocalFinancialAccount] {
+    accounts.filter { !sourceIDs.contains($0.id) }
+  }
+
   var isAvailable: Bool { connector.isAvailable }
   private var generation = 0
 

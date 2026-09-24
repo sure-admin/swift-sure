@@ -49,7 +49,7 @@ struct AccountsView: View {
   @ViewBuilder
   private var content: some View {
     LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-      ForEach(appleCardConnection.accounts) { account in
+      ForEach(appleCardConnection.accounts(excludingSyncedSourceIDs: Set(data.accounts.compactMap(\.walletSourceAccountID)))) { account in
         localAccountLink(account)
       }
       ForEach(data.accounts) { account in
@@ -260,11 +260,15 @@ struct AccountsView: View {
     let accountColor = accountTypeColor(account.kind)
     return VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Image(systemName: account.kind.symbol)
-          .frame(width: 42, height: 42)
-          .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-          .foregroundStyle(accountColor)
-          .accessibilityHidden(true)
+        if account.walletSourceAccountID != nil {
+          appleCardIcon
+        } else {
+          Image(systemName: account.kind.symbol)
+            .frame(width: 42, height: 42)
+            .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+            .foregroundStyle(accountColor)
+            .accessibilityHidden(true)
+        }
         Spacer()
         Text(account.kind.rawValue)
           .font(.caption.bold())
@@ -278,10 +282,10 @@ struct AccountsView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(account.name)
             .font(.headline)
-          Text(account.institution)
+          Text(account.displayInstitution)
             .font(.subheadline)
             .foregroundStyle(.secondary)
-          Text(FinanceFormatters.currency(account.balance))
+          Text(FinanceFormatters.currency(account.displayBalance))
             .font(.title2.bold())
         }
       } else {
@@ -290,13 +294,13 @@ struct AccountsView: View {
             Text(account.name)
               .font(.headline)
               .lineLimit(1)
-            Text(account.institution)
+            Text(account.displayInstitution)
               .font(.subheadline)
               .foregroundStyle(.secondary)
               .lineLimit(1)
           }
           Spacer(minLength: 4)
-          Text(FinanceFormatters.currency(account.balance))
+          Text(FinanceFormatters.currency(account.displayBalance))
             .font(.title2.bold())
             .fixedSize(horizontal: true, vertical: false)
         }

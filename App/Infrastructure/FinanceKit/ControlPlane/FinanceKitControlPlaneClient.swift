@@ -30,6 +30,39 @@ struct FinanceKitControlPlaneClient: Sendable {
       forbiddenResponse: .previewFeatureUnavailable))
   }
 
+  /// Connection mappings are paginated independently of the account collection.
+  func accountMappings(connectionID: UUID) async throws -> [FinanceKitAccountMappingRecord] {
+    var page = 1
+    var expectedCount: Int?
+    var records: [FinanceKitAccountMappingRecord] = []
+    while true {
+      try Task.checkCancellation()
+      let response: FinanceKitAccountMappingPage = try await transport.send(APIRequest(method: .get,
+        pathComponents: path("connections", connectionID.uuidString.lowercased()),
+        queryItems: [URLQueryItem(name: "page", value: String(page)), URLQueryItem(name: "per_page", value: "100")],
+        forbiddenResponse: .previewFeatureUnavailable))
+      let pagination = response.pagination
+      guard response.connectionID == connectionID, pagination.page == page,
+            (1...100).contains(pagination.perPage), pagination.totalCount >= 0,
+            expectedCount == nil || expectedCount == pagination.totalCount,
+            pagination.totalPages == (pagination.totalCount == 0 ? 0 : (pagination.totalCount - 1) / pagination.perPage + 1),
+            response.accounts.count <= pagination.perPage,
+            pagination.totalCount == 0 || !response.accounts.isEmpty else { throw SureAPIError.decoding }
+      expectedCount = pagination.totalCount
+      records += response.accounts
+      guard records.count <= pagination.totalCount,
+            Set(records.map(\.sourceID)).count == records.count,
+            Set(records.map(\.lineageID)).count == records.count,
+            Set(records.compactMap(\.accountID)).count == records.compactMap(\.accountID).count,
+            records.allSatisfy({ $0.mappingVersion > 0 }) else { throw SureAPIError.decoding }
+      if page >= pagination.totalPages {
+        guard records.count == pagination.totalCount else { throw SureAPIError.decoding }
+        return records
+      }
+      page += 1
+    }
+  }
+
   func renew(connectionID: UUID) async throws -> FinanceKitActivation {
     try await command("credential", connectionID: connectionID)
   }
@@ -120,5 +153,22 @@ struct FinanceKitAccountMappingRequest: Sendable {
 }
 struct FinanceKitAccountMappingRecord: Decodable, Sendable {
   var sourceID: UUID; var lineageID: UUID; var mappingVersion: Int
-  enum CodingKeys: String, CodingKey { case sourceID = "source_id", lineageID = "lineage_id", mappingVersion = "mapping_version" }
+  var accountID: UUID?
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    sourceID = try container.decode(UUID.self, forKey: .sourceID)
+    lineageID = try container.decode(UUID.self, forKey: .lineageID)
+    mappingVersion = try container.decode(Int.self, forKey: .mappingVersion)
+    accountID = try container.decode(UUID?.self, forKey: .accountID)
+  }
+
+  enum CodingKeys: String, CodingKey { case sourceID = "source_id", lineageID = "lineage_id", mappingVersion = "mapping_version", accountID = "account_id" }
+}
+
+private struct FinanceKitAccountMappingPage: Decodable {
+  var connectionID: UUID
+  var accounts: [FinanceKitAccountMappingRecord]
+  var pagination: PaginationDTO
+  enum CodingKeys: String, CodingKey { case connectionID = "connection_id", accounts, pagination }
 }

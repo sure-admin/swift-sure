@@ -22,9 +22,25 @@ struct FinancePresentationMappingTests {
     let second = FinancePresentationMapping.account(from: record)
     #expect(first.id == identifier)
     #expect(first.balance == Money(minorUnits: -42_015, currency: currency))
+    #expect(first.displayBalance.amount == Decimal(string: "420.15"))
     #expect(first.kind == .credit)
     #expect(first.institution == "Institution unavailable")
     #expect(first.tintName == second.tintName)
+  }
+
+  @Test("Account cards show debts negative and credit balances positive without changing server amounts",
+    arguments: [Int64(42_015), -42_015, 0, Int64.max, Int64.min], ["USD", "JPY", "KWD"])
+  func liabilityDisplay(amount: Int64, code: String) throws {
+    let currency = try #require(CurrencyCode(code))
+    var record = AccountRecord(id: UUID(), name: "Card", institutionName: nil,
+      accountType: "credit_card", classification: "liability", status: "active",
+      balance: Money(minorUnits: amount, currency: currency))
+    let liability = FinancePresentationMapping.account(from: record)
+    #expect(liability.balance == record.balance)
+    #expect(liability.displayBalance.amount == -record.balance.decimalValue)
+    #expect(liability.displayBalance.currency == currency)
+    record.classification = "asset"
+    #expect(FinancePresentationMapping.account(from: record).displayBalance.amount == record.balance.decimalValue)
   }
 
   @Test("Bridges transaction sign, account, date, and currency without inventing values")

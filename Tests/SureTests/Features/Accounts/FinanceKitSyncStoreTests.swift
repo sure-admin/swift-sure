@@ -5,6 +5,20 @@ import Testing
 @MainActor
 @Suite("FinanceKit foreground sync")
 struct FinanceKitSyncStoreTests {
+  @Test("A newly imported Wallet snapshot refreshes the account list once")
+  func importedAccountsRefresh() async {
+    var refreshes = 0
+    let transport = HTTPDataTransportStub(Self.refreshResponses + Self.refreshResponses)
+    let store = FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
+      baseURL: URL(string: "https://sure.example")!, dataTransport: transport,
+      authorizer: UnauthenticatedRequestAuthorizer())), publisher: FinanceKitPublisherStub(connectionID: Self.connection),
+      preferences: TestSyncPreferences(true), accountsDidChange: { refreshes += 1 })
+    await store.refresh()
+    #expect(refreshes == 1)
+    await store.refresh()
+    #expect(refreshes == 1)
+  }
+
   @Test("Consent survives recreation, and cancelling withdrawal leaves it on")
   func persistentConsent() async {
     let preferences = TestSyncPreferences()
@@ -285,15 +299,22 @@ struct FinanceKitSyncStoreTests {
     #expect(store.state == .failed("Wallet sync couldn’t be enabled. Try again."))
   }
 
-  @Test("Successful enrollment installs one publisher and refreshes its health")
-  func successfulEnrollment() async throws {
+  @Test("Enrollment preserves the Wallet balance direction for Sure's liability conversion", arguments: [Int64(-100), 100, 0])
+  func successfulEnrollment(amount: Int64) async throws {
     let transport = HTTPDataTransportStub([
       try .http(json: #"{"available":true}"#), try .http(fixture: "financekit-connection-health", status: 201),
       try .http(json: Self.mappingJSON), try .http(fixture: "financekit-activation")
     ] + Self.refreshResponses)
     let publisher = FinanceKitPublisherStub(connectionID: nil)
     let store = store(transport: transport, publisher: publisher)
-    await store.enroll(accounts: [Self.account])
+    var account = Self.account
+    account.balance = Money(minorUnits: amount, currency: CurrencyCode("USD")!)
+    await store.enroll(accounts: [account])
+    let request = try #require(await transport.requests().first { $0.httpMethod == "PUT" })
+    let payload = try JSONDecoder().decode(EnrollmentBalanceProbe.self, from: #require(request.httpBody))
+    #expect(payload.accountableType == "CreditCard")
+    #expect(payload.bookedBalance.amount == (amount == 0 ? "0" : "1"))
+    #expect(payload.bookedBalance.direction == (amount < 0 ? "debit" : "credit"))
     #expect(store.state == .active)
     #expect(await publisher.configuredConnectionID() == Self.connection)
     #expect(await transport.requests().map(\.httpMethod) == ["GET", "POST", "PUT", "POST", "GET", "GET"])
@@ -415,7 +436,7 @@ struct FinanceKitSyncStoreTests {
   private static let account = LocalFinancialAccount(
     id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, name: "Wallet", institutionName: "Wallet",
     kind: .liability, balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))
-  private static let mappingJSON = #"{"source_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":2}"#
+  private static let mappingJSON = #"{"source_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":2,"account_id":"00000000-0000-4000-8000-000000000101"}"#
 
   private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub, preferences: (any FinanceKitSyncPreferences)? = nil) -> FinanceKitSyncStore {
     FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
@@ -551,4 +572,11 @@ private final class TestSyncPreferences: FinanceKitSyncPreferences {
   var consentWithdrawalPending = false
   var consentAcknowledged: Bool?
   init(_ value: Bool? = nil) { consentAcknowledged = value }
+}
+
+private struct EnrollmentBalanceProbe: Decodable {
+  var accountableType: String
+  var bookedBalance: Balance
+  struct Balance: Decodable { var amount: String; var direction: String }
+  enum CodingKeys: String, CodingKey { case accountableType = "accountable_type", bookedBalance = "booked_balance" }
 }

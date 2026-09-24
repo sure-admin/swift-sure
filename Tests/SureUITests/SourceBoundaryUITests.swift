@@ -4,6 +4,23 @@ final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
   @MainActor
+  func testSynchronizedWalletUsesBackendCardAndSignedBalance() throws {
+    let app = launch("wallet-synced")
+    XCTAssertTrue(app.staticTexts["Synchronized Apple Card"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.staticTexts["Apple Card Preview"].exists)
+    XCTAssertFalse(app.staticTexts["Institution unavailable"].exists)
+    XCTAssertTrue(app.staticTexts["Apple Wallet"].firstMatch.exists)
+    XCTAssertTrue(app.staticTexts["-$125.00"].exists)
+    XCTAssertTrue(app.staticTexts["Apple Card (Monthly)"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+    app.staticTexts["Synchronized Apple Card"].tap()
+    XCTAssertTrue(app.navigationBars["Synchronized Apple Card"].waitForExistence(timeout: 10))
+  }
+
+  @MainActor
   func testOnboardingWalletPreview() throws {
     let app = launch("onboarding")
     XCTAssertTrue(app.staticTexts["Apple Card Preview"].waitForExistence(timeout: 10))

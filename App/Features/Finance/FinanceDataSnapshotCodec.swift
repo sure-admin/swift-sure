@@ -147,6 +147,8 @@ private struct AccountPayload: Codable {
   var kind: String
   var balance: MoneyPayload
   var tintName: String
+  var isLiability: Bool?
+  var walletSourceAccountID: UUID?
 
   init(_ account: FinanceAccount) {
     id = account.id
@@ -155,6 +157,8 @@ private struct AccountPayload: Codable {
     kind = account.kind.rawValue
     balance = MoneyPayload(account.balance)
     tintName = account.tintName
+    isLiability = account.isLiability
+    walletSourceAccountID = account.walletSourceAccountID
   }
 
   func account() throws -> FinanceAccount {
@@ -167,7 +171,9 @@ private struct AccountPayload: Codable {
       institution: institution,
       kind: kind,
       balance: try balance.money(),
-      tintName: tintName
+      tintName: tintName,
+      isLiability: isLiability,
+      walletSourceAccountID: walletSourceAccountID
     )
   }
 }
