@@ -13,8 +13,6 @@ struct FirstRunCopy: Equatable, Sendable {
   var demo: Headline
   /// Replaces the Wallet pitch when FinanceKit is unavailable on this device.
   var walletUnavailable: Headline
-  var walletBadge = String(localized: "On this iPhone")
-  var demoBadge = String(localized: "Live demo")
   var walletPageLabel = String(localized: "Your Wallet")
   var demoPageLabel = String(localized: "Live demo")
   var walletFootnote = String(localized: "Stays on this iPhone. Nothing is uploaded.")
@@ -88,8 +86,6 @@ struct FirstRunCopy: Equatable, Sendable {
       return FirstRunPitch(
         kind: .wallet,
         action: walletAvailable ? .connectWallet : .exploreDemo,
-        badge: walletBadge,
-        badgeSymbol: "iphone",
         pageLabel: walletPageLabel,
         title: headline.title,
         body: headline.body,
@@ -101,8 +97,6 @@ struct FirstRunCopy: Equatable, Sendable {
       return FirstRunPitch(
         kind: .demo,
         action: .exploreDemo,
-        badge: demoBadge,
-        badgeSymbol: "globe",
         pageLabel: demoPageLabel,
         title: demo.title,
         body: demo.body,

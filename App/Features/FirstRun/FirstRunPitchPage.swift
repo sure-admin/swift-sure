@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// One pitch: floating chart artwork behind a bottom-anchored brand row,
-/// headline, body, and call to action.
+/// One pitch: floating chart artwork behind a bottom-anchored headline,
+/// body, and call to action.
 struct FirstRunPitchPage: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var pitch: FirstRunPitch
@@ -29,38 +29,19 @@ struct FirstRunPitchPage: View {
 
   private var copy: some View {
     VStack(alignment: .leading, spacing: 14) {
-      HStack(spacing: 10) {
-        Image("SureLogo")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 30, height: 30)
-          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-          .accessibilityHidden(true)
-        Text("Sure")
-          .font(.subheadline.weight(.semibold))
-        Spacer()
-        Label(pitch.badge, systemImage: pitch.badgeSymbol)
-          .font(.caption.weight(.medium))
-          .padding(.horizontal, 10)
-          .frame(minHeight: 26)
-          .background(.white.opacity(0.14), in: Capsule())
-      }
-      .padding(.bottom, 4)
-      .rise(risen, delay: 0, reduceMotion: reduceMotion)
-
       Text(pitch.title)
         .font(.largeTitle.weight(.medium))
         .tracking(-1.1)
         .minimumScaleFactor(0.7)
         .shadow(color: .black.opacity(0.3), radius: 10, y: 2)
         .accessibilityAddTraits(.isHeader)
-        .rise(risen, delay: 0.08, reduceMotion: reduceMotion)
+        .rise(risen, delay: 0, reduceMotion: reduceMotion)
 
       Text(pitch.body)
         .font(.callout)
         .foregroundStyle(.white.opacity(0.78))
         .padding(.bottom, 10)
-        .rise(risen, delay: 0.16, reduceMotion: reduceMotion)
+        .rise(risen, delay: 0.08, reduceMotion: reduceMotion)
 
       VStack(spacing: 12) {
         Button(action: start) {
@@ -87,7 +68,7 @@ struct FirstRunPitchPage: View {
           .foregroundStyle(.white.opacity(0.65))
       }
       .frame(maxWidth: .infinity)
-      .rise(risen, delay: 0.26, reduceMotion: reduceMotion)
+      .rise(risen, delay: 0.16, reduceMotion: reduceMotion)
     }
     .foregroundStyle(.white)
     .padding(.horizontal, 24)

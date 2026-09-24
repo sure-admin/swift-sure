@@ -12,8 +12,6 @@ struct FirstRunPitch: Equatable, Identifiable, Sendable {
 
   var kind: Kind
   var action: Action
-  var badge: String
-  var badgeSymbol: String
   var pageLabel: String
   var title: String
   var body: String
