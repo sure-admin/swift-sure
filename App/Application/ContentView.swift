@@ -8,6 +8,7 @@ struct ContentView: View {
   var financeData: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
+  var firstRun: FirstRunStore?
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -31,6 +32,26 @@ struct ContentView: View {
     }
     .sheet(isPresented: $showingConnectionSettings) {
       ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
+    }
+    #if os(iOS)
+    .fullScreenCover(isPresented: .constant(firstRun?.isFinished == false), onDismiss: routeAfterFirstRun) {
+      if let firstRun { FirstRunView(store: firstRun) }
+    }
+    #endif
+  }
+
+  // Routes once the cover has dismissed, so a follow-up sheet can present.
+  private func routeAfterFirstRun() {
+    switch firstRun?.outcome {
+    case .walletConnected:
+      // Overview shows the local Wallet spending comparison: the "wow" moment.
+      selection = .overview
+    case .exploreDemo:
+      // Demo reads go through the subscription gate like every Sure request,
+      // so the demo path opens Connection Settings on the default demo server.
+      showingConnectionSettings = true
+    case nil:
+      break
     }
   }
 
