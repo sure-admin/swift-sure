@@ -7,6 +7,8 @@ enum APIForbiddenResponse {
 }
 
 struct APIRequest<Response> {
+  /// Bind deferred work to the server that originally authorized it.
+  var requiredServerURL: URL? = nil
   var method: HTTPMethod
   var pathComponents: [String]
   var queryItems: [URLQueryItem]

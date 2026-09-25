@@ -77,6 +77,34 @@ Sure applies exchange rates. Those totals remain `Decimal` through the domain
 and are rounded only for display; native account, transaction, and budget values
 continue to use the server's integer minor units.
 
+The FinanceKit control plane and batch protocol use a scoped supplemental pin:
+[PR #3633's merge, `355648ce5d67b5b68fff5723ca5298467047e72e`](https://github.com/we-promise/sure/commit/355648ce5d67b5b68fff5723ca5298467047e72e).
+The general API baseline above remains unchanged. The FinanceKit fixtures
+(`Tests/SureTests/Infrastructure/API/Fixtures/financekit-*.json`) represent
+protocol 2. Activation returns a plain `publisher_credential` string beside the
+configuration; receipts distinguish acceptance from import and bind the full
+publisher/stream/batch identity.
+
+Publisher authentication and renewal were checked against this revision's
+[OpenAPI](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/docs/api/openapi.yaml),
+[batch controller](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/controllers/api/v1/financekit/batches_controller.rb),
+and [publisher model](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/models/financekit_item.rb):
+
+- Batch upload and receipt lookup use `Authorization: Bearer <publisher_credential>`,
+  independently of user OAuth/API-key authorization.
+- Invalid publisher credentials return HTTP 401 with
+  `{"error":"publisher_unauthorized"}` (the corresponding sanitized fixture).
+- Credential renewal immediately replaces the server's credential digest without
+  changing generation, stream, sequence, or predecessor digest. Repair changes
+  generation and stream and resets sequence continuity.
+- The client locks rotation and credential installation against uploads, preserves
+  pending batches on renewal, and retries a rejected foreground pass only once
+  after renewing the publisher credential. Other failures do not trigger rotation.
+
+These are offline contract checks, not proof of any particular deployment's
+configuration. Adoption of the broader merged server revision still requires the
+normal baseline review.
+
 ## Transaction product behavior
 
 The first production transaction surface remains read-only:
@@ -154,3 +182,56 @@ Adopt a newer Sure `main` revision deliberately:
 5. Run contract tests plus iOS, macOS, and Watch builds before committing.
 
 Do not silently move this pin as part of unrelated feature work.
+
+Batch validation diagnostics also follow the pinned
+[`Financekit::Payload` validator](https://github.com/we-promise/sure/blob/355648ce5d67b5b68fff5723ca5298467047e72e/app/models/financekit/payload.rb).
+The `financekit-batch-invalid-payload.json` fixture represents its HTTP 422
+`{"error":"invalid_payload"}` response. The publisher persists only a closed set
+of known validation codes, fences automatic retries, and retains the original
+outbox and checkpoint until explicit repair starts a new stream. Unknown response
+text is neither persisted nor displayed. These diagnostics do not identify the
+specific field when upstream returns the generic `invalid_payload` code.
+
+The client can locally inspect the retained rejected batch for common event
+violations, without retrying or modifying it. The synthetic
+`financekit-booked-missing-posted-at.json` fixture demonstrates a booked record
+whose optional FinanceKit posting date is absent: the current Swift mapping
+omits `posted_at`, while the pinned validator requires it for `booked`. Diagnostics
+identify an event index, field, and rule only. They also check text limits using
+Unicode code points (Ruby string semantics), supported statuses, capture-relative
+dates, and duplicate identities. This inspection is partial and does not replace
+server validation; lack of a local finding is not a claim that the payload is valid.
+Do not substitute transaction dates for missing posting dates, reclassify booked
+records, or drop financial records to make this contract mismatch disappear.
+
+Wallet consent is now a persisted client preference, with existing configured
+publishers migrated from their already-recorded consent. Withdrawing consent stops
+local delivery before remote disconnection. A failed disconnection retains a
+revoked configuration for retry, and the off choice survives relaunch. The pinned
+`DELETE /api/v1/financekit/connections/{id}` operation explicitly retains imported
+history. Upstream `main` was also checked for this change and still exposes no
+FinanceKit-specific transaction deletion option. The confirmation dialog therefore
+explains that deletion is unavailable rather than deleting accounts, resetting a family, or guessing
+at a transaction filter. Supporting that choice requires a documented server
+operation scoped to Wallet-ingested records.
+
+
+Wallet account presentation uses the pinned FinanceKit connection detail operation
+(`GET /api/v1/financekit/connections/{id}`, every page). Its mapping `source_id`
+and nullable `account_id` link on-device Wallet accounts to canonical Sure accounts;
+account names and balances are never used as identity. Only a mapping to an account
+actually present in the validated account collection suppresses a local card.
+Source identity is retained in the existing authenticated account cache, survives
+stopping uploads, and is cleared with that cache on logout. The client labels these
+canonical cards “Apple Wallet” and uses the Wallet icon; the generic account API
+currently omits FinanceKit institution provenance. This is a client presentation
+label, not a mutation of server institution data or the source's institution name.
+
+Sure's pinned `Financekit::Mapping.balance` stores CreditCard debit balances as
+positive debt and credit balances as negative overpayments. The upload keeps this
+contract unchanged. `FinanceAccount.balance` retains the server value; account
+cards render liabilities with their sign inverted exactly once in Decimal, so debt
+appears negative and overpayments positive, matching the local Wallet convention.
+Assets preserve their signed balance (including overdrafts). Older cached cards
+infer liability presentation from their existing account kind until refreshed.
+Net worth still comes exclusively from Sure's balance-sheet endpoint.

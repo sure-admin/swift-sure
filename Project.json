@@ -39,6 +39,7 @@
         "properties" : {
           "SurePostHogProjectToken" : "$(SURE_POSTHOG_PROJECT_TOKEN)",
           "SurePostHogHost" : "$(SURE_POSTHOG_HOST)",
+          "SureFinanceKitKeychainAccessGroup" : "$(AppIdentifierPrefix)am.sure.insights.financekit",
           "CFBundleDisplayName" : "Sure",
           "CFBundleShortVersionString" : "0.7.4",
           "CFBundleURLTypes" : [
@@ -52,7 +53,7 @@
           ],
           "CFBundleVersion" : "1",
           "ITSAppUsesNonExemptEncryption" : false,
-          "NSFinancialDataUsageDescription" : "Sure requests access to financial data you choose to share from Wallet when you select Apple Card in Accounts.",
+          "NSFinancialDataUsageDescription" : "Sure uses financial data from Wallet for the on-device account preview and, only when you separately enable it, to sync selected accounts and transactions to your Sure family.",
           "LSApplicationCategoryType" : "public.app-category.finance",
           "UILaunchScreen" : {
 
@@ -236,6 +237,7 @@
       "settings": {
         "base": {
           "PRODUCT_BUNDLE_IDENTIFIER": "am.sure.uitest-host",
+          "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "$(inherited) FINANCEKIT_ENABLED",
           "GENERATE_INFOPLIST_FILE": "YES",
           "SWIFT_VERSION": "5.0",
           "TARGETED_DEVICE_FAMILY": "1,2",
