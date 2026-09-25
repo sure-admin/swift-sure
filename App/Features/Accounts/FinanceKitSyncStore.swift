@@ -274,6 +274,16 @@ final class FinanceKitSyncStore {
     state = .idle
   }
 
+  func resetForLogout() {
+    preferences.consentAcknowledged = nil
+    preferences.consentWithdrawalPending = false
+    consentAcknowledged = false
+    needsDisconnectRetry = false
+    showsConsentWithdrawalConfirmation = false
+    pendingEnrollmentCleanup = nil
+    clearStatus()
+  }
+
   func repair() async {
     guard !isBusy else { return }
     isUpdatingPublisher = true

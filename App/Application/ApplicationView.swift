@@ -21,6 +21,7 @@ struct ApplicationView: View {
   @State private var financeKitSync: FinanceKitSyncStore
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  private var makeFirstRun: () -> FirstRunStore?
 
   init(configureNotifications: (NotificationManager, BackendAccessGate) -> Void = { _, _ in }) {
     let analytics = AnalyticsAssembly.make()
@@ -28,15 +29,18 @@ struct ApplicationView: View {
     let devices = DeviceAssembly(connection: services)
     let finance = FinanceAssembly(connection: services, syncInsights: devices.syncInsights)
     let lifecycle = services.lifecycle
+    lifecycle.resetAppData = { try ApplicationDataResetter().reset() }
     lifecycle.analytics = analytics
     lifecycle.notificationLifecycle = devices.notifications
     lifecycle.financeData = finance.financeData
+    lifecycle.financeKitSync = finance.financeKitSync
     lifecycle.spendingComparison = finance.spendingComparison
     lifecycle.appleCardConnection = finance.appleCardConnection
     lifecycle.financeKitPublisher = finance.financeKitPublisher
     lifecycle.transactionHistoryFactories = [finance.transactionHistoryStoreFactory, finance.localTransactionHistoryStoreFactory]
     lifecycle.restoreInitialState(isExplicitlySignedOut: services.initialState.isExplicitlySignedOut)
     _firstRun = State(initialValue: FirstRunAssembly(connection: services, finance: finance).store)
+    makeFirstRun = { FirstRunAssembly(connection: services, finance: finance).store }
     _subscriptionAccess = State(initialValue: services.subscriptionAccess)
     _connection = State(initialValue: services.connection)
     _financeData = State(initialValue: finance.financeData)
@@ -86,6 +90,11 @@ struct ApplicationView: View {
             if subscriptionAccess.hasAccess { await financeKitSync.syncOnForeground() }
             #endif
           }
+        }
+      }
+      .onChange(of: connection.status) { _, status in
+        if status == .notConnected && connection.isSignedOut {
+          firstRun = makeFirstRun()
         }
       }
       .onChange(of: subscriptionAccess.hasAccess, initial: true) { _, allowed in

@@ -63,6 +63,7 @@ final class SureConnection {
     email = ""
     password = ""
     await authentication.logOut()
+    serverURL = ""
   }
 
   private func signIn(_ method: AuthenticationMethod) async {

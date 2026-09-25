@@ -40,6 +40,24 @@ struct FinanceKitSyncStoreTests {
     #expect(!store(transport: transport, publisher: publisher, preferences: preferences).consentAcknowledged)
   }
 
+  @Test("Logout clears Wallet upload consent and in-memory state")
+  func logoutResetsConsent() {
+    let preferences = TestSyncPreferences(true)
+    preferences.consentWithdrawalPending = true
+    let model = store(transport: HTTPDataTransportStub([]),
+      publisher: FinanceKitPublisherStub(connectionID: nil), preferences: preferences)
+    model.showsConsentWithdrawalConfirmation = true
+
+    model.resetForLogout()
+
+    #expect(!model.consentAcknowledged)
+    #expect(!model.needsDisconnectRetry)
+    #expect(!model.showsConsentWithdrawalConfirmation)
+    #expect(preferences.consentAcknowledged == nil)
+    #expect(!preferences.consentWithdrawalPending)
+    #expect(model.state == .idle)
+  }
+
   @Test("Previously configured publishers migrate consent once without overriding an explicit off choice")
   func migratesConsent() async {
     let preferences = TestSyncPreferences()

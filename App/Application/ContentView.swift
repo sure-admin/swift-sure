@@ -25,6 +25,11 @@ struct ContentView: View {
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if connection.allowsWalletPreview && !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
+    .onChange(of: connection.status) { _, status in
+      if status == .notConnected && connection.isSignedOut {
+        showingConnectionSettings = false
+      }
+    }
     .onChange(of: visibleScreen, initial: true) { _, screen in
       analytics.capture(.screenViewed(screen))
     }

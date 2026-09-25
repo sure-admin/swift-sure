@@ -48,6 +48,20 @@ enum KeychainStore {
     return status == errSecSuccess || status == errSecItemNotFound
   }
 
+  static func removeAllAppSecrets() throws {
+    for scope in [Scope.deviceOnly, .iCloud] {
+      let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: service,
+        kSecAttrSynchronizable as String: scope.isSynchronizable
+      ]
+      let status = SecItemDelete(query as CFDictionary)
+      guard status == errSecSuccess || status == errSecItemNotFound else {
+        throw DataFailure.cleanup
+      }
+    }
+  }
+
   private static func query(account: String, scope: Scope) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,

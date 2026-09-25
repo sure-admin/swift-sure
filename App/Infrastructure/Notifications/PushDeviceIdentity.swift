@@ -3,7 +3,7 @@ import Foundation
 import Security
 
 /// A different secret per server prevents one self-hosted instance from claiming
-/// an installation's registration on another. It intentionally survives logout.
+/// an installation's registration on another. A full app-data reset removes it.
 struct PushDeviceIdentity {
   var secrets: any SecretValueStoring
   var makeSecret: () throws -> String = {
