@@ -24,6 +24,8 @@ struct AnalyticsStoreTests {
     #expect(preferences.analyticsEnabled)
     store.setEnabled(false)
     store.capture(.appOpened)
+    store.capture(.welcomeAction(variant: .instantReveal, pitch: .demo, action: .exploreDemo))
+    store.capture(.financeKitSyncFailed(operation: .sync, category: .invalidReceipt))
     store.resetIdentity()
     store.setEnabled(false)
     #expect(!preferences.analyticsEnabled)
@@ -55,6 +57,14 @@ struct AnalyticsStoreTests {
     for screen in UsageScreen.allCases {
       #expect(UsageEvent.screenViewed(screen).properties == ["screen": screen.rawValue])
     }
+    #expect(UsageEvent.welcomePageViewed(variant: .storyCards, pitch: .demo).properties ==
+      ["variant": "storyCards", "pitch": "demo"])
+    #expect(UsageEvent.welcomeAction(variant: .heroOverview, pitch: .wallet, action: .connectWallet).properties ==
+      ["variant": "heroOverview", "pitch": "wallet", "action": "connectWallet"])
+    #expect(UsageEvent.welcomeOutcome(variant: .instantReveal, outcome: .demoConnected).properties ==
+      ["variant": "instantReveal", "outcome": "demoConnected"])
+    #expect(UsageEvent.financeKitSyncFailed(operation: .sync, category: .invalidReceipt).properties ==
+      ["operation": "sync", "category": "invalidReceipt"])
   }
 
   @Test func identityRotatesOnlyAfterCommittedChanges() async {

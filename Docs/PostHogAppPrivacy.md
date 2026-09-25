@@ -8,8 +8,11 @@ App Privacy page: https://appstoreconnect.apple.com/apps/6804843427/distribution
 
 ## Implemented collection
 
-The app captures `app_opened` and `screen_viewed`. The latter has one app-defined
-property, a fixed screen name. PostHog adds an installation-scoped anonymous ID,
+The app captures `app_opened`, `screen_viewed`, `welcome_page_viewed`,
+`welcome_action`, `welcome_outcome`, and `financekit_sync_failed`. App-defined
+properties are fixed screen, welcome variant, pitch, action and outcome values,
+or a fixed foreground Wallet sync operation and failure category. No free-form
+error text or server error code is sent. PostHog adds an installation-scoped anonymous ID,
 session metadata, and standard app/device metadata (including app version, OS,
 model, screen dimensions, locale/time zone, and connectivity information).
 
@@ -30,12 +33,16 @@ the existing app-wide label.
 | Identifiers → Device ID | Analytics | Yes, via the persistent installation identifier | No |
 | Usage Data → Product Interaction | Analytics | Yes, via that identifier | No |
 | Usage Data → Other Usage Data | Analytics | Yes, via that identifier | No |
+| Diagnostics → Other Diagnostic Data | Analytics, App Functionality | Yes, via that identifier | No |
 
 The linkage answer is a conservative application of Apple's definition, which
 includes linkage through a device, not just a named account. “Anonymous” in the
 SDK does not mean the events are identifier-free. PostHog's generic SDK privacy
 manifest lists product interaction and other usage data as not linked; the app's
 actual use of a persistent installation ID must be assessed separately.
+The diagnostic row covers fixed categories of foreground Wallet sync failures;
+it does not imply collection of crash logs, raw errors, or financial records.
+Add this row to the published App Privacy label before distributing the new events.
 
 Tracking is not enabled by this integration: it does not combine these events
 with third-party data for advertising or share them with a data broker.

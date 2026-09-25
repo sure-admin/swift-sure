@@ -6,7 +6,7 @@ struct FirstRunAssembly {
   /// connection is configured, or the platform has no full-screen launch.
   let store: FirstRunStore?
 
-  init(connection services: ConnectionAssembly, finance: FinanceAssembly) {
+  init(connection services: ConnectionAssembly, finance: FinanceAssembly, analytics: any UsageAnalytics) {
     #if os(iOS)
     let preferences = UserDefaultsFirstRunPreferences()
     let isFirstRun = !preferences.hasCompletedFirstRun() && !services.connection.isConfigured
@@ -27,7 +27,8 @@ struct FirstRunAssembly {
         await wallet.connect()
         return wallet.state == .authorized
       },
-      markCompleted: { preferences.setHasCompletedFirstRun(true) }
+      markCompleted: { preferences.setHasCompletedFirstRun(true) },
+      analytics: analytics
     )
     #else
     store = nil

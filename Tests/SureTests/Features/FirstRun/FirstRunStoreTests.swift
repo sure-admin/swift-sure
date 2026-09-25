@@ -108,6 +108,34 @@ struct FirstRunStoreTests {
     #expect(completions == 1)
   }
 
+  @Test("Welcome exposure and actions use only fixed variant and pitch values")
+  func welcomeAnalytics() async throws {
+    let analytics = FirstRunAnalyticsSpy()
+    let store = makeStore(analytics: analytics)
+    #expect(analytics.events == [.welcomePageViewed(variant: .instantReveal, pitch: .wallet)])
+
+    store.select(1)
+    await store.start(try #require(store.pages.first { $0.kind == .demo }))
+    #expect(analytics.events == [
+      .welcomePageViewed(variant: .instantReveal, pitch: .wallet),
+      .welcomePageViewed(variant: .instantReveal, pitch: .demo),
+      .welcomeAction(variant: .instantReveal, pitch: .demo, action: .exploreDemo)
+    ])
+  }
+
+  @Test("Wallet refusal and later acceptance are separate welcome outcomes")
+  func walletOutcomes() async throws {
+    let analytics = FirstRunAnalyticsSpy()
+    var approved = false
+    let store = makeStore(connectWallet: { approved }, analytics: analytics)
+    let wallet = try #require(store.pages.first { $0.kind == .wallet })
+    await store.start(wallet)
+    #expect(analytics.events.contains(.welcomeOutcome(variant: .instantReveal, outcome: .walletDeclined)))
+    approved = true
+    await store.start(wallet)
+    #expect(analytics.events.contains(.welcomeOutcome(variant: .instantReveal, outcome: .walletConnected)))
+  }
+
   @Test("Switching variant or region replaces copy without moving the page")
   func applyDesignOptions() {
     let store = makeStore()
@@ -123,6 +151,7 @@ struct FirstRunStoreTests {
     walletAvailable: Bool = true,
     connectWallet: @escaping () async -> Bool = { true },
     markCompleted: @escaping () -> Void = {},
+    analytics: (any UsageAnalytics)? = nil,
     sleep: @escaping (Duration) async throws -> Void = { _ in }
   ) -> FirstRunStore {
     FirstRunStore(
@@ -132,7 +161,15 @@ struct FirstRunStoreTests {
       walletAvailable: walletAvailable,
       connectWallet: connectWallet,
       markCompleted: markCompleted,
+      analytics: analytics,
       sleep: sleep
     )
   }
+}
+
+@MainActor
+private final class FirstRunAnalyticsSpy: UsageAnalytics {
+  var events: [UsageEvent] = []
+  func capture(_ event: UsageEvent) { events.append(event) }
+  func resetIdentity() {}
 }

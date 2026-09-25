@@ -34,12 +34,14 @@ final class FirstRunStore {
   private let connectWallet: () async -> Bool
   private let markCompleted: () -> Void
   private let sleep: (Duration) async throws -> Void
+  private let analytics: (any UsageAnalytics)?
 
   init(
     configuration: FirstRunConfiguration,
     walletAvailable: Bool,
     connectWallet: @escaping () async -> Bool,
     markCompleted: @escaping () -> Void,
+    analytics: (any UsageAnalytics)? = nil,
     sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
     self.configuration = configuration
@@ -47,11 +49,13 @@ final class FirstRunStore {
     self.connectWallet = connectWallet
     self.markCompleted = markCompleted
     self.sleep = sleep
+    self.analytics = analytics
     let market = FirstRunMarket.market(for: configuration.region)
     let copy = FirstRunCopy.make(variant: configuration.variant, market: market, currentMonth: configuration.currentMonth)
     self.market = market
     self.copy = copy
     pages = Self.pages(copy: copy, walletAvailable: walletAvailable)
+    analytics?.capture(.welcomePageViewed(variant: configuration.variant.analyticsValue, pitch: pages[0].kind.analyticsValue))
   }
 
   var selectedPage: FirstRunPitch { pages[selectedIndex] }
@@ -79,17 +83,22 @@ final class FirstRunStore {
     do { try await sleep(configuration.autoAdvanceDelay) } catch { return }
     guard !hasInteracted, phase == .pitching, selectedIndex == 0 else { return }
     selectedIndex = 1
+    capturePageView()
   }
 
   func select(_ index: Int) {
     guard phase == .pitching, pages.indices.contains(index) else { return }
     hasInteracted = true
+    guard selectedIndex != index else { return }
     selectedIndex = index
+    capturePageView()
   }
 
   func start(_ pitch: FirstRunPitch) async {
     guard phase == .pitching else { return }
     hasInteracted = true
+    analytics?.capture(.welcomeAction(variant: configuration.variant.analyticsValue,
+      pitch: pitch.kind.analyticsValue, action: pitch.action.analyticsValue))
     switch pitch.action {
     case .exploreDemo:
       finish(.exploreDemo)
@@ -99,26 +108,66 @@ final class FirstRunStore {
       guard phase == .requestingWallet else { return }
       if authorized {
         finish(.walletConnected)
+        analytics?.capture(.welcomeOutcome(variant: configuration.variant.analyticsValue, outcome: .walletConnected))
       } else {
         // Declining the system sheet falls back to the demo pitch, not a dead end.
         walletDeclined = true
+        analytics?.capture(.welcomeOutcome(variant: configuration.variant.analyticsValue, outcome: .walletDeclined))
         phase = .pitching
-        if let demo = pages.firstIndex(where: { $0.kind == .demo }) { selectedIndex = demo }
+        if let demo = pages.firstIndex(where: { $0.kind == .demo }) {
+          selectedIndex = demo
+          capturePageView()
+        }
       }
     }
   }
 
   /// Design-comparison hook; replaces copy without restarting the hero.
   func apply(variant: FirstRunCopyVariant? = nil, region: FirstRunRegion? = nil) {
+    let previousVariant = configuration.variant
     if let variant { configuration.variant = variant }
     if let region { configuration.region = region }
     market = FirstRunMarket.market(for: configuration.region)
     copy = FirstRunCopy.make(variant: configuration.variant, market: market, currentMonth: configuration.currentMonth)
     pages = Self.pages(copy: copy, walletAvailable: walletAvailable)
+    if configuration.variant != previousVariant { capturePageView() }
+  }
+
+  private func capturePageView() {
+    analytics?.capture(.welcomePageViewed(variant: configuration.variant.analyticsValue,
+      pitch: selectedPage.kind.analyticsValue))
   }
 
   private func finish(_ outcome: Outcome) {
     markCompleted()
     phase = .finished(outcome)
+  }
+}
+
+extension FirstRunCopyVariant {
+  var analyticsValue: WelcomeVariant {
+    switch self {
+    case .instantReveal: .instantReveal
+    case .storyCards: .storyCards
+    case .heroOverview: .heroOverview
+    }
+  }
+}
+
+private extension FirstRunPitch.Kind {
+  var analyticsValue: WelcomePitch {
+    switch self {
+    case .wallet: .wallet
+    case .demo: .demo
+    }
+  }
+}
+
+private extension FirstRunPitch.Action {
+  var analyticsValue: WelcomeAction {
+    switch self {
+    case .connectWallet: .connectWallet
+    case .exploreDemo: .exploreDemo
+    }
   }
 }

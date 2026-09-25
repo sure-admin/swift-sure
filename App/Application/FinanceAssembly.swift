@@ -11,7 +11,8 @@ struct FinanceAssembly {
   let transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   let localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
-  init(connection services: ConnectionAssembly, syncInsights: @escaping ([BackendInsight]) -> Void) {
+  init(connection services: ConnectionAssembly, analytics: any UsageAnalytics,
+       syncInsights: @escaping ([BackendInsight]) -> Void) {
     let connection = services.connection
     let apiClient = services.apiClient
     let transport = services.transport
@@ -78,6 +79,7 @@ struct FinanceAssembly {
     self.financeKitPublisher = financeKitPublisher
     self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher,
       preferences: UserDefaultsFinanceKitSyncPreferences(defaults: .standard),
+      analytics: analytics,
       accountsDidChange: { await financeData.refreshAccounts() })
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory

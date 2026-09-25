@@ -46,6 +46,7 @@ final class FinanceKitSyncStore {
   private let makeID: @Sendable () -> UUID
   private let runSync: @Sendable (Set<FinanceKitBackgroundDataType>) async throws -> FinanceKitSyncOutcome
   private let now: @Sendable () -> Date
+  private let analytics: (any UsageAnalytics)?
   private var enrollmentInProgress = false
   private var pendingEnrollmentCleanup: UUID?
   private var localRepairRequired = false
@@ -56,6 +57,7 @@ final class FinanceKitSyncStore {
 
   init(client: FinanceKitControlPlaneClient, publisher: any FinanceKitPublisherLifecycleHandling,
        preferences: any FinanceKitSyncPreferences,
+       analytics: (any UsageAnalytics)? = nil,
        accountsDidChange: @escaping @MainActor () async -> Void = {},
        entitlementExpiration: @escaping @Sendable () async -> Date? = {
          await FinanceKitBackgroundEntitlementReader().expiration()
@@ -67,6 +69,7 @@ final class FinanceKitSyncStore {
        now: @escaping @Sendable () -> Date = { .now }) {
     self.accountsDidChange = accountsDidChange
     self.preferences = preferences
+    self.analytics = analytics
     self.consentAcknowledged = preferences.consentAcknowledged ?? false
     self.needsDisconnectRetry = preferences.consentWithdrawalPending
     self.client = client; self.publisher = publisher
@@ -101,6 +104,7 @@ final class FinanceKitSyncStore {
       preferences.consentWithdrawalPending = false
       clearStatus()
     } catch {
+      captureFailure(.disconnect, error)
       state = .failed(consentAcknowledged
         ? "Wallet sync couldn’t be stopped. Try again."
         : "Wallet uploads are stopped on this device. Sure hasn’t confirmed disconnection. Retry to finish; synchronized transactions will be kept.")
@@ -157,10 +161,12 @@ final class FinanceKitSyncStore {
           try await client.disconnect(connectionID: createdConnectionID)
           pendingEnrollmentCleanup = nil
         } catch {
+          captureFailure(.disconnect, error)
           state = .failed("Wallet sync setup couldn’t be removed from Sure. Try again to finish cleanup.")
           return
         }
       }
+      captureFailure(.enroll, error)
       state = .failed("Wallet sync couldn’t be enabled. Try again.")
     }
   }
@@ -187,6 +193,7 @@ final class FinanceKitSyncStore {
         state = .active
       }
     } catch let error as FinanceKitBatchUploadError where error.kind == .rejected {
+      captureFailure(.sync, error)
       batchRejection = FinanceKitBatchRejection(serverCode: error.code)
       batchValidationIssue = await publisher.batchValidationIssue()
       localRepairRequired = true
@@ -194,11 +201,13 @@ final class FinanceKitSyncStore {
     } catch FinanceKitSyncError.importPending {
       state = .importing
     } catch FinanceKitSyncError.streamFailed {
+      captureFailure(.sync, FinanceKitSyncError.streamFailed)
       await refreshStatus()
     } catch FinanceKitProcessLockError.busy {
       // Another pass already holds the outbox; its result arrives on the next refresh.
       await refreshStatus()
     } catch {
+      captureFailure(.sync, error)
       state = .failed("Wallet sync couldn’t finish. Try again.")
     }
   }
@@ -261,7 +270,10 @@ final class FinanceKitSyncStore {
       self.conflicts = conflicts
       state = value.status == "repair_required" ? .repairRequired : .active
       if importedAccounts { await accountsDidChange() }
-    } catch { state = .failed("Wallet sync status is unavailable.") }
+    } catch {
+      captureFailure(.status, error)
+      state = .failed("Wallet sync status is unavailable.")
+    }
   }
 
   private func clearStatus() {
@@ -295,7 +307,10 @@ final class FinanceKitSyncStore {
       batchRejection = nil
       localRepairRequired = false
       await refreshStatus()
-    } catch { state = .failed("Wallet sync repair failed.") }
+    } catch {
+      captureFailure(.repair, error)
+      state = .failed("Wallet sync repair failed.")
+    }
   }
 
   func renew() async {
@@ -306,7 +321,10 @@ final class FinanceKitSyncStore {
     do {
       try await publisher.renewCredential()
       await refreshStatus()
-    } catch { state = .failed("Wallet sync credential renewal failed.") }
+    } catch {
+      captureFailure(.renew, error)
+      state = .failed("Wallet sync credential renewal failed.")
+    }
   }
 
   func resolve(_ conflict: FinanceKitConflictRecord, keepingSure: Bool) async {
@@ -314,7 +332,52 @@ final class FinanceKitSyncStore {
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
     do { _ = try await client.resolve(connectionID: connectionID, conflictID: conflict.id,
       resolution: keepingSure ? "keep_sure" : "retry_after_repair"); await refresh() }
-    catch { state = .failed("The conflict couldn’t be resolved.") }
+    catch {
+      captureFailure(.repair, error)
+      state = .failed("The conflict couldn’t be resolved.")
+    }
+  }
+
+  private func captureFailure(_ operation: FinanceKitSyncOperation, _ error: Error) {
+    guard !(error is CancellationError) else { return }
+    analytics?.capture(.financeKitSyncFailed(operation: operation,
+      category: .classify(error)))
   }
 }
 enum FinanceKitControlPlaneError: Error { case missingBalance }
+
+/// A closed, data-free classification. Never forward Error descriptions,
+/// response codes, or FinanceKit records to usage analytics.
+private extension FinanceKitSyncFailureCategory {
+  static func classify(_ error: Error) -> Self {
+    if let error = error as? FinanceKitSyncError {
+      return switch error {
+      case .eventTooLarge: .eventTooLarge
+      case .historyTokenInvalid: .historyTokenInvalid
+      case .importPending: .other
+      case .invalidAmount: .invalidAmount
+      case .invalidCheckpoint: .invalidCheckpoint
+      case .invalidReceipt: .invalidReceipt
+      case .invalidState: .invalidState
+      case .sequenceExhausted: .sequenceExhausted
+      case .streamFailed: .streamFailed
+      case .unsupportedSourceValue: .unsupportedSourceValue
+      }
+    }
+    if let error = error as? FinanceKitBatchUploadError {
+      return switch error.kind {
+      case .authentication: .authentication
+      case .authorization: .authorization
+      case .conflict: .conflict
+      case .rejected: .rejected
+      case .invalidResponse: .invalidResponse
+      case .publisherRevoked: .publisherRevoked
+      case .rateLimited: .rateLimited
+      case .server: .server
+      case .tooLarge: .tooLarge
+      }
+    }
+    if error is URLError { return .transport }
+    return .other
+  }
+}

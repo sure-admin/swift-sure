@@ -13,7 +13,7 @@ struct AnalyticsSettingsView: View {
         .disabled(!analytics.isAvailable)
         .accessibilityHint("Allow Sure to send app usage events to PostHog.")
       } footer: {
-        Text("Help improve Sure by sharing which screens you use, along with app and device information, with PostHog. Financial data, server addresses, credentials, and conversations are excluded. No session recordings are collected. You can turn this off at any time.")
+        Text("Help improve Sure by sharing screen views, welcome choices, and categories of Wallet sync errors with PostHog, along with app and device information. Financial data, server addresses, credentials, and conversations are excluded. No session recordings are collected. You can turn this off at any time.")
       }
       if !analytics.isAvailable {
         Text("Usage analytics is not configured for this build.")

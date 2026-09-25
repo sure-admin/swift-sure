@@ -29,6 +29,10 @@ struct ContentView: View {
       if status == .notConnected && connection.isSignedOut {
         connectionPresentation = nil
       } else if status == .connected && connectionPresentation == .demoSignIn {
+        if let firstRun {
+          analytics.capture(.welcomeOutcome(variant: firstRun.configuration.variant.analyticsValue,
+            outcome: .demoConnected))
+        }
         connectionPresentation = nil
       }
     }

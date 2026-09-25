@@ -35,7 +35,8 @@ final class PostHogAnalyticsClient: AnalyticsClient {
     config.debug = false
     config.maxQueueSize = 100
     config.setBeforeSend { event in
-      guard event.event == "app_opened" || event.event == "screen_viewed" else { return nil }
+      guard ["app_opened", "screen_viewed", "welcome_page_viewed", "welcome_action",
+             "welcome_outcome", "financekit_sync_failed"].contains(event.event) else { return nil }
       return event
     }
     return config

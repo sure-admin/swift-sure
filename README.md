@@ -153,12 +153,16 @@ is PostHog US. Self-hosted distributions can replace these build settings with
 their own HTTPS ingestion host and project token, or leave either empty to
 completely disable initialization. Test hosts do not initialize the SDK.
 
-Events are `app_opened` (one per process launch) and `screen_viewed`, whose only
-app-defined property is a fixed `screen` value: `overview`, `assistant`,
-`accounts`, `budget`, `connection_settings`, `sign_in`, or `onboarding`.
+Events are `app_opened` (one per process launch), `screen_viewed` (a fixed screen
+name), `welcome_page_viewed` (copy variant and Wallet/demo pitch),
+`welcome_action` (fixed CTA choice), `welcome_outcome` (Wallet authorized,
+Wallet declined, or demo connected), and `financekit_sync_failed` (fixed
+foreground operation and failure category). The background FinanceKit publisher
+does not start PostHog or report errors. Welcome copy variants are only selected
+by the existing override mechanism; this change does not assign experiment arms.
 PostHog also supplies standard app/device/session metadata and an anonymous ID.
 No Sure IDs, server addresses, financial values, account/transaction details,
-credentials, or conversation text are passed to analytics. The app does not call
+credentials, response codes, free-form errors, or conversation text are passed to analytics. The app does not call
 `identify`; identity resets after logout and committed connection changes.
 Automatic lifecycle/screen/interaction capture, swizzling, session replay,
 surveys, and feature-flag preloading are disabled.

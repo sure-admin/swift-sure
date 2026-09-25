@@ -27,7 +27,7 @@ struct ApplicationView: View {
     let analytics = AnalyticsAssembly.make()
     let services = ConnectionAssembly()
     let devices = DeviceAssembly(connection: services)
-    let finance = FinanceAssembly(connection: services, syncInsights: devices.syncInsights)
+    let finance = FinanceAssembly(connection: services, analytics: analytics, syncInsights: devices.syncInsights)
     let lifecycle = services.lifecycle
     lifecycle.resetAppData = { try ApplicationDataResetter().reset() }
     lifecycle.analytics = analytics
@@ -39,8 +39,8 @@ struct ApplicationView: View {
     lifecycle.financeKitPublisher = finance.financeKitPublisher
     lifecycle.transactionHistoryFactories = [finance.transactionHistoryStoreFactory, finance.localTransactionHistoryStoreFactory]
     lifecycle.restoreInitialState(isExplicitlySignedOut: services.initialState.isExplicitlySignedOut)
-    _firstRun = State(initialValue: FirstRunAssembly(connection: services, finance: finance).store)
-    makeFirstRun = { FirstRunAssembly(connection: services, finance: finance).store }
+    _firstRun = State(initialValue: FirstRunAssembly(connection: services, finance: finance, analytics: analytics).store)
+    makeFirstRun = { FirstRunAssembly(connection: services, finance: finance, analytics: analytics).store }
     _subscriptionAccess = State(initialValue: services.subscriptionAccess)
     _connection = State(initialValue: services.connection)
     _financeData = State(initialValue: finance.financeData)

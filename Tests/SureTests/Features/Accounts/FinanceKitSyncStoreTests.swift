@@ -148,6 +148,34 @@ struct FinanceKitSyncStoreTests {
     #expect(store.state == .failed("Wallet sync couldn’t finish. Try again."))
   }
 
+  @Test("Foreground sync failures emit a fixed, data-free category")
+  func syncFailureAnalytics() async {
+    let analytics = FinanceKitAnalyticsSpy()
+    let secret = "private transaction details"
+    let recorder = SyncRecorder(result: {
+      throw FinanceKitBatchUploadError(kind: .rejected, code: secret)
+    })
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder, analytics: analytics)
+
+    await store.refresh()
+    await store.sync()
+
+    #expect(analytics.events == [.financeKitSyncFailed(operation: .sync, category: .rejected)])
+    #expect(!analytics.events.flatMap { $0.properties.values }.contains(secret))
+  }
+
+  @Test("Pending imports do not emit failure analytics")
+  func pendingImportAnalytics() async {
+    let analytics = FinanceKitAnalyticsSpy()
+    let recorder = SyncRecorder(result: { throw FinanceKitSyncError.importPending })
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder, analytics: analytics)
+
+    await store.refresh()
+    await store.sync()
+
+    #expect(analytics.events.isEmpty)
+  }
+
   @Test("Validation code stays visible through refresh and foreground without another upload")
   func validationFailureIsActionable() async {
     let recorder = SyncRecorder(result: { throw FinanceKitBatchUploadError(kind: .rejected, code: "invalid_timestamp") })
@@ -475,6 +503,7 @@ struct FinanceKitSyncStoreTests {
     responses: [HTTPDataTransportStub.Result],
     recorder: SyncRecorder,
     connectionID: UUID? = FinanceKitSyncStoreTests.connection,
+    analytics: (any UsageAnalytics)? = nil,
     now: @escaping @Sendable () -> Date = { .now }
   ) -> FinanceKitSyncStore {
     let transport = SureAPITransport(
@@ -485,10 +514,18 @@ struct FinanceKitSyncStoreTests {
     return FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: transport),
       publisher: FinanceKitPublisherStub(connectionID: connectionID), preferences: TestSyncPreferences(true),
+      analytics: analytics,
       runSync: { try recorder.run($0) },
       now: now
     )
   }
+}
+
+@MainActor
+private final class FinanceKitAnalyticsSpy: UsageAnalytics {
+  var events: [UsageEvent] = []
+  func capture(_ event: UsageEvent) { events.append(event) }
+  func resetIdentity() {}
 }
 
 private actor FinanceKitPublisherStub: FinanceKitPublisherLifecycleHandling {
