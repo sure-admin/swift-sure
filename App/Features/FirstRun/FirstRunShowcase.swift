@@ -39,17 +39,17 @@ struct FirstRunShowcase: Sendable {
   static let standard = FirstRunShowcase(
     currency: CurrencyCode("USD")!,
     incomes: [
-      Flow(name: String(localized: "Salary"), amount: 8_400, tint: .salary),
-      Flow(name: String(localized: "Side income"), amount: 1_150, tint: .sideIncome)
+      Flow(name: String(localized: "first_run.showcase.salary", table: "FirstRun"), amount: 8_400, tint: .salary),
+      Flow(name: String(localized: "first_run.showcase.side_income", table: "FirstRun"), amount: 1_150, tint: .sideIncome)
     ],
     outflows: [
-      Flow(name: String(localized: "Housing"), amount: 2_850, tint: .housing),
-      Flow(name: String(localized: "Food & dining"), amount: 1_120, tint: .food),
-      Flow(name: String(localized: "Shopping"), amount: 780, tint: .shopping),
-      Flow(name: String(localized: "Transportation"), amount: 640, tint: .transport),
-      Flow(name: String(localized: "Utilities"), amount: 410, tint: .utilities),
-      Flow(name: String(localized: "Entertainment"), amount: 290, tint: .entertainment),
-      Flow(name: String(localized: "Surplus"), amount: 3_460, tint: .surplus)
+      Flow(name: String(localized: "first_run.showcase.housing", table: "FirstRun"), amount: 2_850, tint: .housing),
+      Flow(name: String(localized: "first_run.showcase.food", table: "FirstRun"), amount: 1_120, tint: .food),
+      Flow(name: String(localized: "first_run.showcase.shopping", table: "FirstRun"), amount: 780, tint: .shopping),
+      Flow(name: String(localized: "first_run.showcase.transportation", table: "FirstRun"), amount: 640, tint: .transport),
+      Flow(name: String(localized: "first_run.showcase.utilities", table: "FirstRun"), amount: 410, tint: .utilities),
+      Flow(name: String(localized: "first_run.showcase.entertainment", table: "FirstRun"), amount: 290, tint: .entertainment),
+      Flow(name: String(localized: "first_run.showcase.surplus", table: "FirstRun"), amount: 3_460, tint: .surplus)
     ],
     demoCurve: Curve(
       current: cumulative(days: 30, seed: 3, firstWeekday: 2, fixed: [1: 2_850], checkpoints: [(23, 4_188.65)]),
@@ -65,7 +65,8 @@ struct FirstRunShowcase: Sendable {
       previousSameDayTotal: Decimal(string: "1496.80")!,
       dayCount: 30
     ),
-    walletAccounts: [String(localized: "Apple Card"), String(localized: "Apple Cash")]
+    walletAccounts: [String(localized: "first_run.showcase.apple_card", table: "FirstRun"),
+      String(localized: "first_run.showcase.apple_cash", table: "FirstRun")]
   )
 
   var income: Decimal { incomes.reduce(0) { $0 + $1.amount } }

@@ -8,6 +8,14 @@ enum FirstRunRegion: String, CaseIterable, Sendable {
   case unitedKingdom = "UK"
   case other
 
+  var displayName: String {
+    switch self {
+    case .unitedStates: "US"
+    case .unitedKingdom: "UK"
+    case .other: String(localized: "first_run.design.other_region", table: "FirstRun")
+    }
+  }
+
   init(locale: Locale) {
     switch locale.region?.identifier {
     case "US": self = .unitedStates

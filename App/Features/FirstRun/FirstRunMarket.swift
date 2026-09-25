@@ -19,8 +19,8 @@ struct FirstRunMarket: Sendable {
   }
 
   static let standard = FirstRunMarket(
-    walletSources: String(localized: "Apple Card and Apple Cash"),
-    walletProducts: String(localized: "Apple Card, Apple Cash or Savings"),
+    walletSources: String(localized: "first_run.wallet.sources", table: "FirstRun"),
+    walletProducts: String(localized: "first_run.wallet.products", table: "FirstRun"),
     showcase: .standard
   )
 }

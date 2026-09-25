@@ -13,6 +13,8 @@ struct FirstRunCopyTests {
           #expect(!headline.title.isEmpty)
           #expect(!headline.body.isEmpty)
           #expect(!headline.callToAction.isEmpty)
+          #expect(!headline.title.hasPrefix("first_run."))
+          #expect(!headline.body.hasPrefix("first_run."))
         }
       }
     }
@@ -24,7 +26,24 @@ struct FirstRunCopyTests {
       FirstRunCopy.make(variant: $0, market: .standard, currentMonth: "September").wallet.title
     }
     #expect(Set(titles).count == FirstRunCopyVariant.allCases.count)
-    #expect(titles.last == "How’s September going?")
+    #expect(titles.last?.contains("September") == true)
+  }
+
+  @Test("English and Spanish first-run resources include text and formatted copy")
+  func localizedResources() throws {
+    let resources = try #require(Bundle.main.resourceURL)
+    let english = try strings(at: resources.appendingPathComponent("en.lproj/FirstRun.strings"))
+    let spanish = try strings(at: resources.appendingPathComponent("es.lproj/FirstRun.strings"))
+
+    #expect(english["first_run.action.explore_demo"] == "Explore the live demo")
+    #expect(spanish["first_run.action.explore_demo"] == "Explorar la demo en vivo")
+    let spanishFormat = try #require(spanish["first_run.wallet.overview.title"])
+    #expect(String(format: spanishFormat, locale: Locale(identifier: "es_ES"), "septiembre") == "¿Cómo va septiembre?")
+  }
+
+  private func strings(at url: URL) throws -> [String: String] {
+    let data = try Data(contentsOf: url)
+    return try #require(PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: String])
   }
 
   @Test("The Wallet pitch names the market's Wallet sources")

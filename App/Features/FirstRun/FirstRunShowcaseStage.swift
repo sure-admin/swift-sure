@@ -49,8 +49,8 @@ struct FirstRunShowcaseStage: View {
     .allowsHitTesting(false)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(kind == .wallet
-      ? Text("Illustration of a Wallet spending comparison")
-      : Text("Illustration of Sure’s cash flow and spending charts"))
+      ? Text(String(localized: "first_run.accessibility.wallet_artwork", table: "FirstRun"))
+      : Text(String(localized: "first_run.accessibility.demo_artwork", table: "FirstRun")))
     .onAppear(perform: animateIn)
   }
 
@@ -71,7 +71,8 @@ struct FirstRunShowcaseStage: View {
       case .demo:
         FirstRunGlossCard {
           VStack(alignment: .leading, spacing: 12) {
-            header(Text("Cash flow"), trailing: Text(configuration.previousMonth))
+            header(Text(String(localized: "first_run.showcase.cash_flow", table: "FirstRun")),
+              trailing: Text(configuration.previousMonth))
             FirstRunSankey(showcase: showcase, progress: drawn ? 1 : 0)
               .frame(width: 278, height: 210)
           }
@@ -81,7 +82,8 @@ struct FirstRunShowcaseStage: View {
 
         FirstRunGlossCard(sheenDelay: 0.6) {
           VStack(alignment: .leading, spacing: 2) {
-            Text("\(configuration.currentMonth) so far")
+            Text(String(format: String(localized: "first_run.showcase.month_so_far", table: "FirstRun"),
+              locale: .current, configuration.currentMonth))
               .font(.system(size: 11))
               .foregroundStyle(FirstRunPalette.chartLabel)
             Text(FinanceFormatters.currency(DecimalMoney(amount: showcase.demoCurve.currentTotal, currency: showcase.currency)))
@@ -100,7 +102,10 @@ struct FirstRunShowcaseStage: View {
       case .wallet:
         FirstRunGlossCard {
           VStack(alignment: .leading, spacing: 2) {
-            header(Text("\(configuration.currentMonth) spending"), trailing: Text("Days 1–\(showcase.walletCurve.elapsedDays)"))
+            header(Text(String(format: String(localized: "first_run.showcase.month_spending", table: "FirstRun"),
+              locale: .current, configuration.currentMonth)),
+              trailing: Text(String(format: String(localized: "first_run.showcase.days", table: "FirstRun"),
+                locale: .current, showcase.walletCurve.elapsedDays)))
             Text(FinanceFormatters.currency(DecimalMoney(amount: showcase.walletCurve.currentTotal, currency: showcase.currency)))
               .font(.system(size: 22, weight: .medium).monospacedDigit())
               .tracking(-0.5)
@@ -114,7 +119,7 @@ struct FirstRunShowcaseStage: View {
 
         FirstRunGlossCard(sheenDelay: 0.6) {
           VStack(alignment: .leading, spacing: 0) {
-            Text("Accounts on this iPhone")
+            Text(String(localized: "first_run.showcase.accounts", table: "FirstRun"))
               .font(.system(size: 11))
               .foregroundStyle(FirstRunPalette.chartLabel)
               .padding(.bottom, 6)
@@ -160,7 +165,7 @@ struct FirstRunShowcaseStage: View {
   private func deltaPill(_ delta: Decimal) -> some View {
     FirstRunGlossCard(cornerRadius: 19, padding: 0, sheenDelay: 1.2) {
       Label {
-        Text(delta >= 0 ? "\(money(delta)) less" : "\(money(-delta)) more")
+        Text(deltaLabel(delta))
       } icon: {
         Image(systemName: delta >= 0 ? "arrow.down" : "arrow.up")
       }
@@ -174,5 +179,14 @@ struct FirstRunShowcaseStage: View {
 
   private func money(_ amount: Decimal) -> String {
     FinanceFormatters.wholeCurrency(DecimalMoney(amount: amount, currency: showcase.currency))
+  }
+
+  private func deltaLabel(_ delta: Decimal) -> String {
+    if delta >= 0 {
+      return String(format: String(localized: "first_run.showcase.less", table: "FirstRun"),
+        locale: .current, money(delta))
+    }
+    return String(format: String(localized: "first_run.showcase.more", table: "FirstRun"),
+      locale: .current, money(-delta))
   }
 }

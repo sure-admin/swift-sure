@@ -1,3 +1,5 @@
+import Foundation
+
 /// The three copy directions explored in the first-run design. Each keeps the
 /// same launch hero but pitches Wallet and the live demo differently.
 enum FirstRunCopyVariant: String, CaseIterable, Sendable {
@@ -10,9 +12,9 @@ enum FirstRunCopyVariant: String, CaseIterable, Sendable {
 
   var displayName: String {
     switch self {
-    case .instantReveal: "A · Instant reveal"
-    case .storyCards: "B · Story cards"
-    case .heroOverview: "C · Hero → Overview"
+    case .instantReveal: String(localized: "first_run.design.instant", table: "FirstRun")
+    case .storyCards: String(localized: "first_run.design.story", table: "FirstRun")
+    case .heroOverview: String(localized: "first_run.design.overview", table: "FirstRun")
     }
   }
 }

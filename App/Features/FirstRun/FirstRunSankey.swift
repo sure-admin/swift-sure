@@ -44,7 +44,8 @@ struct FirstRunSankey: View, Animatable {
         labels.draw(Text(money(node.amount)).font(figure).foregroundStyle(FirstRunPalette.chartLabel),
           at: CGPoint(x: 14, y: node.rect.midY + fontSize * 0.6), anchor: .leading)
       }
-      labels.draw(Text("Cash flow").font(.system(size: fontSize)).foregroundStyle(FirstRunPalette.chartLabel),
+      labels.draw(Text(String(localized: "first_run.showcase.cash_flow", table: "FirstRun"))
+        .font(.system(size: fontSize)).foregroundStyle(FirstRunPalette.chartLabel),
         at: CGPoint(x: layout.center.midX, y: layout.center.minY - 8), anchor: .bottom)
       for node in layout.targets {
         let surplus = node.tint == .surplus

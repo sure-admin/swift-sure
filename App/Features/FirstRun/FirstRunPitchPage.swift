@@ -60,8 +60,8 @@ struct FirstRunPitchPage: View {
         .buttonStyle(FirstRunPrimaryButtonStyle())
         .disabled(isBusy)
         .accessibilityHint(pitch.action == .connectWallet
-          ? Text("Asks to share Wallet accounts with Sure")
-          : Text("Opens Sure’s live demo"))
+          ? Text(String(localized: "first_run.accessibility.share_wallet", table: "FirstRun"))
+          : Text(String(localized: "first_run.accessibility.open_demo", table: "FirstRun")))
 
         Label(pitch.footnote, systemImage: pitch.footnoteSymbol)
           .font(.footnote)

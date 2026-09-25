@@ -9,7 +9,7 @@ struct FirstRunDesignMenu: View {
 
   var body: some View {
     Menu {
-      Picker("Copy", selection: Binding(
+      Picker(String(localized: "first_run.design.copy", table: "FirstRun"), selection: Binding(
         get: { store.configuration.variant },
         set: { store.apply(variant: $0) }
       )) {
@@ -17,12 +17,12 @@ struct FirstRunDesignMenu: View {
           Text(variant.displayName).tag(variant)
         }
       }
-      Picker("Region", selection: Binding(
+      Picker(String(localized: "first_run.design.region", table: "FirstRun"), selection: Binding(
         get: { store.configuration.region },
         set: { store.apply(region: $0) }
       )) {
         ForEach(FirstRunRegion.allCases, id: \.self) { region in
-          Text(region.rawValue).tag(region)
+          Text(region.displayName).tag(region)
         }
       }
     } label: {
@@ -32,7 +32,7 @@ struct FirstRunDesignMenu: View {
         .frame(width: 32, height: 32)
         .background(.white.opacity(0.14), in: Circle())
     }
-    .accessibilityLabel("First-run design options")
+    .accessibilityLabel(String(localized: "first_run.design.options", table: "FirstRun"))
     .padding(.trailing, 16)
     .padding(.top, 8)
   }
