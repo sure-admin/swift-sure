@@ -156,8 +156,10 @@ completely disable initialization. Test hosts do not initialize the SDK.
 Events are `app_opened` (one per process launch), `screen_viewed` (a fixed screen
 name), `welcome_page_viewed` (copy variant and Wallet/demo pitch),
 `welcome_action` (fixed CTA choice), `welcome_outcome` (Wallet authorized,
-Wallet declined, or demo connected), and `financekit_sync_failed` (fixed
-foreground operation and failure category). The background FinanceKit publisher
+Wallet declined, or demo connected), `financekit_sync_failure` (fixed foreground
+operation and failure category), and `financekit_sync_success` (fixed foreground
+operation and result, distinguishing uploaded batches from no changes). Pending
+imports and lock contention are not counted as completed syncs. The background FinanceKit publisher
 does not start PostHog or report errors. Welcome copy variants are only selected
 by the existing override mechanism; this change does not assign experiment arms.
 PostHog also supplies standard app/device/session metadata and an anonymous ID.

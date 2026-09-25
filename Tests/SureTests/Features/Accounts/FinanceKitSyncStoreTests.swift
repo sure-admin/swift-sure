@@ -160,11 +160,36 @@ struct FinanceKitSyncStoreTests {
     await store.refresh()
     await store.sync()
 
-    #expect(analytics.events == [.financeKitSyncFailed(operation: .sync, category: .rejected)])
+    #expect(analytics.syncEvents == [.financeKitSyncFailure(operation: .sync, category: .rejected)])
     #expect(!analytics.events.flatMap { $0.properties.values }.contains(secret))
   }
 
-  @Test("Pending imports do not emit failure analytics")
+  @Test("An uploaded sync pass emits a success result")
+  func syncSuccessAnalytics() async {
+    let analytics = FinanceKitAnalyticsSpy()
+    let recorder = SyncRecorder(result: { .uploaded(1) })
+    let store = makeStore(responses: Self.refreshResponses + Self.refreshResponses,
+      recorder: recorder, analytics: analytics)
+
+    await store.refresh()
+    await store.sync()
+
+    #expect(analytics.syncEvents == [.financeKitSyncSuccess(operation: .sync, result: .uploaded)])
+  }
+
+  @Test("A pass with no changes emits a no-changes success")
+  func noChangesAnalytics() async {
+    let analytics = FinanceKitAnalyticsSpy()
+    let store = makeStore(responses: Self.refreshResponses + Self.refreshResponses,
+      recorder: SyncRecorder(result: { .noChanges }), analytics: analytics)
+
+    await store.refresh()
+    await store.sync()
+
+    #expect(analytics.syncEvents == [.financeKitSyncSuccess(operation: .sync, result: .noChanges)])
+  }
+
+  @Test("Pending imports do not emit terminal sync analytics")
   func pendingImportAnalytics() async {
     let analytics = FinanceKitAnalyticsSpy()
     let recorder = SyncRecorder(result: { throw FinanceKitSyncError.importPending })
@@ -173,7 +198,22 @@ struct FinanceKitSyncStoreTests {
     await store.refresh()
     await store.sync()
 
-    #expect(analytics.events.isEmpty)
+    #expect(analytics.syncEvents.isEmpty)
+  }
+
+  @Test("Repair-required and missing-configuration outcomes are failures")
+  func terminalSyncOutcomes() async {
+    for (outcome, category) in [
+      (FinanceKitSyncOutcome.repairRequired, FinanceKitSyncFailureCategory.repairRequired),
+      (.notConfigured, .notConfigured)
+    ] {
+      let analytics = FinanceKitAnalyticsSpy()
+      let store = makeStore(responses: Self.refreshResponses,
+        recorder: SyncRecorder(result: { outcome }), analytics: analytics)
+      await store.refresh()
+      await store.sync()
+      #expect(analytics.syncEvents == [.financeKitSyncFailure(operation: .sync, category: category)])
+    }
   }
 
   @Test("Validation code stays visible through refresh and foreground without another upload")
@@ -524,6 +564,7 @@ struct FinanceKitSyncStoreTests {
 @MainActor
 private final class FinanceKitAnalyticsSpy: UsageAnalytics {
   var events: [UsageEvent] = []
+  var syncEvents: [UsageEvent] { events.filter { $0.properties["operation"] == "sync" } }
   func capture(_ event: UsageEvent) { events.append(event) }
   func resetIdentity() {}
 }

@@ -103,6 +103,7 @@ final class FinanceKitSyncStore {
       needsDisconnectRetry = false
       preferences.consentWithdrawalPending = false
       clearStatus()
+      captureSuccess(.disconnect)
     } catch {
       captureFailure(.disconnect, error)
       state = .failed(consentAcknowledged
@@ -152,6 +153,7 @@ final class FinanceKitSyncStore {
       let activation = try await client.activate(connectionID: connection.connectionID)
       try await publisher.install(configuration: activation.configuration(), credential: activation.publisherCredential)
       localRepairRequired = false
+      captureSuccess(.enroll)
       await refreshStatus()
       await accountsDidChange()
     } catch {
@@ -181,13 +183,19 @@ final class FinanceKitSyncStore {
     do {
       switch try await syncWithCredentialRecovery() {
       case .repairRequired:
+        analytics?.capture(.financeKitSyncFailure(operation: .sync, category: .repairRequired))
         localRepairRequired = true
         batchRejection = await publisher.batchRejection()
         batchValidationIssue = await publisher.batchValidationIssue()
         state = .repairRequired
       case .notConfigured:
+        analytics?.capture(.financeKitSyncFailure(operation: .sync, category: .notConfigured))
         clearStatus()
-      case .uploaded, .noChanges:
+      case .uploaded:
+        captureSuccess(.sync, result: .uploaded)
+        await refreshStatus()
+      case .noChanges:
+        captureSuccess(.sync, result: .noChanges)
         await refreshStatus()
       case .busy:
         state = .active
@@ -269,6 +277,7 @@ final class FinanceKitSyncStore {
       health = value
       self.conflicts = conflicts
       state = value.status == "repair_required" ? .repairRequired : .active
+      captureSuccess(.status)
       if importedAccounts { await accountsDidChange() }
     } catch {
       captureFailure(.status, error)
@@ -306,6 +315,7 @@ final class FinanceKitSyncStore {
       batchValidationIssue = nil
       batchRejection = nil
       localRepairRequired = false
+      captureSuccess(.repair)
       await refreshStatus()
     } catch {
       captureFailure(.repair, error)
@@ -320,6 +330,7 @@ final class FinanceKitSyncStore {
     guard await publisher.configuredConnectionID() != nil else { clearStatus(); return }
     do {
       try await publisher.renewCredential()
+      captureSuccess(.renew)
       await refreshStatus()
     } catch {
       captureFailure(.renew, error)
@@ -330,8 +341,12 @@ final class FinanceKitSyncStore {
   func resolve(_ conflict: FinanceKitConflictRecord, keepingSure: Bool) async {
     guard !isBusy else { return }
     guard let connectionID = await publisher.configuredConnectionID() else { clearStatus(); return }
-    do { _ = try await client.resolve(connectionID: connectionID, conflictID: conflict.id,
-      resolution: keepingSure ? "keep_sure" : "retry_after_repair"); await refresh() }
+    do {
+      _ = try await client.resolve(connectionID: connectionID, conflictID: conflict.id,
+        resolution: keepingSure ? "keep_sure" : "retry_after_repair")
+      captureSuccess(.repair)
+      await refresh()
+    }
     catch {
       captureFailure(.repair, error)
       state = .failed("The conflict couldn’t be resolved.")
@@ -340,8 +355,13 @@ final class FinanceKitSyncStore {
 
   private func captureFailure(_ operation: FinanceKitSyncOperation, _ error: Error) {
     guard !(error is CancellationError) else { return }
-    analytics?.capture(.financeKitSyncFailed(operation: operation,
+    analytics?.capture(.financeKitSyncFailure(operation: operation,
       category: .classify(error)))
+  }
+
+  private func captureSuccess(_ operation: FinanceKitSyncOperation,
+                              result: FinanceKitSyncSuccessResult = .completed) {
+    analytics?.capture(.financeKitSyncSuccess(operation: operation, result: result))
   }
 }
 enum FinanceKitControlPlaneError: Error { case missingBalance }

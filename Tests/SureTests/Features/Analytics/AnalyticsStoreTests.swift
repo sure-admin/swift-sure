@@ -25,7 +25,8 @@ struct AnalyticsStoreTests {
     store.setEnabled(false)
     store.capture(.appOpened)
     store.capture(.welcomeAction(variant: .instantReveal, pitch: .demo, action: .exploreDemo))
-    store.capture(.financeKitSyncFailed(operation: .sync, category: .invalidReceipt))
+    store.capture(.financeKitSyncFailure(operation: .sync, category: .invalidReceipt))
+    store.capture(.financeKitSyncSuccess(operation: .sync, result: .uploaded))
     store.resetIdentity()
     store.setEnabled(false)
     #expect(!preferences.analyticsEnabled)
@@ -63,8 +64,12 @@ struct AnalyticsStoreTests {
       ["variant": "heroOverview", "pitch": "wallet", "action": "connectWallet"])
     #expect(UsageEvent.welcomeOutcome(variant: .instantReveal, outcome: .demoConnected).properties ==
       ["variant": "instantReveal", "outcome": "demoConnected"])
-    #expect(UsageEvent.financeKitSyncFailed(operation: .sync, category: .invalidReceipt).properties ==
+    #expect(UsageEvent.financeKitSyncFailure(operation: .sync, category: .invalidReceipt).name == "financekit_sync_failure")
+    #expect(UsageEvent.financeKitSyncFailure(operation: .sync, category: .invalidReceipt).properties ==
       ["operation": "sync", "category": "invalidReceipt"])
+    #expect(UsageEvent.financeKitSyncSuccess(operation: .sync, result: .noChanges).name == "financekit_sync_success")
+    #expect(UsageEvent.financeKitSyncSuccess(operation: .sync, result: .noChanges).properties ==
+      ["operation": "sync", "result": "no_changes"])
   }
 
   @Test func identityRotatesOnlyAfterCommittedChanges() async {

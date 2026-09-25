@@ -9,9 +9,10 @@ App Privacy page: https://appstoreconnect.apple.com/apps/6804843427/distribution
 ## Implemented collection
 
 The app captures `app_opened`, `screen_viewed`, `welcome_page_viewed`,
-`welcome_action`, `welcome_outcome`, and `financekit_sync_failed`. App-defined
+`welcome_action`, `welcome_outcome`, `financekit_sync_failure`, and
+`financekit_sync_success`. App-defined
 properties are fixed screen, welcome variant, pitch, action and outcome values,
-or a fixed foreground Wallet sync operation and failure category. No free-form
+or a fixed foreground Wallet sync operation and failure category or result. No free-form
 error text or server error code is sent. PostHog adds an installation-scoped anonymous ID,
 session metadata, and standard app/device metadata (including app version, OS,
 model, screen dimensions, locale/time zone, and connectivity information).
