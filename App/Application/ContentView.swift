@@ -8,6 +8,7 @@ struct ContentView: View {
   var financeData: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
+  var firstRun: FirstRunStore?
   var financeKitSync: FinanceKitSyncStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
@@ -17,27 +18,63 @@ struct ContentView: View {
   var now: () -> Date
 
   @State private var selection: AppSection = .overview
-  @State private var showingConnectionSettings = false
+  @State private var connectionPresentation: ConnectionPresentation?
 
   var body: some View {
     appTabs
     .onChange(of: connection.isConfigured, initial: true) { _, configured in
       if connection.allowsWalletPreview && !configured && appleCardConnection.isAvailable { selection = .accounts }
     }
+    .onChange(of: connection.status) { _, status in
+      if status == .notConnected && connection.isSignedOut {
+        connectionPresentation = nil
+      } else if status == .connected && connectionPresentation == .demoSignIn {
+        connectionPresentation = nil
+      }
+    }
     .onChange(of: visibleScreen, initial: true) { _, screen in
       analytics.capture(.screenViewed(screen))
     }
     .environment(\.showConnectionSettings) {
-      showingConnectionSettings = true
+      connectionPresentation = .settings
     }
-    .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
-        financeKitSync: financeKitSync, wallet: appleCardConnection)
+    .sheet(item: $connectionPresentation) { presentation in
+      switch presentation {
+      case .settings:
+        ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
+          financeKitSync: financeKitSync, wallet: appleCardConnection)
+      case .demoSignIn:
+        SignInView(subscriptionAccess: subscriptionAccess, connection: connection,
+          showConnectionSettings: { connectionPresentation = .settings })
+      }
+    }
+    #if os(iOS)
+    .fullScreenCover(isPresented: .constant(firstRun?.isFinished == false), onDismiss: routeAfterFirstRun) {
+      if let firstRun { FirstRunView(store: firstRun) }
+    }
+    #endif
+  }
+
+  // Routes once the cover has dismissed, so a follow-up sheet can present.
+  private func routeAfterFirstRun() {
+    switch firstRun?.outcome {
+    case .walletConnected:
+      // Overview shows the local Wallet spending comparison: the "wow" moment.
+      selection = .overview
+    case .exploreDemo:
+      connection.prepareDemoSignIn()
+      connectionPresentation = .demoSignIn
+    case nil:
+      break
     }
   }
 
   private var visibleScreen: UsageScreen {
-    if showingConnectionSettings { return .connectionSettings }
+    switch connectionPresentation {
+    case .settings: return .connectionSettings
+    case .demoSignIn: return .signIn
+    case nil: break
+    }
     switch selection {
     case .overview: return .overview
     case .assistant: return .assistant
@@ -51,7 +88,7 @@ struct ContentView: View {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
           data: financeData,
-          hasSyncAccess: subscriptionAccess.hasAccess,
+          hasSyncAccess: hasBackendAccess,
           spendingComparison: spendingComparison,
           refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
@@ -74,7 +111,7 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
-          hasSyncAccess: subscriptionAccess.hasAccess,
+          hasSyncAccess: hasBackendAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,
           localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
@@ -83,7 +120,7 @@ struct ContentView: View {
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
-        BudgetView(data: financeData, hasSyncAccess: subscriptionAccess.hasAccess)
+        BudgetView(data: financeData, hasSyncAccess: hasBackendAccess)
           .id(connection.sessionGeneration)
       }
     }
@@ -92,6 +129,10 @@ struct ContentView: View {
       DragGesture(minimumDistance: 24)
         .onEnded(changeSection)
     )
+  }
+
+  private var hasBackendAccess: Bool {
+    subscriptionAccess.gate.isAllowed(for: connection.connectedServerURL)
   }
 
   private func changeSection(_ value: DragGesture.Value) {
@@ -108,4 +149,9 @@ struct ContentView: View {
       selection = destination
     }
   }
+}
+
+private enum ConnectionPresentation: String, Identifiable {
+  case settings, demoSignIn
+  var id: Self { self }
 }

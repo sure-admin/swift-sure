@@ -12,6 +12,8 @@ struct ApplicationConnectionLifecycleTests {
     let preferences = LifecycleConnectionPreferences(serverURL: serverURL.absoluteString)
     let session = SureSession(context: nil)
     let lifecycle = ApplicationConnectionLifecycle()
+    var resetCount = 0
+    lifecycle.resetAppData = { resetCount += 1 }
     var offlineClearCount = 0
     lifecycle.clearOfflineResponses = { offlineClearCount += 1 }
     let connection = SureConnection(
@@ -76,6 +78,7 @@ struct ApplicationConnectionLifecycleTests {
     await connection.logOut()
 
     #expect(offlineClearCount == 2)
+    #expect(resetCount == 1)
     #expect(financeData.insights.isEmpty)
     #expect(financeData.accounts.isEmpty)
     #expect(financeData.transactions.isEmpty)

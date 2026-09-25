@@ -5,8 +5,10 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
   private(set) var dataCleanupFailure: DataFailure?
   var clearOfflineResponses: () async throws -> Void = {}
+  var resetAppData: () throws -> Void = {}
   weak var notificationLifecycle: (any AuthenticationNotificationLifecycle)?
   weak var financeData: FinanceDataStore?
+  weak var financeKitSync: FinanceKitSyncStore?
   weak var spendingComparison: SpendingComparisonStore?
   var financeKitPublisher: (any FinanceKitPublisherLifecycleHandling)?
 
@@ -83,5 +85,8 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     analytics?.resetIdentity()
     clearLocalData()
     financeData?.disconnect()
+    financeKitSync?.resetForLogout()
+    do { try resetAppData() }
+    catch { dataCleanupFailure = .cleanup }
   }
 }

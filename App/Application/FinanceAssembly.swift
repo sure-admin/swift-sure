@@ -63,7 +63,7 @@ struct FinanceAssembly {
 
     let transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: repository,
-      isOffline: { !accessGate.isAllowed },
+      isOffline: { [weak connection] in !accessGate.isAllowed(for: connection?.connectedServerURL) },
       calendar: .autoupdatingCurrent,
       now: { .now }
     )

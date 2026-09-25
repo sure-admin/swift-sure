@@ -44,17 +44,18 @@ final class AuthenticationCoordinator: ConnectionAuthenticating {
   func matchesStoredAPIKey(_ key: String) -> Bool { key == connection.snapshot.apiKey }
 
   func signIn(_ method: AuthenticationMethod, serverURL: String) async {
-    guard attempt == nil, status != .connecting, let permit = try? gate.permit() else { return }
+    guard attempt == nil, status != .connecting,
+          let server = try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+          let permit = try? gate.permit(for: server.url) else { return }
     status = .connecting
     let startingGeneration = connection.generation
     var deadlineReached = false
     let task = Task { @MainActor in
       var candidate: StoredAuthenticatedSession?
       do {
-        let server = try OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines))
         candidate = try await authenticate(method, server: server)
         try Task.checkCancellation()
-        try gate.validate(permit)
+        try gate.validate(permit, for: server.url)
         if let candidate {
           pendingOnboarding = nil
           try await connection.commit(candidate, permit: permit)

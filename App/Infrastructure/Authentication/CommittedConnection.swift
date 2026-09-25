@@ -49,24 +49,24 @@ final class CommittedConnection {
     if hasConnectedToSure { preferences.setHasConnectedToSure(true) }
   }
 
-  func commit(_ candidate: StoredAuthenticatedSession, permit: Int) async throws {
+  func commit(_ candidate: StoredAuthenticatedSession, permit: BackendAccessGate.Permit) async throws {
     let candidateContext = try candidate.requestContext()
     let wasConfigured = isConfigured
     var prepared = false
     do {
-      try gate.validate(permit)
+      try gate.validate(permit, for: candidateContext.baseURL)
       try Task.checkCancellation()
       try await verify(candidateContext)
-      try gate.validate(permit)
+      try gate.validate(permit, for: candidateContext.baseURL)
       try Task.checkCancellation()
       await lifecycle.prepareForConnectionChange()
       prepared = true
-      try gate.validate(permit)
+      try gate.validate(permit, for: candidateContext.baseURL)
       try Task.checkCancellation()
       await beginCredentialChange()
       let previous: StoredOAuthSession?
       do {
-        try gate.validate(permit)
+        try gate.validate(permit, for: candidateContext.baseURL)
         try Task.checkCancellation()
         previous = (try? credentials.loadCredentials())?.oauthSession
         try credentials.replaceSession(candidate)

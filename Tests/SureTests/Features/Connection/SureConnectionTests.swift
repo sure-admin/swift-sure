@@ -459,6 +459,72 @@ struct SureConnectionTests {
     #expect(harness.connection.isSignedOut)
   }
 
+  @Test("Public demo credentials can connect without a StoreKit entitlement")
+  func publicDemoWithoutSubscription() async throws {
+    let gate = BackendAccessGate()
+    let verifier = VerificationSpy()
+    let harness = makeHarness(context: nil, accessGate: gate, verifier: verifier)
+    harness.connection.serverURL = SureDemoServer.baseURL.absoluteString
+    harness.connection.apiKey = "public-demo-key"
+
+    #expect(harness.connection.isDemoServer)
+    await harness.connection.connectWithAPIKey()
+
+    #expect(harness.connection.status == .connected)
+    #expect(harness.connection.isConfigured)
+    #expect(await verifier.contexts.count == 1)
+    #expect(harness.credentials.snapshot.apiKey == "public-demo-key")
+    #expect(!gate.isAllowed)
+  }
+
+  @Test("Public demo password sign-in can connect without a StoreKit entitlement")
+  func publicDemoPasswordWithoutSubscription() async {
+    let gate = BackendAccessGate()
+    let mobile = MobileSSOAuthenticationFake(result: .authenticated(
+      PasskeyOAuthTokens(accessToken: "demo-access", refreshToken: "demo-refresh"),
+      deviceID: "test-device"
+    ))
+    let harness = makeHarness(context: nil, accessGate: gate, mobileSSO: mobile)
+    harness.connection.serverURL = "https://private.example"
+    harness.connection.apiKey = "stale-key"
+    harness.connection.prepareDemoSignIn()
+
+    #expect(harness.connection.serverURL == SureDemoServer.baseURL.absoluteString)
+    #expect(harness.connection.email == "user@example.com")
+    #expect(harness.connection.password == "Password1!")
+    #expect(harness.connection.apiKey.isEmpty)
+    #expect(harness.connection.canSignInWithPassword)
+    #expect(harness.connection.isDemoServer)
+
+    await harness.connection.signInWithPassword()
+
+    #expect(harness.connection.status == .connected)
+    #expect(harness.connection.isConfigured)
+    #expect(mobile.passwordEmails == ["user@example.com"])
+    #expect(mobile.passwords == ["Password1!"])
+    #expect(harness.connection.password.isEmpty)
+    #expect(!gate.isAllowed)
+  }
+
+  @Test("Entering the demo clears an unfinished provider handoff")
+  func demoEntryClearsOnboarding() async {
+    let onboarding = MobileSSOOnboardingContext(
+      linkingCode: "link-123", email: "person@example.com", firstName: nil, lastName: nil,
+      allowsAccountCreation: false, hasPendingInvitation: false
+    )
+    let mobile = MobileSSOAuthenticationFake(result: .onboarding(onboarding))
+    let harness = makeHarness(context: nil, accessGate: BackendAccessGate(), mobileSSO: mobile)
+    harness.connection.serverURL = SureDemoServer.baseURL.absoluteString
+    await harness.connection.signIn(with: .apple)
+    #expect(harness.connection.pendingSSOOnboarding == onboarding)
+
+    harness.connection.prepareDemoSignIn()
+
+    #expect(harness.connection.pendingSSOOnboarding == nil)
+    #expect(harness.connection.email == SureDemoServer.email)
+    #expect(harness.connection.canSignInWithPassword)
+  }
+
   @Test("Wallet preview returns after logout and relaunch, but not subscription suspension")
   func onboardingPreviewBoundary() async {
     let gate = entitledTestGate()
@@ -712,10 +778,23 @@ private final class MobileSSOAuthenticationFake: MobileSSOAuthenticating {
   var result: MobileSSOResult?
   var error: Error?
   private(set) var providers: [SSOProvider] = []
+  private(set) var passwordEmails: [String] = []
+  private(set) var passwords: [String] = []
 
   init(result: MobileSSOResult? = nil, error: Error? = nil) {
     self.result = result
     self.error = error
+  }
+
+  func signIn(
+    email: String,
+    password: String,
+    serverURL: String
+  ) async throws -> MobileSSOResult {
+    passwordEmails.append(email)
+    passwords.append(password)
+    if let error { throw error }
+    return try #require(result)
   }
 
   func signIn(

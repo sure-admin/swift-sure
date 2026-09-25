@@ -60,6 +60,7 @@ struct AnalyticsStoreTests {
   @Test func identityRotatesOnlyAfterCommittedChanges() async {
     let client = AnalyticsSpy()
     let lifecycle = ApplicationConnectionLifecycle()
+    lifecycle.resetAppData = {}
     lifecycle.analytics = client
     await lifecycle.prepareForConnectionChange()
     #expect(client.calls.isEmpty)

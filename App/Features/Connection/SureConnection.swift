@@ -26,6 +26,9 @@ final class SureConnection {
   var allowsWalletPreview: Bool { authentication.allowsWalletPreview }
   var connectedSnapshotIdentity: String? { authentication.connectionID }
   var connectedServerURL: URL? { authentication.serverURL }
+  var isDemoServer: Bool {
+    SureDemoServer.matchesBaseURL(try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines)).url)
+  }
   var isOAuthConnected: Bool { authentication.isOAuthConnected }
   var isAPIKeyStored: Bool {
     !normalizedAPIKey.isEmpty && authentication.matchesStoredAPIKey(normalizedAPIKey)
@@ -39,6 +42,14 @@ final class SureConnection {
   }
 
   func signInWithPasskey() async { await signIn(.passkey) }
+  func prepareDemoSignIn() {
+    authentication.cancelOnboarding()
+    serverURL = SureDemoServer.baseURL.absoluteString
+    apiKey = ""
+    email = SureDemoServer.email
+    password = SureDemoServer.password
+  }
+
   func signInWithPassword() async {
     await signIn(.password(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password))
   }
@@ -60,6 +71,7 @@ final class SureConnection {
     email = ""
     password = ""
     await authentication.logOut()
+    serverURL = ""
   }
 
   private func signIn(_ method: AuthenticationMethod) async {

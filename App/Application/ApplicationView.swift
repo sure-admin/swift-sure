@@ -11,6 +11,7 @@ struct ApplicationView: View {
   @State private var financeData: FinanceDataStore
   @State private var spendingComparison: SpendingComparisonStore
   @State private var appleCardConnection: AppleCardConnectionStore
+  @State private var firstRun: FirstRunStore?
   private var analytics: AnalyticsStore
   private var notificationManager: NotificationManager
   private var oauthService: PasskeyOAuthService
@@ -20,6 +21,7 @@ struct ApplicationView: View {
   @State private var financeKitSync: FinanceKitSyncStore
   private var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   private var localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
+  private var makeFirstRun: () -> FirstRunStore?
 
   init(configureNotifications: (NotificationManager, BackendAccessGate) -> Void = { _, _ in }) {
     let analytics = AnalyticsAssembly.make()
@@ -27,14 +29,18 @@ struct ApplicationView: View {
     let devices = DeviceAssembly(connection: services)
     let finance = FinanceAssembly(connection: services, syncInsights: devices.syncInsights)
     let lifecycle = services.lifecycle
+    lifecycle.resetAppData = { try ApplicationDataResetter().reset() }
     lifecycle.analytics = analytics
     lifecycle.notificationLifecycle = devices.notifications
     lifecycle.financeData = finance.financeData
+    lifecycle.financeKitSync = finance.financeKitSync
     lifecycle.spendingComparison = finance.spendingComparison
     lifecycle.appleCardConnection = finance.appleCardConnection
     lifecycle.financeKitPublisher = finance.financeKitPublisher
     lifecycle.transactionHistoryFactories = [finance.transactionHistoryStoreFactory, finance.localTransactionHistoryStoreFactory]
     lifecycle.restoreInitialState(isExplicitlySignedOut: services.initialState.isExplicitlySignedOut)
+    _firstRun = State(initialValue: FirstRunAssembly(connection: services, finance: finance).store)
+    makeFirstRun = { FirstRunAssembly(connection: services, finance: finance).store }
     _subscriptionAccess = State(initialValue: services.subscriptionAccess)
     _connection = State(initialValue: services.connection)
     _financeData = State(initialValue: finance.financeData)
@@ -62,6 +68,7 @@ struct ApplicationView: View {
         financeData: financeData,
         spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,
+        firstRun: firstRun,
         financeKitSync: financeKitSync,
         notificationManager: notificationManager,
         remoteAssistant: remoteAssistant,
@@ -85,6 +92,11 @@ struct ApplicationView: View {
           }
         }
       }
+      .onChange(of: connection.status) { _, status in
+        if status == .notConnected && connection.isSignedOut {
+          firstRun = makeFirstRun()
+        }
+      }
       .onChange(of: subscriptionAccess.hasAccess, initial: true) { _, allowed in
         if allowed { Task {
           await financeKitPublisher.resumeIfConfigured()
@@ -93,15 +105,18 @@ struct ApplicationView: View {
           await notificationManager.didConnect()
         } }
         else {
-          Task { await financeKitPublisher.suspend() }
-          financeData.suspendSync()
-          connection.suspendAuthentication()
-          oauthService.cancelAuthentication()
-          mobileSSOService.cancelAuthentication()
+          if !SureDemoServer.matchesBaseURL(connection.connectedServerURL) {
+            financeData.suspendSync()
+          }
+          if !connection.isDemoServer {
+            connection.suspendAuthentication()
+            oauthService.cancelAuthentication()
+            mobileSSOService.cancelAuthentication()
+          }
         }
       }
       .onOpenURL { url in
-        guard subscriptionAccess.hasAccess else { return }
+        guard subscriptionAccess.hasAccess || connection.isDemoServer else { return }
         mobileSSOService.handleOpenURL(url)
       }
     }

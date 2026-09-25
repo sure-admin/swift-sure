@@ -14,7 +14,7 @@ and feature state, `App/Infrastructure` implements external boundaries, and
 `App/DesignSystem` contains reusable presentation code. Cross-target value
 types live in `Shared`; Watch-owned state and adapters remain in `Watch`.
 
-The default server address is `https://demo.sure.am`; no backend connection or credential entry is allowed until Apple verifies an active trial, paid subscription, or Family Sharing entitlement. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
+The first-run live demo opens `https://demo.sure.am` without requiring a StoreKit entitlement. Other Sure servers require an active trial, paid subscription, or Family Sharing entitlement before credential entry or backend traffic. In **Connection Settings**, use **Continue with Passkey** to sign in through Sure with Face ID or Touch ID. The app dynamically registers a public OAuth client, uses Authorization Code with PKCE, rotates refresh tokens through a single-flight refresh, and stores the selected server and authorization together in Keychain. A read/write API key remains available as a fallback; its host-bound backup can sync through iCloud Keychain.
 
 ## Subscription access
 
@@ -24,10 +24,11 @@ across devices and servers, with Family Sharing. Both products have a one-week
 introductory trial for eligible users. Prices displayed in the app come from
 StoreKit and follow the customer's storefront.
 
-The signed-out Wallet preview and on-device Assistant calls are free. Cancelling
+The signed-out Wallet preview, public demo, and on-device Assistant calls are free. Cancelling
 renewal preserves access through Apple's entitlement end date; the app warns
 when sync will stop. Expiry or revocation blocks authentication, token refresh,
-and backend reads/writes, while retained local data stays available. Restoring a
+and backend reads/writes to other Sure servers. The public demo and retained
+local data stay available. Restoring a
 subscription re-enables sync without deleting credentials. Previously downloaded
 transaction windows are labeled when viewed offline; data never fetched is not
 invented. Explicit logout removes the local archives. Hosted app.sure.am
@@ -53,6 +54,13 @@ on-device, excludes transfers, and does not combine currencies. Connected,
 offline, and suspended sessions use Sure data. Logging out restores the Wallet
 spending preview without revoking local account access or restoring cached Sure records. See [spending comparison](Docs/SpendingComparison.md)
 and [the read-only architecture](Docs/ReadOnlyArchitecture.md).
+
+## First run
+
+A fresh iPhone install with no Sure connection opens a full-screen launch hero
+that pitches the on-device Wallet preview and Sure's live demo. Its copy is
+parameterized by design variant and region; see [first run](Docs/FirstRun.md)
+for the launch arguments that switch them.
 
 ## On-device Wallet accounts
 
