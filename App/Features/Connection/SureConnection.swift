@@ -42,6 +42,14 @@ final class SureConnection {
   }
 
   func signInWithPasskey() async { await signIn(.passkey) }
+  func prepareDemoSignIn() {
+    authentication.cancelOnboarding()
+    serverURL = SureDemoServer.baseURL.absoluteString
+    apiKey = ""
+    email = SureDemoServer.email
+    password = SureDemoServer.password
+  }
+
   func signInWithPassword() async {
     await signIn(.password(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password))
   }

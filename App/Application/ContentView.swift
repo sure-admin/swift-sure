@@ -18,7 +18,7 @@ struct ContentView: View {
   var now: () -> Date
 
   @State private var selection: AppSection = .overview
-  @State private var showingConnectionSettings = false
+  @State private var connectionPresentation: ConnectionPresentation?
 
   var body: some View {
     appTabs
@@ -27,18 +27,26 @@ struct ContentView: View {
     }
     .onChange(of: connection.status) { _, status in
       if status == .notConnected && connection.isSignedOut {
-        showingConnectionSettings = false
+        connectionPresentation = nil
+      } else if status == .connected && connectionPresentation == .demoSignIn {
+        connectionPresentation = nil
       }
     }
     .onChange(of: visibleScreen, initial: true) { _, screen in
       analytics.capture(.screenViewed(screen))
     }
     .environment(\.showConnectionSettings) {
-      showingConnectionSettings = true
+      connectionPresentation = .settings
     }
-    .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
-        financeKitSync: financeKitSync, wallet: appleCardConnection)
+    .sheet(item: $connectionPresentation) { presentation in
+      switch presentation {
+      case .settings:
+        ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
+          financeKitSync: financeKitSync, wallet: appleCardConnection)
+      case .demoSignIn:
+        SignInView(subscriptionAccess: subscriptionAccess, connection: connection,
+          showConnectionSettings: { connectionPresentation = .settings })
+      }
     }
     #if os(iOS)
     .fullScreenCover(isPresented: .constant(firstRun?.isFinished == false), onDismiss: routeAfterFirstRun) {
@@ -54,15 +62,19 @@ struct ContentView: View {
       // Overview shows the local Wallet spending comparison: the "wow" moment.
       selection = .overview
     case .exploreDemo:
-      connection.serverURL = SureDemoServer.baseURL.absoluteString
-      showingConnectionSettings = true
+      connection.prepareDemoSignIn()
+      connectionPresentation = .demoSignIn
     case nil:
       break
     }
   }
 
   private var visibleScreen: UsageScreen {
-    if showingConnectionSettings { return .connectionSettings }
+    switch connectionPresentation {
+    case .settings: return .connectionSettings
+    case .demoSignIn: return .signIn
+    case nil: break
+    }
     switch selection {
     case .overview: return .overview
     case .assistant: return .assistant
@@ -137,4 +149,9 @@ struct ContentView: View {
       selection = destination
     }
   }
+}
+
+private enum ConnectionPresentation: String, Identifiable {
+  case settings, demoSignIn
+  var id: Self { self }
 }

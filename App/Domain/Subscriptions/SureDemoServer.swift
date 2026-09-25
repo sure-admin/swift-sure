@@ -3,6 +3,8 @@ import Foundation
 /// The public demo is the sole Sure host available without a StoreKit entitlement.
 enum SureDemoServer {
   static let baseURL = URL(string: "https://demo.sure.am")!
+  static let email = "user@example.com"
+  static let password = "Password1!"
 
   static func matchesBaseURL(_ url: URL?) -> Bool {
     guard allowsRequest(to: url), let url else { return false }
