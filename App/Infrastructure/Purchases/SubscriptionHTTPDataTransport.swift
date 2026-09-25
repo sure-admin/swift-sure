@@ -5,21 +5,21 @@ struct SubscriptionHTTPDataTransport: HTTPDataTransport {
   var gate: BackendAccessGate
 
   func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-    let permit = try gate.permit()
+    let permit = try gate.permit(for: request.url)
     let id = UUID()
     let cancellation = SubscriptionRequestCancellation()
-    try gate.register(id, permit: permit, cancel: { cancellation.cancel() })
+    try gate.register(id, permit: permit, for: request.url, cancel: { cancellation.cancel() })
     defer { gate.unregister(id) }
     let task = Task {
       try Task.checkCancellation()
-      try gate.validate(permit)
+      try gate.validate(permit, for: request.url)
       return try await base.data(for: request)
     }
     cancellation.install { task.cancel() }
     return try await withTaskCancellationHandler {
       let result = try await task.value
       try Task.checkCancellation()
-      try gate.validate(permit)
+      try gate.validate(permit, for: result.1.url)
       return result
     } onCancel: { cancellation.cancel() }
   }

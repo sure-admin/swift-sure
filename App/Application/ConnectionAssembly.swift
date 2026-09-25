@@ -34,7 +34,9 @@ struct ConnectionAssembly {
       try await Task.sleep(for: .seconds(max(0, end.timeIntervalSinceNow)))
     }
     let dataTransport = SubscriptionHTTPDataTransport(
-      base: URLSessionHTTPDataTransport(session: URLSession(configuration: configuration)), gate: accessGate
+      base: URLSessionHTTPDataTransport(session: URLSession(
+        configuration: configuration, delegate: DemoRedirectPolicy(), delegateQueue: nil
+      )), gate: accessGate
     )
     let oauthClient = OAuthHTTPClient(
       dataTransport: dataTransport,

@@ -9,13 +9,13 @@ struct ConnectionSettingsView: View {
   var body: some View {
     NavigationStack {
       Group {
-        if !subscriptionAccess.hasAccess {
+        if !allowsConnection {
           SubscriptionAccessView(access: subscriptionAccess)
         } else {
           connectionContent
         }
       }
-      .navigationTitle(subscriptionAccess.hasAccess ? "Sure connection" : "")
+      .navigationTitle(allowsConnection ? "Sure connection" : "")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
@@ -24,16 +24,22 @@ struct ConnectionSettingsView: View {
     }
   }
 
+  private var allowsConnection: Bool { subscriptionAccess.hasAccess || connection.isDemoServer }
+
   private var connectionContent: some View {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
           if subscriptionAccess.hasAccess {
-          NavigationLink("Manage subscription") {
-            SubscriptionAccessView(access: subscriptionAccess)
+            NavigationLink("Manage subscription") {
+              SubscriptionAccessView(access: subscriptionAccess)
+            }
           }
-          Label("Connect to your Sure instance", systemImage: "lock.shield.fill")
+          Label(connection.isDemoServer ? "Connect to Sure’s public demo" : "Connect to your Sure instance",
+                systemImage: "lock.shield.fill")
             .font(.title2.bold())
-          Text("Use a passkey for passwordless sign-in. Face ID or Touch ID confirms it’s you, and your passkey stays in iCloud Keychain.")
+          Text(connection.isDemoServer
+               ? "The live demo is free. Use the public demo account credentials to sign in."
+               : "Use a passkey for passwordless sign-in. Face ID or Touch ID confirms it’s you, and your passkey stays in iCloud Keychain.")
             .foregroundStyle(.secondary)
 
           VStack(alignment: .leading, spacing: 8) {
@@ -108,12 +114,11 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
-          NavigationLink("Password or provider sign-in") {
+          NavigationLink(connection.isDemoServer ? "Sign in with demo credentials" : "Password or provider sign-in") {
             SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
           }
 
           statusView
-          }
 
           #if os(iOS)
           if let analytics {

@@ -40,6 +40,68 @@ struct BackendAccessGateTests {
     #expect(await base.requests().count == 1)
   }
 
+  @Test func publicDemoWorksWithoutSubscriptionButOtherHostsRemainLocked() async throws {
+    let gate = BackendAccessGate()
+    let demo = SureDemoServer.baseURL.appending(path: "api/v1/accounts")
+    let base = HTTPDataTransportStub([try .http(json: "{}", url: demo)])
+    let transport = SubscriptionHTTPDataTransport(base: base, gate: gate)
+
+    _ = try await transport.data(for: URLRequest(url: demo))
+    #expect(await base.requests().count == 1)
+    #expect(gate.isAllowed(for: SureDemoServer.baseURL))
+    #expect(!gate.isAllowed)
+
+    for url in [
+      "https://demo.sure.am.evil.example/api/v1/accounts",
+      "http://demo.sure.am/api/v1/accounts",
+      "https://demo.sure.am:8443/api/v1/accounts",
+      "https://sure.example/api/v1/accounts"
+    ] {
+      await #expect(throws: BackendAccessError.self) {
+        try await transport.data(for: URLRequest(url: URL(string: url)!))
+      }
+    }
+    #expect(await base.requests().count == 1)
+  }
+
+  @Test func subscriptionExpiryDoesNotCancelPublicDemoRequests() async throws {
+    let gate = BackendAccessGate()
+    gate.update(expiration: .distantFuture)
+    let permit = try gate.permit(for: SureDemoServer.baseURL)
+    let cancellation = SubscriptionRequestCancellation()
+    let id = UUID()
+    try gate.register(id, permit: permit, for: SureDemoServer.baseURL, cancel: { cancellation.cancel() })
+    defer { gate.unregister(id) }
+    gate.update(expiration: nil)
+    try gate.validate(permit, for: SureDemoServer.baseURL)
+    #expect(throws: BackendAccessError.self) {
+      try gate.validate(permit, for: URL(string: "https://sure.example"))
+    }
+    let task = Task { }
+    cancellation.install { task.cancel() }
+    #expect(!task.isCancelled)
+    await task.value
+  }
+
+  @Test func publicDemoRedirectsCannotLeaveTheCanonicalHost() {
+    let demo = SureDemoServer.baseURL.appending(path: "api/v1/accounts")
+    #expect(DemoRedirectPolicy.allowsRedirect(from: demo,
+      to: URL(string: "https://demo.sure.am/api/v1/accounts?page=2")))
+    #expect(!DemoRedirectPolicy.allowsRedirect(from: demo,
+      to: URL(string: "https://other.example/api/v1/accounts")))
+    #expect(!DemoRedirectPolicy.allowsRedirect(from: demo,
+      to: URL(string: "http://demo.sure.am/api/v1/accounts")))
+  }
+
+  @Test func publicDemoDiscardsResponsesFromAnotherHost() async throws {
+    let gate = BackendAccessGate()
+    let base = HTTPDataTransportStub([try .http(json: "{}", url: URL(string: "https://other.example")!)])
+    let transport = SubscriptionHTTPDataTransport(base: base, gate: gate)
+    await #expect(throws: BackendAccessError.self) {
+      try await transport.data(for: URLRequest(url: SureDemoServer.baseURL))
+    }
+  }
+
   @Test func revocationDiscardsAnInFlightResponseEvenAfterRestoration() async throws {
     let gate = entitledTestGate()
     let base = SuspendedPurchaseTransport()

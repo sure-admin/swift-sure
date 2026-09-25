@@ -2,23 +2,36 @@ import Foundation
 
 /// One gate for every Sure network operation, including authentication and uploads.
 final class BackendAccessGate: @unchecked Sendable {
+  enum Permit: Equatable, Sendable {
+    case subscription(Int)
+    /// Public demo requests remain valid when a StoreKit entitlement changes.
+    case demo
+  }
+
   private let lock = NSLock()
   private var expiration: Date?
   private var generation = 0
-  private var cancellations: [UUID: @Sendable () -> Void] = [:]
+  private var cancellations: [UUID: (Permit, @Sendable () -> Void)] = [:]
   private let now: @Sendable () -> Date
 
   init(now: @escaping @Sendable () -> Date = { Date() }) { self.now = now }
 
   var isAllowed: Bool { lock.withLock { expiration.map { $0 > now() } ?? false } }
 
+  func isAllowed(for url: URL?) -> Bool {
+    isAllowed || SureDemoServer.allowsRequest(to: url)
+  }
+
   func update(expiration: Date?) {
     let callbacks = lock.withLock {
       self.expiration = expiration
       guard expiration.map({ $0 > now() }) != true else { return [@Sendable () -> Void]() }
       generation += 1
-      let result = Array(cancellations.values)
-      cancellations.removeAll()
+      let subscriptionIDs = cancellations.compactMap { id, entry -> UUID? in
+        guard case .subscription = entry.0 else { return nil }
+        return id
+      }
+      let result = subscriptionIDs.compactMap { cancellations.removeValue(forKey: $0)?.1 }
       return result
     }
     callbacks.forEach { $0() }
@@ -28,27 +41,49 @@ final class BackendAccessGate: @unchecked Sendable {
     guard isAllowed else { throw BackendAccessError.subscriptionRequired }
   }
 
-  func permit() throws -> Int {
+  func check(for url: URL?) throws {
+    guard isAllowed(for: url) else { throw BackendAccessError.subscriptionRequired }
+  }
+
+  func permit() throws -> Permit {
     try lock.withLock {
       guard expiration.map({ $0 > now() }) == true else { throw BackendAccessError.subscriptionRequired }
-      return generation
+      return .subscription(generation)
     }
   }
 
-  func validate(_ permit: Int) throws {
+  func permit(for url: URL?) throws -> Permit {
+    if SureDemoServer.allowsRequest(to: url) { return .demo }
+    return try permit()
+  }
+
+  func validate(_ permit: Permit, for url: URL? = nil) throws {
     try lock.withLock {
-      guard generation == permit, expiration.map({ $0 > now() }) == true else {
+      let valid: Bool
+      switch permit {
+      case .subscription(let issuedGeneration):
+        valid = generation == issuedGeneration && expiration.map({ $0 > now() }) == true
+      case .demo:
+        valid = SureDemoServer.allowsRequest(to: url)
+      }
+      guard valid else {
         throw BackendAccessError.subscriptionRequired
       }
     }
   }
 
-  func register(_ id: UUID, permit: Int, cancel: @escaping @Sendable () -> Void) throws {
+  func register(_ id: UUID, permit: Permit, for url: URL? = nil,
+                cancel: @escaping @Sendable () -> Void) throws {
     try lock.withLock {
-      guard generation == permit, expiration.map({ $0 > now() }) == true else {
-        throw BackendAccessError.subscriptionRequired
+      switch permit {
+      case .subscription(let issuedGeneration):
+        guard generation == issuedGeneration, expiration.map({ $0 > now() }) == true else {
+          throw BackendAccessError.subscriptionRequired
+        }
+      case .demo:
+        guard SureDemoServer.allowsRequest(to: url) else { throw BackendAccessError.subscriptionRequired }
       }
-      cancellations[id] = cancel
+      cancellations[id] = (permit, cancel)
     }
   }
 

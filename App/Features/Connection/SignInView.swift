@@ -6,7 +6,7 @@ struct SignInView: View {
   var showConnectionSettings: () -> Void
 
   var body: some View {
-    if subscriptionAccess.hasAccess {
+    if subscriptionAccess.hasAccess || connection.isDemoServer {
       if let onboarding = connection.pendingSSOOnboarding {
         SSOOnboardingHandoffView(
           context: onboarding,

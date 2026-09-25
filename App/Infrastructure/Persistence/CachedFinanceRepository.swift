@@ -40,19 +40,19 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
   }
   func createChat(title: String) async throws -> UUID {
     guard let remote else { throw DataFailure.unavailable }
-    let permit = try gate.permit()
+    let permit = try gate.permit(for: identity()?.0)
     let scope = currentScope
     let id = try await remote.createChat(title: title)
-    try gate.validate(permit)
+    try gate.validate(permit, for: identity()?.0)
     guard scope == currentScope else { throw CancellationError() }
     return id
   }
   func sendMessage(_ content: String, chatID: UUID) async throws -> String {
     guard let remote else { throw DataFailure.unavailable }
-    let permit = try gate.permit()
+    let permit = try gate.permit(for: identity()?.0)
     let scope = currentScope
     let response = try await remote.sendMessage(content, chatID: chatID)
-    try gate.validate(permit)
+    try gate.validate(permit, for: identity()?.0)
     guard scope == currentScope else { throw CancellationError() }
     return response
   }
@@ -217,10 +217,10 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
     let lease = await cache.lease()
     guard generation == request else { throw CancellationError() }
     do {
-      let permit = try gate.permit()
+      let permit = try gate.permit(for: identity()?.0)
       let value = try await fetch()
       try Task.checkCancellation()
-      try gate.validate(permit)
+      try gate.validate(permit, for: identity()?.0)
       guard currentScope == scope, generation == request else { throw CancellationError() }
       let fetchedAt = now()
       var storageFailure: DataFailure?
@@ -229,7 +229,7 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
       } catch is CancellationError { throw CancellationError() }
       catch { storageFailure = .persistence }
       try Task.checkCancellation()
-      try gate.validate(permit)
+      try gate.validate(permit, for: identity()?.0)
       guard currentScope == scope, generation == request else { throw CancellationError() }
       metadata[key] = ReadMetadata(fetchedAt: fetchedAt, source: .server, failure: storageFailure)
       return value

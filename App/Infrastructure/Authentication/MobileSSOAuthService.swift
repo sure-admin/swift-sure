@@ -31,8 +31,8 @@ final class MobileSSOAuthService {
     password: String,
     serverURL: String
   ) async throws -> MobileSSOResult {
-    try accessGate.check()
     let server = try OAuthServerURL(serverURL)
+    try accessGate.check(for: server.url)
     let device = deviceInformation.information()
     let tokens = try await httpClient.login(
       email: email,
@@ -47,8 +47,8 @@ final class MobileSSOAuthService {
     provider: SSOProvider,
     serverURL: String
   ) async throws -> MobileSSOResult {
-    try accessGate.check()
     let server = try OAuthServerURL(serverURL)
+    try accessGate.check(for: server.url)
     let device = deviceInformation.information()
     let url = try Self.authorizationURL(
       server: server,
@@ -101,7 +101,7 @@ final class MobileSSOAuthService {
         }
         callbackContinuation = continuation
         Task { @MainActor in
-          guard accessGate.isAllowed else {
+          guard accessGate.isAllowed(for: url) else {
             finishAuthentication(with: .failure(BackendAccessError.subscriptionRequired))
             return
           }

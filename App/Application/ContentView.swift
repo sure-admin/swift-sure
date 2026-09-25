@@ -47,8 +47,7 @@ struct ContentView: View {
       // Overview shows the local Wallet spending comparison: the "wow" moment.
       selection = .overview
     case .exploreDemo:
-      // Demo reads go through the subscription gate like every Sure request,
-      // so the demo path opens Connection Settings on the default demo server.
+      connection.serverURL = SureDemoServer.baseURL.absoluteString
       showingConnectionSettings = true
     case nil:
       break
@@ -70,7 +69,7 @@ struct ContentView: View {
       Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
         OverviewView(
           data: financeData,
-          hasSyncAccess: subscriptionAccess.hasAccess,
+          hasSyncAccess: hasBackendAccess,
           spendingComparison: spendingComparison,
           refreshWalletAccess: { await appleCardConnection.refresh() },
           notificationManager: notificationManager,
@@ -94,7 +93,7 @@ struct ContentView: View {
         AccountsView(
           data: financeData,
           allowsWalletPreview: connection.allowsWalletPreview,
-          hasSyncAccess: subscriptionAccess.hasAccess,
+          hasSyncAccess: hasBackendAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,
           localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
@@ -103,7 +102,7 @@ struct ContentView: View {
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
-        BudgetView(data: financeData, hasSyncAccess: subscriptionAccess.hasAccess)
+        BudgetView(data: financeData, hasSyncAccess: hasBackendAccess)
           .id(connection.sessionGeneration)
       }
     }
@@ -112,6 +111,10 @@ struct ContentView: View {
       DragGesture(minimumDistance: 24)
         .onEnded(changeSection)
     )
+  }
+
+  private var hasBackendAccess: Bool {
+    subscriptionAccess.gate.isAllowed(for: connection.connectedServerURL)
   }
 
   private func changeSection(_ value: DragGesture.Value) {

@@ -161,10 +161,11 @@ protocols are for meaningful seams and alternate implementations.
 
 - Use StoreKit 2 directly; do not introduce RevenueCat or another billing service.
 - All Sure backend traffic, including future Wallet uploads and authentication,
-  must use the injected `BackendAccessGate` and gated transport. Place offline-read
-  and entitlement policy in the session repository; keep transport enforcement as
-  the final network boundary. Hide credential
-  entry until an active trial, paid, or Family Sharing entitlement is verified.
+  must use the injected `BackendAccessGate` and gated transport. The canonical
+  HTTPS `demo.sure.am` host is free; other hosts require StoreKit access. Place
+  offline-read and entitlement policy in the session repository; keep transport
+  enforcement as the final network boundary. Hide credential entry for other
+  hosts until an active trial, paid, or Family Sharing entitlement is verified.
 - Cancellation of renewal does not immediately revoke access. Honor Apple's
   verified entitlement end date and warn when sync will stop.
 - Local FinanceKit accounts and transactions, including eligible Apple Card and

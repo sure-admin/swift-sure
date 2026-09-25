@@ -26,6 +26,9 @@ final class SureConnection {
   var allowsWalletPreview: Bool { authentication.allowsWalletPreview }
   var connectedSnapshotIdentity: String? { authentication.connectionID }
   var connectedServerURL: URL? { authentication.serverURL }
+  var isDemoServer: Bool {
+    SureDemoServer.matchesBaseURL(try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines)).url)
+  }
   var isOAuthConnected: Bool { authentication.isOAuthConnected }
   var isAPIKeyStored: Bool {
     !normalizedAPIKey.isEmpty && authentication.matchesStoredAPIKey(normalizedAPIKey)

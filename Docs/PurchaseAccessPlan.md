@@ -7,7 +7,8 @@ sandbox purchase testing remain pending before release.
 ## Objective
 
 Require a verified in-app-purchase entitlement before this Apple client connects
-to a Sure backend. Keep Sure credentials and purchase ownership independent.
+to a Sure backend other than the public `https://demo.sure.am` host. Keep Sure
+credentials and purchase ownership independent.
 Buying client access does not create a Sure account or purchase server hosting.
 
 ## Current integration points
@@ -35,14 +36,14 @@ Buying client access does not create a Sure account or purchase server hosting.
   Purchase presentation must not block those paths.
 - Offer a one-week free introductory trial on both plans so users can test their
   backend. An eligible user starts the trial through Apple's subscription flow
-  before backend access begins. Display renewal price and trial eligibility;
+  before non-demo backend access begins. Display renewal price and trial eligibility;
   do not promise another trial when switching plans, devices, or servers.
   Apple limits introductory offers to one redemption per subscription group
   per eligible person. Family-shared entitlement grants access without requiring
   another purchase; use Apple's eligibility for anyone starting their own trial.
 - After entitlement ends, previously synchronized data remains usable locally,
-  including after relaunch. Stop all backend reads and writes in both directions,
-  including future Apple Card uploads. Preserve credentials and local records;
+  including after relaunch. Stop backend reads and writes to non-demo hosts in both
+  directions, including future Apple Card uploads. Preserve credentials and local records;
   this is a suspended connection, not logout or cache deletion. Missing uncached
   data must be identified as unavailable offline rather than fetched or invented.
 - Any app.sure.am subscription should eventually include client access, regardless
@@ -65,20 +66,21 @@ Buying client access does not create a Sure account or purchase server hosting.
   no new billing server is required. This is a product constraint, not a temporary
   implementation choice. The deferred app.sure.am entitlement integration remains
   separate and must not introduce RevenueCat into the client.
-- No Sure discovery or compatibility traffic before an active trial or paid/shared
-  entitlement. No production bypass for development/TestFlight; test with injected
-  fakes and real sandbox entitlements.
-- Credential entry itself is gated, not just the Connect action. Before Apple
-  verifies an active trial, paid subscription, or Family Sharing entitlement, do
-  not present API-key, email/password, passkey, or provider-SSO entry points. Do
+- Only the canonical HTTPS `demo.sure.am` host is available before an active
+  trial or paid/shared entitlement. No other production bypass exists for
+  development/TestFlight; test with injected fakes and real sandbox entitlements.
+- Credential entry itself is gated, not just the Connect action. Except for the
+  public `https://demo.sure.am` connection, before Apple verifies an active
+  trial, paid subscription, or Family Sharing entitlement, do not present
+  API-key, email/password, passkey, or provider-SSO entry points. Do
   not accept credentials through paste/import, deep links, or another window.
   Starting checkout, a pending purchase, and an unverified transaction do not
   unlock authentication. Existing paid/shared access does not require a new trial.
 - Guard authentication services as well as UI navigation. Stored credentials must
-  not activate a session while locked. Block browser authentication launch, OAuth
-  registration/token exchange, SSO callbacks, API-key verification, and token
-  refresh until entitled. Recheck access after asynchronous work before committing
-  any session; dismiss credential entry and discard uncommitted drafts if access
+  not activate a non-demo session while locked. Block browser authentication launch,
+  OAuth registration/token exchange, SSO callbacks, API-key verification, and token
+  refresh for non-demo hosts until entitled. Recheck access after asynchronous
+  work before committing any session; dismiss credential entry and discard drafts if access
   ends. Keep free local features reachable without entering this flow.
 - Defer server cleanup requests after entitlement loss under the strict no-backend
   rule. Suppress backend notification processing and registration, retain pending
@@ -138,13 +140,13 @@ subscription. Make that temporary limitation clear in the connection flow.
 
 ## Validation and acceptance
 
-- Verify locked users cannot reach or enter any backend credentials through
+- Verify locked users cannot reach or enter non-demo backend credentials through
   navigation, accessibility actions, another window, paste/import, or deep links.
-  Test trial checkout pending/cancelled/failed states remain locked; only verified
-  trial or paid/shared entitlement exposes authentication. Test stale auth
+  Test trial checkout pending/cancelled/failed states remain locked for other
+  hosts; the canonical public demo remains available. Test stale auth
   callbacks and saved sessions cannot bypass the gate.
-- Deterministic Swift Testing fakes prove zero Sure requests before access is
-  granted, including restored credentials, callbacks, refresh, and background work.
+- Deterministic Swift Testing fakes prove zero non-demo Sure requests before access
+  is granted, including restored credentials, callbacks, refresh, and background work.
 - Test success, cancellation, pending approval, unverified transactions, restore,
   relaunch, expiry/refund, grace, offline state, account changes, and racing access
   loss against authentication/requests. Verify resumption without double requests.
@@ -154,7 +156,7 @@ subscription. Make that temporary limitation clear in the connection flow.
   switching plans without a second introductory offer, and restored purchases
   across devices. Verify retained data after relaunch and that free Wallet and
   on-device Assistant work without a subscription. Prove both upload and download
-  entry points reject backend work when suspended (uploads when introduced).
+  entry points reject non-demo backend work when suspended (uploads when introduced).
 - Build affected iOS, macOS, and Watch targets; run relevant iOS/macOS tests and
   Watch tests for changed Watch state. Inspect paywall interactions/accessibility.
 - Exercise real sandbox purchases/restoration on a device through Run on… or

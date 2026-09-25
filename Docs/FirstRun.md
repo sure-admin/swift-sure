@@ -10,8 +10,9 @@ with a tilted stack of glossy chart cards, and two swipeable pitches.
   on Overview, where the local Wallet spending comparison is the reveal.
   Choosing "Don't Share" returns to the hero on the demo pitch.
 - **Demo pitch** ("Live demo"): closes the hero and opens Connection Settings on
-  the default `https://demo.sure.am` server. Demo reads still go through
-  `BackendAccessGate`; no pre-subscription demo exception exists yet.
+  `https://demo.sure.am`. The public demo can be connected without a StoreKit
+  entitlement. Authentication and reads still go through `BackendAccessGate`,
+  which limits free backend traffic to the canonical HTTPS demo host.
 
 A device with FinanceKit opens on the Wallet pitch and flips once to the demo
 after five seconds; otherwise the order is reversed and the Wallet pitch

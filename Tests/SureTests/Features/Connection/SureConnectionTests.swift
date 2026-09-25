@@ -459,6 +459,44 @@ struct SureConnectionTests {
     #expect(harness.connection.isSignedOut)
   }
 
+  @Test("Public demo credentials can connect without a StoreKit entitlement")
+  func publicDemoWithoutSubscription() async throws {
+    let gate = BackendAccessGate()
+    let verifier = VerificationSpy()
+    let harness = makeHarness(context: nil, accessGate: gate, verifier: verifier)
+    harness.connection.serverURL = SureDemoServer.baseURL.absoluteString
+    harness.connection.apiKey = "public-demo-key"
+
+    #expect(harness.connection.isDemoServer)
+    await harness.connection.connectWithAPIKey()
+
+    #expect(harness.connection.status == .connected)
+    #expect(harness.connection.isConfigured)
+    #expect(await verifier.contexts.count == 1)
+    #expect(harness.credentials.snapshot.apiKey == "public-demo-key")
+    #expect(!gate.isAllowed)
+  }
+
+  @Test("Public demo password sign-in can connect without a StoreKit entitlement")
+  func publicDemoPasswordWithoutSubscription() async {
+    let gate = BackendAccessGate()
+    let mobile = MobileSSOAuthenticationFake(result: .authenticated(
+      PasskeyOAuthTokens(accessToken: "demo-access", refreshToken: "demo-refresh"),
+      deviceID: "test-device"
+    ))
+    let harness = makeHarness(context: nil, accessGate: gate, mobileSSO: mobile)
+    harness.connection.serverURL = SureDemoServer.baseURL.absoluteString
+    harness.connection.email = "public@example.com"
+    harness.connection.password = "public-password"
+
+    await harness.connection.signInWithPassword()
+
+    #expect(harness.connection.status == .connected)
+    #expect(harness.connection.isConfigured)
+    #expect(mobile.passwordEmails == ["public@example.com"])
+    #expect(!gate.isAllowed)
+  }
+
   @Test("Wallet preview returns after logout and relaunch, but not subscription suspension")
   func onboardingPreviewBoundary() async {
     let gate = entitledTestGate()
@@ -712,10 +750,21 @@ private final class MobileSSOAuthenticationFake: MobileSSOAuthenticating {
   var result: MobileSSOResult?
   var error: Error?
   private(set) var providers: [SSOProvider] = []
+  private(set) var passwordEmails: [String] = []
 
   init(result: MobileSSOResult? = nil, error: Error? = nil) {
     self.result = result
     self.error = error
+  }
+
+  func signIn(
+    email: String,
+    password: String,
+    serverURL: String
+  ) async throws -> MobileSSOResult {
+    passwordEmails.append(email)
+    if let error { throw error }
+    return try #require(result)
   }
 
   func signIn(

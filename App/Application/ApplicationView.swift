@@ -78,14 +78,18 @@ struct ApplicationView: View {
           await notificationManager.didConnect()
         } }
         else {
-          financeData.suspendSync()
-          connection.suspendAuthentication()
-          oauthService.cancelAuthentication()
-          mobileSSOService.cancelAuthentication()
+          if !SureDemoServer.matchesBaseURL(connection.connectedServerURL) {
+            financeData.suspendSync()
+          }
+          if !connection.isDemoServer {
+            connection.suspendAuthentication()
+            oauthService.cancelAuthentication()
+            mobileSSOService.cancelAuthentication()
+          }
         }
       }
       .onOpenURL { url in
-        guard subscriptionAccess.hasAccess else { return }
+        guard subscriptionAccess.hasAccess || connection.isDemoServer else { return }
         mobileSSOService.handleOpenURL(url)
       }
     }
