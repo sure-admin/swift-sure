@@ -3,9 +3,9 @@ import StoreKit
 
 @MainActor
 final class StoreKitSubscriptionService: SubscriptionServicing {
-  static let monthlyID = "am.sure.insights.sync.monthly"
-  static let annualID = "am.sure.insights.sync.yearly"
-  static let productIDs = [monthlyID, annualID]
+  static let monthlyID = SubscriptionProductIDs.monthly
+  static let annualID = SubscriptionProductIDs.annual
+  static let productIDs = SubscriptionProductIDs.all
   private var products: [Product] = []
 
   func plans() async throws -> [SubscriptionPlan] {

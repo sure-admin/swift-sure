@@ -2,12 +2,15 @@ import Foundation
 
 struct SureAPIClient {
   private var transport: SureAPITransport
+  private var walletConnectionID: @Sendable () async -> UUID?
   private var chatPollingPolicy: ChatPollingPolicy
 
   init(
     transport: SureAPITransport,
-    chatPollingPolicy: ChatPollingPolicy = .live
+    chatPollingPolicy: ChatPollingPolicy = .live,
+    walletConnectionID: @escaping @Sendable () async -> UUID? = { nil }
   ) {
+    self.walletConnectionID = walletConnectionID
     self.transport = transport
     self.chatPollingPolicy = chatPollingPolicy
   }
@@ -76,9 +79,18 @@ struct SureAPIClient {
   }
 
   func fetchAccounts() async throws -> [FinanceAccount] {
-    try await AccountsAPIClient(transport: transport)
+    var accounts = try await AccountsAPIClient(transport: transport)
       .fetchAll()
       .map(FinancePresentationMapping.account)
+    if let connectionID = await walletConnectionID() {
+      let mappings = try await FinanceKitControlPlaneClient(transport: transport)
+        .accountMappings(connectionID: connectionID)
+      // Match stable server IDs only. Names and equal balances are not identity.
+      for index in accounts.indices {
+        accounts[index].walletSourceAccountID = mappings.first { $0.accountID == accounts[index].id }?.sourceID
+      }
+    }
+    return accounts
   }
 
   func fetchBalanceSheet() async throws -> BalanceSheetRecord {

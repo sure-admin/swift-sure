@@ -5,6 +5,28 @@ import Testing
 @Suite("Scoped server read cache")
 @MainActor
 struct CachedFinanceRepositoryTests {
+  @Test("Wallet identity and signed presentation survive relaunch, offline reads and stopping uploads")
+  func walletProvenance() async throws {
+    let harness = Harness(); defer { harness.cleanup() }
+    var wallet = testReadAccount
+    wallet.walletSourceAccountID = UUID(uuidString: "10000000-0000-4000-8000-000000000001")!
+    wallet.isLiability = true
+    harness.client.accountsOperation = { [wallet] in [wallet] }
+    #expect(try await harness.repository.fetchAccounts() == [wallet])
+    let relaunched = harness.makeRepository()
+    #expect(await relaunched.cachedSnapshot()?.accounts == [wallet])
+    harness.gate.update(expiration: nil)
+    #expect(try await relaunched.fetchAccounts().first?.displayInstitution == "Apple Wallet")
+    harness.gate.update(expiration: testReadDate.addingTimeInterval(3600))
+    harness.client.accountsOperation = { [testReadAccount] } // Publisher disconnected; canonical account retained.
+    let retained = try #require(try await relaunched.fetchAccounts().first)
+    #expect(retained.walletSourceAccountID == wallet.walletSourceAccountID)
+    harness.connection.id = "another-user"
+    #expect(try await relaunched.fetchAccounts().first?.walletSourceAccountID == nil)
+    harness.client.accountsOperation = { [] }
+    #expect(try await relaunched.fetchAccounts().isEmpty)
+  }
+
   @Test("Network outages and entitlement suspension reopen the same complete window")
   func offlineWindow() async throws {
     let harness = Harness()

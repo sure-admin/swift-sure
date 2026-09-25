@@ -18,47 +18,29 @@ final class AppleCardConnectionStore: WalletSpendingAccessProviding {
   private(set) var state: State = .idle
   private(set) var accounts: [LocalFinancialAccount] = []
 
+  func accounts(excludingSyncedSourceIDs sourceIDs: Set<UUID>) -> [LocalFinancialAccount] {
+    accounts.filter { !sourceIDs.contains($0.id) }
+  }
+
   var isAvailable: Bool { connector.isAvailable }
   private var generation = 0
 
   var walletSpendingAccess: WalletSpendingAccess {
     WalletSpendingAccess(
-      isAuthorized: !requiresReconnect && (state == .authorized || (state == .checking && !accounts.isEmpty)),
+      isAuthorized: state == .authorized || (state == .checking && !accounts.isEmpty),
       accountIDs: Set(accounts.map(\.id)),
       currencies: Set(accounts.compactMap { $0.balance?.currency }),
       generation: generation
     )
   }
 
-  // Logout clears app-owned data without changing system Wallet permission.
-  func disconnect() {
-    generation += 1
-    requiresReconnect = true
-    setRequiresReconnect(true)
-    accounts = []
-    state = connector.isAvailable ? .ready : .unavailable
-  }
-
   private let connector: any AppleCardConnecting
 
-  private var requiresReconnect: Bool
-  private let setRequiresReconnect: (Bool) -> Void
-
-  init(
-    connector: any AppleCardConnecting,
-    requiresReconnect: Bool = false,
-    setRequiresReconnect: @escaping (Bool) -> Void = { _ in }
-  ) {
-    self.requiresReconnect = requiresReconnect
+  init(connector: any AppleCardConnecting) {
     self.connector = connector
-    self.setRequiresReconnect = setRequiresReconnect
-    if requiresReconnect {
-      state = connector.isAvailable ? .ready : .unavailable
-    }
   }
 
   func refresh() async {
-    guard !requiresReconnect else { return }
     guard state != .checking && state != .connecting else { return }
     guard connector.isAvailable else {
       accounts = []
@@ -67,6 +49,7 @@ final class AppleCardConnectionStore: WalletSpendingAccessProviding {
     }
 
     let requestGeneration = generation
+    let previousState = state
     state = .checking
     do {
       let authorization = try await connector.authorizationStatus()
@@ -78,11 +61,10 @@ final class AppleCardConnectionStore: WalletSpendingAccessProviding {
       state = Self.state(for: authorization)
     } catch is CancellationError {
       guard generation == requestGeneration else { return }
-      state = .idle
+      state = previousState
     } catch {
       guard generation == requestGeneration else { return }
-      accounts = []
-      state = .failed("Wallet accounts are temporarily unavailable.")
+      state = .failed("Wallet accounts couldn’t be refreshed. Previously loaded accounts may be out of date.")
     }
   }
 
@@ -101,10 +83,6 @@ final class AppleCardConnectionStore: WalletSpendingAccessProviding {
       let loadedAccounts = authorization == .authorized ? try await connector.fetchAccounts() : []
       try Task.checkCancellation()
       guard generation == requestGeneration else { return }
-      if authorization == .authorized {
-        requiresReconnect = false
-        setRequiresReconnect(false)
-      }
       generation += 1
       accounts = loadedAccounts
       state = Self.state(for: authorization)

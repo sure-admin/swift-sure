@@ -34,13 +34,13 @@ idiomatic Swift and SwiftUI architecture.
   carrying speculative compatibility for older self-hosted instances. Update
   the pin, fixtures, and affected contract tests together when adopting a newer
   `main`. Never infer compatibility from the demo server alone.
-- Explicitly authorized FinanceKit accounts may supply a separate, on-device
-  Wallet spending preview before the first successful Sure connection and after
-  explicit logout. Logout restores the Wallet entry point; accessing records again
-  requires explicit Wallet reconnection. Never use Wallet as a
-  connected/offline/suspended fallback.
-  Future Wallet ingestion sends source transactions to Sure for aggregation; the
-  preview never uploads local financial records.
+- Explicitly authorized FinanceKit accounts remain visible alongside Sure accounts,
+  marked with the Apple Wallet icon and an on-device label. Local access is
+  independent of Sure login, logout, connectivity, and subscription state; check
+  system authorization on launch and foreground, and remove revoked accounts.
+  Wallet spending summaries remain a separate preview before the first successful
+  Sure connection and after logout, never a connected/offline/suspended reporting
+  fallback. Uploading Wallet records requires separate explicit sync consent.
 - Sure is the system of record for financial data. The client may derive
   presentation summaries, but it must not invent server data or reimplement a
   server-owned workflow when a documented API exists.

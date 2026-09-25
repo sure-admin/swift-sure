@@ -1,0 +1,39 @@
+{
+  "protocol_version": 1,
+  "connection_id": "20000000-0000-4000-8000-000000000001",
+  "publisher_id": "30000000-0000-4000-8000-000000000001",
+  "generation": 1,
+  "stream_id": "40000000-0000-4000-8000-000000000001",
+  "batch_id": "50000000-0000-4000-8000-000000000001",
+  "sequence": 1,
+  "capture_id": "60000000-0000-4000-8000-000000000001",
+  "chunk_index": 0,
+  "chunk_count": 1,
+  "capture_mode": "snapshot",
+  "snapshot_complete": true,
+  "captured_at": "2026-09-01T12:00:00Z",
+  "selected_source_account_ids": [
+    "00000000-0000-4000-8000-000000000001"
+  ],
+  "events": [
+    {
+      "kind": "transaction_upsert",
+      "transaction": {
+        "source_id": "70000000-0000-4000-8000-000000000001",
+        "source_account_id": "00000000-0000-4000-8000-000000000001",
+        "lineage_id": "10000000-0000-4000-8000-000000000001",
+        "mapping_version": 1,
+        "amount": {
+          "amount": "12.34",
+          "currency": "USD",
+          "direction": "debit"
+        },
+        "transaction_description": "Synthetic transaction",
+        "original_transaction_description": "SYNTHETIC",
+        "transaction_type": "point_of_sale",
+        "status": "booked",
+        "transacted_at": "2026-09-01T10:00:00Z"
+      }
+    }
+  ]
+}

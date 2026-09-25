@@ -62,7 +62,20 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
       put: { $0.balanceSheet = $1 }, take: { guard let value = $0.balanceSheet else { throw DataFailure.malformed }; return value })
   }
   func fetchAccounts() async throws -> [FinanceAccount] {
-    try await resource("accounts", get: { try await base.fetchAccounts() }, put: { $0.accounts = $1 }, take: { $0.accounts })
+    try await resource("accounts", get: {
+      let scope = currentScope
+      let previous = if let scope, let entry = try? await cache.read(scope: scope, key: "accounts") {
+        (try? FinanceDataSnapshotCodec().decode(entry.payload).accounts) ?? []
+      } else { [FinanceAccount]() }
+      var accounts = try await base.fetchAccounts()
+      // Provenance survives stopping uploads, but only for still-present account
+      // IDs inside the same authenticated cache scope. Logout clears this cache.
+      guard scope == currentScope else { throw CancellationError() }
+      for index in accounts.indices where accounts[index].walletSourceAccountID == nil {
+        accounts[index].walletSourceAccountID = previous.first { $0.id == accounts[index].id }?.walletSourceAccountID
+      }
+      return accounts
+    }, put: { $0.accounts = $1 }, take: { $0.accounts })
   }
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
     try await resource("budgets", get: { try await base.fetchBudgetCategories() }, put: { $0.budgets = $1 }, take: { $0.budgets })

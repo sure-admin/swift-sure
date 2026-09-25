@@ -5,6 +5,8 @@ struct FinanceAssembly {
   let remoteAssistant: any RemoteAssistantClient
   let financeData: FinanceDataStore
   let appleCardConnection: AppleCardConnectionStore
+  let financeKitPublisher: any FinanceKitPublisherLifecycleHandling
+  let financeKitSync: FinanceKitSyncStore
   let spendingComparison: SpendingComparisonStore
   let transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   let localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -15,10 +17,22 @@ struct FinanceAssembly {
     let transport = services.transport
     let accessGate = services.accessGate
     let lifecycle = services.lifecycle
-    let preferences = services.preferences
+    let controlPlane = FinanceKitControlPlaneClient(transport: transport)
+    let financeKitPublisher = FinanceKitPublisherController(gate: accessGate,
+      remoteRenew: {
+        let activation = try await controlPlane.renew(connectionID: $0)
+        return (try activation.configuration(), activation.publisherCredential)
+      },
+      remoteRepair: {
+        let activation = try await controlPlane.repair(connectionID: $0)
+        return (try activation.configuration(), activation.publisherCredential)
+      },
+      remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0.connectionID, serverURL: $0.serverURL) })
+    let financeClient = SureAPIClient(transport: transport,
+      walletConnectionID: { await financeKitPublisher.configuredConnectionID() })
     let cache = ServerReadCache(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("am.sure.insights/server-reads", isDirectory: true))
-    let repository = CachedFinanceRepository(base: apiClient, history: apiClient,
+    let repository = CachedFinanceRepository(base: financeClient, history: apiClient,
       summaries: CashFlowAPIClient(transport: transport), cache: cache, gate: accessGate,
       identity: { [weak connection] in
         guard let server = connection?.connectedServerURL, let id = connection?.connectedSnapshotIdentity else { return nil }
@@ -33,9 +47,7 @@ struct FinanceAssembly {
       calendar: .autoupdatingCurrent, now: { .now }, summaries: repository, syncInsights: syncInsights)
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
-      connector: financeKitConnector,
-      requiresReconnect: preferences.requiresWalletReconnect(),
-      setRequiresReconnect: preferences.setRequiresWalletReconnect
+      connector: financeKitConnector
     )
 
     let spendingComparison = SpendingComparisonStore(
@@ -63,6 +75,10 @@ struct FinanceAssembly {
     remoteAssistant = repository
     self.financeData = financeData
     self.appleCardConnection = appleCardConnection
+    self.financeKitPublisher = financeKitPublisher
+    self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher,
+      preferences: UserDefaultsFinanceKitSyncPreferences(defaults: .standard),
+      accountsDidChange: { await financeData.refreshAccounts() })
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory
     self.localTransactionHistoryStoreFactory = localTransactionHistoryStoreFactory

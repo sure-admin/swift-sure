@@ -35,7 +35,8 @@ final class AuthenticationCoordinator: ConnectionAuthenticating {
   var isSignedOut: Bool { connection.isSignedOut }
   var generation: Int { connection.generation }
   var canLogOut: Bool { connection.canLogOut }
-  // Explicit logout restores local Wallet access; a paused Sure session does not.
+  // Explicit logout restores Wallet spending summaries; a paused Sure session does not.
+  // The account list and local access are independent of this reporting-source policy.
   var allowsWalletPreview: Bool { connection.isSignedOut || !connection.hasConnectedToSure }
   var connectionID: String? { connection.connectionID }
   var serverURL: URL? { isConfigured ? connection.context?.baseURL : nil }

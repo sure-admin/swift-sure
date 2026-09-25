@@ -5,7 +5,6 @@ struct AccountsView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var data: FinanceDataStore
-  var allowsWalletPreview: Bool
   var hasSyncAccess: Bool
   var appleCardConnection: AppleCardConnectionStore
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -49,13 +48,15 @@ struct AccountsView: View {
 
   @ViewBuilder
   private var content: some View {
-    if allowsWalletPreview && appleCardConnection.isAvailable {
-      LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-        appleCardCard
-        ForEach(appleCardConnection.accounts) { account in
-          localAccountLink(account)
-        }
+    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+      ForEach(appleCardConnection.accounts(excludingSyncedSourceIDs: Set(data.accounts.compactMap(\.walletSourceAccountID)))) { account in
+        localAccountLink(account)
       }
+      ForEach(data.accounts) { account in
+        accountLink(account)
+      }
+      if appleCardConnection.isAvailable { appleCardCard }
+      if data.state == .loaded { addAccountCard }
     }
     switch data.state {
     case .idle, .loading:
@@ -95,21 +96,11 @@ struct AccountsView: View {
           .buttonStyle(.borderedProminent)
         }
         .frame(minHeight: 420)
-      } else {
-        VStack(spacing: 16) {
-          if data.accountsError != nil {
-            Label("Accounts couldn’t be refreshed. Showing the last loaded data.", systemImage: "exclamationmark.triangle")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-          LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
-            ForEach(data.accounts) { account in
-              accountLink(account)
-            }
-            addAccountCard
-          }
-        }
+      } else if data.accountsError != nil {
+        Label("Accounts couldn’t be refreshed. Showing the last loaded data.", systemImage: "exclamationmark.triangle")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
   }
@@ -134,10 +125,10 @@ struct AccountsView: View {
   }
 
   private var appleCardIcon: some View {
-    Image(systemName: "apple.logo")
-      .font(.title2)
-      .frame(width: 44, height: 44)
-      .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+    Image("AppleWallet")
+      .resizable()
+      .scaledToFit()
+      .frame(width: 42, height: 42)
       .accessibilityHidden(true)
   }
 
@@ -150,6 +141,11 @@ struct AccountsView: View {
       )
       .font(.subheadline.weight(.semibold))
       .foregroundStyle(.green)
+    } else if case .failed = appleCardConnection.state {
+      Button("Try again", systemImage: "arrow.clockwise") {
+        Task { await appleCardConnection.refresh() }
+      }
+      .buttonStyle(.bordered)
     } else {
       Button("Allow Access", systemImage: "lock.open") {
         Task { await appleCardConnection.connect() }
@@ -174,7 +170,7 @@ struct AccountsView: View {
     case .authorized:
       appleCardConnection.accounts.isEmpty
         ? "No accounts are currently shared. Update access in Settings."
-        : "Display only. This data stays on this device and isn’t sent to Sure."
+        : "On-device accounts. Sharing with Sure requires separate Wallet sync consent."
     case .denied: "Access is off. You can enable Finance access in Settings."
     case .failed(let message): message
     case .unavailable: "Unavailable on this device."
@@ -185,13 +181,10 @@ struct AccountsView: View {
     let color: Color = account.kind == .asset ? .blue : .orange
     return VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Image(systemName: account.kind == .asset ? "building.columns" : "creditcard")
-          .frame(width: 42, height: 42)
-          .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-          .foregroundStyle(color)
-          .accessibilityHidden(true)
+        appleCardIcon
         Spacer()
         Label("On Device", systemImage: "iphone")
+          .accessibilityLabel("Apple Wallet, on-device account")
           .font(.caption.bold())
           .foregroundStyle(color)
           .padding(.horizontal, 10)
@@ -199,30 +192,39 @@ struct AccountsView: View {
           .background(color.opacity(0.14), in: Capsule())
       }
 
-      HStack(alignment: .firstTextBaseline, spacing: 12) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(account.name)
-            .font(.headline)
-          Text(account.institutionName)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+      ViewThatFits(in: .horizontal) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+          localAccountName(account)
+          Spacer(minLength: 4)
+          localAccountBalance(account)
         }
-        Spacer(minLength: 4)
-        if let balance = account.balance {
-          Text(FinanceFormatters.currency(balance))
-            .font(.title2.bold())
-            .fixedSize(horizontal: true, vertical: false)
-        } else {
-          Text("Balance unavailable")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+          localAccountName(account)
+          localAccountBalance(account)
         }
       }
     }
     .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     .sureCard()
     .accessibilityElement(children: .combine)
-    .accessibilityHint("Displayed only on this device")
+  }
+
+  private func localAccountName(_ account: LocalFinancialAccount) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(account.name).font(.headline)
+      Text(account.institutionName).font(.subheadline).foregroundStyle(.secondary)
+    }
+  }
+
+  @ViewBuilder
+  private func localAccountBalance(_ account: LocalFinancialAccount) -> some View {
+    if let balance = account.balance {
+      Text(FinanceFormatters.currency(balance))
+        .font(.title2.bold())
+        .fixedSize(horizontal: true, vertical: false)
+    } else {
+      Text("Balance unavailable").font(.subheadline).foregroundStyle(.secondary)
+    }
   }
 
   private func localAccountLink(_ account: LocalFinancialAccount) -> some View {
@@ -258,11 +260,15 @@ struct AccountsView: View {
     let accountColor = accountTypeColor(account.kind)
     return VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Image(systemName: account.kind.symbol)
-          .frame(width: 42, height: 42)
-          .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-          .foregroundStyle(accountColor)
-          .accessibilityHidden(true)
+        if account.walletSourceAccountID != nil {
+          appleCardIcon
+        } else {
+          Image(systemName: account.kind.symbol)
+            .frame(width: 42, height: 42)
+            .background(accountColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+            .foregroundStyle(accountColor)
+            .accessibilityHidden(true)
+        }
         Spacer()
         Text(account.kind.rawValue)
           .font(.caption.bold())
@@ -276,10 +282,10 @@ struct AccountsView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(account.name)
             .font(.headline)
-          Text(account.institution)
+          Text(account.displayInstitution)
             .font(.subheadline)
             .foregroundStyle(.secondary)
-          Text(FinanceFormatters.currency(account.balance))
+          Text(FinanceFormatters.currency(account.displayBalance))
             .font(.title2.bold())
         }
       } else {
@@ -288,13 +294,13 @@ struct AccountsView: View {
             Text(account.name)
               .font(.headline)
               .lineLimit(1)
-            Text(account.institution)
+            Text(account.displayInstitution)
               .font(.subheadline)
               .foregroundStyle(.secondary)
               .lineLimit(1)
           }
           Spacer(minLength: 4)
-          Text(FinanceFormatters.currency(account.balance))
+          Text(FinanceFormatters.currency(account.displayBalance))
             .font(.title2.bold())
             .fixedSize(horizontal: true, vertical: false)
         }

@@ -9,7 +9,7 @@ contract and `CachedFinanceRepository` stores the result for offline and suspend
 sessions. See `SureContractBaseline.md` for the exact required server revision.
 
 Wallet comparison remains a separate local preview. It is available before the
-first successful Sure connection and after explicit logout and Wallet reconnection.
+first successful Sure connection and after explicit logout.
 Connected sessions never fall back to Wallet totals on network failure or
 entitlement loss. No local financial records are
 uploaded by this feature.
@@ -96,10 +96,10 @@ When Wallet access has been explicitly enabled in Accounts, the card prefers
 that source, including with no Sure connection. Overview refreshes Wallet access
 on appearance, foregrounding, and manual refresh. Revocation, logout, account
 changes, and reconnect invalidate displayed and in-flight spending snapshots.
-The persisted Wallet reconnect decision is independent of Sure sign-in state.
-Cold launch checks system authorization without replaying an earlier Sure logout
-or undoing Wallet access granted afterward. Revoked system permission still
-removes access; an explicit logout still requires a new Wallet connection.
+Local Wallet account access is independent of Sure sign-in state. Cold launch
+and foreground refresh check system authorization. Revoked system permission
+removes access; Sure login and logout retain authorized local accounts. Connected
+reporting still uses Sure, without mixing in local balances or spending.
 
 `WalletSpendingAccessProviding` exposes authorized account IDs and known balance
 currencies without coupling Overview to the Accounts view model. The injected

@@ -1,0 +1,30 @@
+{
+  "connection_id": "20000000-0000-4000-8000-000000000001",
+  "status": "active",
+  "repair_reason": null,
+  "open_conflicts": 1,
+  "last_device_contact_at": "2026-09-18T10:00:00.000Z",
+  "last_accepted_at": "2026-09-18T10:00:01.000Z",
+  "last_imported_at": "2026-09-18T10:00:04.000Z",
+  "last_downstream_at": "2026-09-18T10:05:00.000Z",
+  "accounts": [
+    {
+      "source_id": "00000000-0000-4000-8000-000000000002",
+      "lineage_id": "10000000-0000-4000-8000-000000000002",
+      "mapping_version": 1,
+      "account_id": "00000000-0000-4000-8000-000000000102",
+      "name": "Synthetic Wallet Account",
+      "institution_name": "Apple",
+      "currency": "USD",
+      "accountable_type": "Depository",
+      "subtype": "checking",
+      "ledger_timezone": "America/Los_Angeles"
+    }
+  ],
+  "pagination": {
+    "page": 2,
+    "per_page": 1,
+    "total_count": 2,
+    "total_pages": 2
+  }
+}

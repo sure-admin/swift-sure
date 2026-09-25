@@ -98,3 +98,12 @@ per-server installation proof, tested in the typed request contract.
 The merged baseline preserves all existing GET operations, shared schemas, and
 push registration from the reviewed branch. Response fixtures are unchanged;
 upstream trade-mutation changes do not affect this read-only client.
+
+
+`financekit-mappings-page-1`, `financekit-mappings-page-2`,
+`financekit-mappings-empty`, and `financekit-mappings-malformed` are synthetic
+connection-detail responses for FinanceKit pin
+`355648ce5d67b5b68fff5723ca5298467047e72e`. They exercise canonical `account_id`
+identity, pagination (including the endpoint's zero-page empty collection), and
+rejection of malformed account IDs. Existing authorization error fixtures cover
+failure on a later mapping page.

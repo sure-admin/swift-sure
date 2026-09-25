@@ -4,10 +4,13 @@ on:
   pull_request:
     paths:
       - "App/**" # Includes Infrastructure/Analytics and Features/Analytics
+      - "FinanceKitBackground/**"
       - "Shared/**"
       - "Tests/**"
       - "Docs/SpendingComparison.md"
       - "Docs/PurchaseAccessPlan.md"
+      - "Docs/FinanceKitSyncArchitecture.md"
+      - "Docs/FinanceKitDeviceTesting.md"
       - "appStoreConnect/**"
       - "Watch/**"
       - "Project.json"

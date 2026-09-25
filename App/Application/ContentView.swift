@@ -9,6 +9,7 @@ struct ContentView: View {
   var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
   var firstRun: FirstRunStore?
+  var financeKitSync: FinanceKitSyncStore
   var notificationManager: any InsightNotificationControlling
   var remoteAssistant: any RemoteAssistantClient
   var transactionHistoryStoreFactory: TransactionHistoryStoreFactory
@@ -31,7 +32,8 @@ struct ContentView: View {
       showingConnectionSettings = true
     }
     .sheet(isPresented: $showingConnectionSettings) {
-      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics)
+      ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
+        financeKitSync: financeKitSync, wallet: appleCardConnection)
     }
     #if os(iOS)
     .fullScreenCover(isPresented: .constant(firstRun?.isFinished == false), onDismiss: routeAfterFirstRun) {
