@@ -232,3 +232,17 @@ migration on already-installed devices.
 The iOS settings surface exposes enrollment, selected-account mapping, activation, an explicit **Sync now**, health, conflict repair, credential renewal, and remote disconnect only when `FINANCEKIT_ENABLED` is compiled and the background-processing subscription entitlement is current. It shows the server's accepted and imported times separately rather than one "last synced": accepting a capture and importing it are different facts, and collapsing them would claim a freshness Sure cannot vouch for. The client keeps the Apple history checkpoint and durable capture until the server reports the final batch `applied`. A replacement device never guesses that a new device-scoped FinanceKit transaction UUID is an existing ledger transaction; the server quarantines it as a `replacement_identity` conflict for explicit review.
 
 This remains a device-only preview. There is no broad production rollout without the Apple background entitlement, Sure preview access, and explicit family-data consent.
+
+
+### Retrying disconnection after logout
+
+Local revocation and credential removal happen before the remote disconnect. The
+publisher state is replaced atomically with only pending connection IDs and their
+original server URLs; consent, account mappings, checkpoint tokens, and queued
+financial payloads are removed. Failed or interrupted disconnects remain retryable
+by the lifecycle's next disconnect attempt, including after relaunch. Only a
+successful remote response removes a target. The deferred DELETE is bound to its
+original server at the transport boundary, including authorization-recovery retries.
+New enrollment and repair preserve older cleanup targets without re-enabling them.
+Retry still requires valid user authentication and backend access; no credentials
+are retained to perform cleanup while signed out.

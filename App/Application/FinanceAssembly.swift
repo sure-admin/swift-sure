@@ -27,7 +27,7 @@ struct FinanceAssembly {
         let activation = try await controlPlane.repair(connectionID: $0)
         return (try activation.configuration(), activation.publisherCredential)
       },
-      remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0) })
+      remoteDisconnect: { try await controlPlane.disconnect(connectionID: $0.connectionID, serverURL: $0.serverURL) })
     let financeClient = SureAPIClient(transport: transport,
       walletConnectionID: { await financeKitPublisher.configuredConnectionID() })
     let cache = ServerReadCache(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

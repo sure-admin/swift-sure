@@ -14,7 +14,8 @@ struct FinanceKitPublisherControllerTests {
     let credentials = PublisherCredentials()
     let first = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
       makeCredentialStore: { _ in credentials }, remoteDisconnect: { id in
-        #expect(id == state.configuration?.connectionID)
+        #expect(id.connectionID == state.configuration?.connectionID)
+        #expect(id.serverURL == state.configuration?.serverURL)
         #expect(FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).isRevoked)
         #expect(credentials.isEmpty)
         throw URLError(.notConnectedToInternet)
@@ -24,11 +25,13 @@ struct FinanceKitPublisherControllerTests {
     #expect(pending.consentWithdrawalPending == true)
     #expect(pending.pendingCapture == nil)
     #expect(pending.checkpoint == nil)
-    #expect(pending.configuration == state.configuration)
+    #expect(pending.configuration == nil)
+    #expect(pending.pendingDisconnections?.map(\.connectionID) == [state.configuration!.connectionID])
     #expect(await first.configuredConnectionID() == nil)
     let retry = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
       makeCredentialStore: { _ in credentials }, remoteDisconnect: { id in
-        #expect(id == state.configuration?.connectionID)
+        #expect(id.connectionID == state.configuration?.connectionID)
+        #expect(id.serverURL == state.configuration?.serverURL)
       })
     #expect(await retry.hasPendingConsentWithdrawal())
     try await retry.stopKeepingHistory()
@@ -53,27 +56,73 @@ struct FinanceKitPublisherControllerTests {
     #expect(await controller.batchValidationIssue() == nil)
   }
 
-  @Test("Remote disconnect failure still deletes credentials, checkpoint and pending state")
-  func remoteFailureClearsLocalData() async throws {
+  @Test("Failed remote disconnects retain only a retry target and succeed after relaunch")
+  func remoteFailureRetriesAfterRelaunch() async throws {
     let environment = environment()
     defer { try? FileManager.default.removeItem(at: environment.stateURL.deletingLastPathComponent()) }
     let credentials = PublisherCredentials()
     let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
-    var state = FinanceKitPublisherState.empty
-    state.configuration = try configuration()
-    state.checkpoint = Data("private-checkpoint".utf8)
+    let configuration = try configuration()
+    let state = pendingState(configuration)
+    let target = FinanceKitDisconnectTarget(connectionID: configuration.connectionID, serverURL: configuration.serverURL)
+    var expected = FinanceKitPublisherState.empty
+    expected.pendingDisconnections = [target]
+    let minimalState = expected
     try await store.save(state)
+    let failedCalls = PublisherDisconnectCalls()
     let controller = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
-      makeCredentialStore: { _ in credentials }, remoteDisconnect: { _ in
-        #expect(try await store.load() == .empty)
+      makeCredentialStore: { _ in credentials }, remoteDisconnect: { target in
+        await failedCalls.record(target)
+        #expect(try await store.load() == minimalState)
         #expect(credentials.isEmpty)
         throw URLError(.notConnectedToInternet)
       })
-    #expect(await controller.configuredConnectionID() == state.configuration?.connectionID)
+    #expect(await controller.configuredConnectionID() == configuration.connectionID)
     await #expect(throws: URLError.self) { try await controller.disconnect() }
+    await #expect(throws: URLError.self) { try await controller.disconnect() }
+    #expect(await failedCalls.targets == [target, target])
     #expect(credentials.isEmpty)
-    #expect(try await store.load() == .empty)
+    #expect(try await store.load() == minimalState)
     #expect(await controller.configuredConnectionID() == nil)
+    #expect(FinanceKitPublisherRevocationStore(fileURL: environment.revocationURL).isRevoked)
+
+    let successfulCalls = PublisherDisconnectCalls()
+    let relaunched = FinanceKitPublisherController(gate: BackendAccessGate(), makeEnvironment: { environment },
+      makeCredentialStore: { _ in credentials }, remoteDisconnect: { await successfulCalls.record($0) })
+    #expect(await relaunched.configuredConnectionID() == nil)
+    try await relaunched.disconnect()
+    #expect(await successfulCalls.targets == [target])
+    #expect(try await store.load() == .empty)
+    try await relaunched.disconnect()
+    #expect(await successfulCalls.targets == [target])
+  }
+
+  @Test("A new publisher preserves older cleanup targets, and successful targets are removed independently")
+  func installingPreservesDisconnectRetries() async throws {
+    let environment = environment()
+    defer { try? FileManager.default.removeItem(at: environment.stateURL.deletingLastPathComponent()) }
+    let credentials = PublisherCredentials()
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    let configuration = try configuration()
+    let oldTarget = FinanceKitDisconnectTarget(connectionID: UUID(uuidString: "20000000-0000-4000-8000-000000000099")!,
+      serverURL: URL(string: "https://previous.sure.example")!)
+    var previous = FinanceKitPublisherState.empty
+    previous.pendingDisconnections = [oldTarget]
+    try await store.save(previous)
+    let gate = BackendAccessGate()
+    gate.update(expiration: .distantFuture)
+    let calls = PublisherDisconnectCalls()
+    let controller = FinanceKitPublisherController(gate: gate, makeCollector: { UnavailablePublisherCollector() }, makeEnvironment: { environment },
+      makeCredentialStore: { _ in credentials }, remoteDisconnect: { target in
+        await calls.record(target)
+        if target == oldTarget { throw CancellationError() }
+      })
+    try await controller.install(configuration: configuration, credential: "synthetic-publisher-secret")
+    #expect(try await store.load().pendingDisconnections == [oldTarget])
+    await #expect(throws: CancellationError.self) { try await controller.disconnect() }
+    #expect(await calls.targets == [oldTarget, FinanceKitDisconnectTarget(connectionID: configuration.connectionID, serverURL: configuration.serverURL)])
+    #expect(try await store.load() == previous)
+    #expect(credentials.isEmpty)
   }
 
   @Test("An unreadable state does not prevent deletion of local financial records")
@@ -247,7 +296,10 @@ struct FinanceKitPublisherControllerTests {
     replacement.generation += 1
     replacement.streamID = UUID(uuidString: "40000000-0000-4000-8000-000000000002")!
     let configuration = replacement
-    let state = pendingState(previous)
+    var state = pendingState(previous)
+    let cleanup = FinanceKitDisconnectTarget(connectionID: UUID(uuidString: "20000000-0000-4000-8000-000000000099")!,
+      serverURL: previous.serverURL)
+    state.pendingDisconnections = [cleanup]
     let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
     try await store.save(state)
     let credentials = PublisherCredentials()
@@ -261,6 +313,7 @@ struct FinanceKitPublisherControllerTests {
     try await controller.repair()
     var expected = FinanceKitPublisherState.empty
     expected.configuration = configuration
+    expected.pendingDisconnections = [cleanup]
     #expect(try await store.load() == expected)
     #expect(try credentials.credential(for: configuration.publisherID) == "repaired-secret")
   }
@@ -333,4 +386,16 @@ private actor PublisherRotationBarrier {
     await withCheckedContinuation { started = $0 }
   }
   func resume() { continuation?.resume(); continuation = nil }
+}
+
+private actor PublisherDisconnectCalls {
+  private(set) var targets: [FinanceKitDisconnectTarget] = []
+  func record(_ target: FinanceKitDisconnectTarget) { targets.append(target) }
+}
+
+private struct UnavailablePublisherCollector: FinanceKitChangeCollecting {
+  func collect(configuration: FinanceKitPublisherConfiguration, checkpoint: Data?,
+               changedTypes: Set<FinanceKitBackgroundDataType>) async throws -> FinanceKitCollectedChanges {
+    throw FinanceKitSyncError.invalidState
+  }
 }

@@ -9,15 +9,17 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     configuration: FinanceKitPublisherConfiguration, credential: String
   )
 
+  private let makeCollector: @Sendable () -> any FinanceKitChangeCollecting
   private let remoteRenew: RemoteUpdate
   private let remoteRepair: RemoteUpdate
   private var gate: BackendAccessGate
   private nonisolated let makeEnvironment: @Sendable () throws -> FinanceKitPublisherEnvironment
   private nonisolated let makeCredentialStore: @Sendable (String) -> any FinanceKitPublisherCredentialStoring
-  private let remoteDisconnect: @Sendable (UUID) async throws -> Void
+  private let remoteDisconnect: @Sendable (FinanceKitDisconnectTarget) async throws -> Void
 
   init(
     gate: BackendAccessGate,
+    makeCollector: @escaping @Sendable () -> any FinanceKitChangeCollecting = { FinanceKitHistoryChangeCollector() },
     makeEnvironment: @escaping @Sendable () throws -> FinanceKitPublisherEnvironment = {
       try FinanceKitPublisherEnvironment.live()
     },
@@ -26,8 +28,9 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     },
     remoteRenew: @escaping RemoteUpdate = { _ in throw FinanceKitSyncError.invalidState },
     remoteRepair: @escaping RemoteUpdate = { _ in throw FinanceKitSyncError.invalidState },
-    remoteDisconnect: @escaping @Sendable (UUID) async throws -> Void = { _ in }
+    remoteDisconnect: @escaping @Sendable (FinanceKitDisconnectTarget) async throws -> Void = { _ in }
   ) {
+    self.makeCollector = makeCollector
     self.remoteRenew = remoteRenew
     self.remoteRepair = remoteRepair
     self.gate = gate
@@ -51,16 +54,21 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     do {
       let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
       defer { _ = lock }
+      let pendingDisconnections = try await stateStore.load().pendingDisconnections
       try credentialStore.removeAllCredentials()
       try credentialStore.saveCredential(credential, for: configuration.publisherID)
       var state = FinanceKitPublisherState.empty
       state.configuration = configuration
+      state.pendingDisconnections = pendingDisconnections
       do {
         try await stateStore.save(state)
         try revocationStore.clear()
       } catch {
         try? credentialStore.removeAllCredentials()
-        try? await stateStore.clear()
+        var cleanup = FinanceKitPublisherState.empty
+        cleanup.pendingDisconnections = pendingDisconnections
+        if pendingDisconnections?.isEmpty == false { try? await stateStore.save(cleanup) }
+        else { try? await stateStore.clear() }
         throw error
       }
     }
@@ -108,7 +116,9 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     if operation == .repair {
       guard configuration.generation > previous.generation,
             configuration.streamID != previous.streamID else { throw FinanceKitSyncError.invalidState }
+      let pendingDisconnections = state.pendingDisconnections
       state = .empty
+      state.pendingDisconnections = pendingDisconnections
     } else {
       guard configuration.generation == previous.generation,
             configuration.streamID == previous.streamID,
@@ -186,7 +196,7 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
     do {
       let engine = FinanceKitSyncEngine(
         stateStore: stateStore,
-        collector: FinanceKitHistoryChangeCollector(),
+        collector: makeCollector(),
         makeUploader: { configuration in
           guard !revocationStore.isRevoked else { throw FinanceKitBatchUploadError.publisherRevoked }
           guard let credential = try credentialStore.credential(for: configuration.publisherID) else {
@@ -233,45 +243,58 @@ actor FinanceKitPublisherController: FinanceKitPublisherLifecycleHandling {
   }
 
   func stopKeepingHistory() async throws {
-    try blockBackgroundDelivery()
-    let environment = try makeEnvironment()
-    let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
-    defer { _ = lock }
-    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
-    var state = try await store.load()
-    let connectionID = state.configuration?.connectionID
-    // Retain only the configuration needed to retry revocation after a lost
-    // response. Uploads are already fenced by the durable revocation marker.
-    state.consentWithdrawalPending = connectionID != nil
-    state.checkpoint = nil
-    state.pendingCapture = nil
-    state.batchRejection = nil
-    try await store.save(state)
-    try makeCredentialStore(environment.keychainAccessGroup).removeAllCredentials()
-    if let connectionID { try await remoteDisconnect(connectionID) }
-    try await store.clear()
+    try await disconnect(consentWithdrawal: true)
   }
 
   func disconnect() async throws {
-    // Attempt each local cleanup even if revocation, decoding, or remote deletion fails.
+    try await disconnect(consentWithdrawal: false)
+  }
+
+  private func disconnect(consentWithdrawal: Bool) async throws {
+    // Revocation and credential removal remain authoritative even when offline.
     var failure: (any Error)?
     do { try blockBackgroundDelivery() } catch { failure = error }
     let environment = try makeEnvironment()
     let lock = try FinanceKitProcessLock(url: environment.lockURL).acquire()
     defer { _ = lock }
-    let stateStore = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
-    var connectionID: UUID?
-    do { connectionID = try await stateStore.load().configuration?.connectionID }
-    catch { failure = error }
+    let store = FinanceKitPublisherStateFileStore(fileURL: environment.stateURL)
+    var targets: [FinanceKitDisconnectTarget] = []
+    do {
+      let previous = try await store.load()
+      targets = previous.pendingDisconnections ?? []
+      if let configuration = previous.configuration {
+        let target = FinanceKitDisconnectTarget(connectionID: configuration.connectionID, serverURL: configuration.serverURL)
+        if !targets.contains(target) { targets.append(target) }
+      }
+    } catch { failure = error }
     do { try makeCredentialStore(environment.keychainAccessGroup).removeAllCredentials() }
     catch { failure = error }
-    do { try await stateStore.clear() }
-    catch { failure = error }
-    if let connectionID {
-      do { try await remoteDisconnect(connectionID) }
-      catch { if failure == nil { failure = error } }
+
+    // Persist retry targets before sending DELETE. This also covers termination
+    // or a lost response, without retaining consent, account IDs or financial data.
+    do { try await saveDisconnections(targets, consentWithdrawal: consentWithdrawal, to: store) }
+    catch {
+      failure = error
+      // If minimal-state persistence fails, still attempt to remove financial state.
+      try? await store.clear()
+    }
+    for target in targets {
+      do {
+        try await remoteDisconnect(target)
+        targets.removeAll { $0 == target }
+        try await saveDisconnections(targets, consentWithdrawal: consentWithdrawal, to: store)
+      } catch { if failure == nil { failure = error } }
     }
     if let failure { throw failure }
+  }
+
+  private func saveDisconnections(_ targets: [FinanceKitDisconnectTarget], consentWithdrawal: Bool,
+                                 to store: FinanceKitPublisherStateFileStore) async throws {
+    guard !targets.isEmpty else { try await store.clear(); return }
+    var state = FinanceKitPublisherState.empty
+    state.pendingDisconnections = targets
+    state.consentWithdrawalPending = consentWithdrawal ? true : nil
+    try await store.save(state)
   }
 
   private func enableBackgroundDelivery() {

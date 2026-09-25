@@ -83,10 +83,12 @@ struct FinanceKitControlPlaneClient: Sendable {
       body: ["resolution": resolution], forbiddenResponse: .previewFeatureUnavailable))
   }
 
-  func disconnect(connectionID: UUID) async throws {
-    try await transport.send(APIRequest<Void>(method: .delete,
+  func disconnect(connectionID: UUID, serverURL: URL? = nil) async throws {
+    var request = APIRequest<Void>(method: .delete,
       pathComponents: path("connections", connectionID.uuidString.lowercased()),
-      forbiddenResponse: .previewFeatureUnavailable))
+      forbiddenResponse: .previewFeatureUnavailable)
+    request.requiredServerURL = serverURL
+    try await transport.send(request)
   }
 
   private func command(_ command: String, connectionID: UUID) async throws -> FinanceKitActivation {

@@ -103,6 +103,10 @@ struct SureAPITransport {
   ) async throws -> Response {
     try Task.checkCancellation()
 
+    if let requiredServerURL = apiRequest.requiredServerURL, requiredServerURL != context.baseURL {
+      throw CancellationError()
+    }
+
     var request = URLRequest(url: try url(for: apiRequest, baseURL: context.baseURL))
     request.httpMethod = apiRequest.method.rawValue
     request.timeoutInterval = timeoutInterval

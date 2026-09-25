@@ -4,6 +4,27 @@ import Testing
 
 @Suite("FinanceKit control plane")
 struct FinanceKitControlPlaneClientTests {
+  @Test("Deferred disconnects are sent only to their original server", arguments: [true, false])
+  func serverBoundDisconnect(sameServer: Bool) async throws {
+    let originalServer = URL(string: "https://sure.example")!
+    let stub = HTTPDataTransportStub([try .http(status: 204)])
+    let currentServer = sameServer ? originalServer : URL(string: "https://different.sure.example")!
+    let client = FinanceKitControlPlaneClient(transport: SureAPITransport(baseURL: currentServer,
+      dataTransport: stub, authorizer: HeaderRequestAuthorizer(name: "Authorization", value: "Bearer synthetic")))
+    if sameServer {
+      try await client.disconnect(connectionID: Self.connectionID, serverURL: originalServer)
+      let requests = await stub.requests()
+      #expect(requests.count == 1)
+      #expect(requests.first?.httpMethod == "DELETE")
+      #expect(requests.first?.url?.host == originalServer.host)
+    } else {
+      await #expect(throws: CancellationError.self) {
+        try await client.disconnect(connectionID: Self.connectionID, serverURL: originalServer)
+      }
+      #expect(await stub.requests().isEmpty)
+    }
+  }
+
   @Test("Reads every Wallet mapping page with user authorization and canonical IDs")
   func paginatedMappings() async throws {
     let stub = HTTPDataTransportStub([try .http(fixture: "financekit-mappings-page-1"),
