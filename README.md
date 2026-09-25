@@ -2,6 +2,10 @@
 
 This repository contains the SwiftUI-native Sure client created with Bitrig. It targets iPhone, iPad, Mac, and Apple Watch from the shared `Project.json` specification.
 
+The proposed [device-first onboarding plan](Docs/DeviceFirstOnboardingPlan.md)
+covers free local Wallet features and optional Sure household connection/upload.
+It is a planning document; the runtime behavior described below is unchanged.
+
 ## Run locally
 
 1. Install [XcodeGen](https://github.com/yonaskolb/XcodeGen).
