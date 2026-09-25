@@ -94,7 +94,6 @@ struct ContentView: View {
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
         AccountsView(
           data: financeData,
-          allowsWalletPreview: connection.allowsWalletPreview,
           hasSyncAccess: hasBackendAccess,
           appleCardConnection: appleCardConnection,
           transactionHistoryStoreFactory: transactionHistoryStoreFactory,
