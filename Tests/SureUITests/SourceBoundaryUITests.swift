@@ -4,6 +4,28 @@ final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
   @MainActor
+  func testWalletMerchantCategoryCodesWithoutSureConnection() throws {
+    let app = launch("onboarding")
+    let account = app.staticTexts["Apple Card Preview"]
+    XCTAssertTrue(account.waitForExistence(timeout: 10))
+    account.tap()
+
+    let grocer = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Fixture Grocer")).firstMatch
+    XCTAssertTrue(grocer.waitForExistence(timeout: 10))
+    XCTAssertTrue(grocer.label.contains("Merchant category code 5411"))
+    XCTAssertTrue(grocer.label.contains("Purchase"))
+    let vet = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Fixture Vet")).firstMatch
+    XCTAssertTrue(vet.label.contains("Merchant category code 0742"))
+    let payment = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Fixture Payment")).firstMatch
+    XCTAssertTrue(payment.exists)
+    XCTAssertFalse(payment.label.contains("Merchant category code"))
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
+  @MainActor
   func testSynchronizedWalletUsesBackendCardAndSignedBalance() throws {
     let app = launch("wallet-synced")
     XCTAssertTrue(app.staticTexts["Synchronized Apple Card"].waitForExistence(timeout: 10))

@@ -89,7 +89,22 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
   }
   func fetchBalanceSheet() async throws -> BalanceSheetRecord { throw DataFailure.unavailable }
   func fetchTransactions(in dateWindow: TransactionDateWindow) async throws -> [FinanceTransaction] { [] }
-  func fetchTransactions(_ request: TransactionHistoryRequest) async throws -> [FinanceTransaction] { [] }
+  func fetchTransactions(_ request: TransactionHistoryRequest) async throws -> [FinanceTransaction] {
+    let walletID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    guard request.accountID == walletID else { return [] }
+    return try [
+      ("00000000-0000-4000-8000-000000000011", "Fixture Grocer", Int16(5411)),
+      ("00000000-0000-4000-8000-000000000012", "Fixture Vet", Int16(742)),
+      ("00000000-0000-4000-8000-000000000013", "Fixture Payment", nil)
+    ].map { id, merchant, code in
+      try LocalFinancialTransactionMapper().map(
+        id: UUID(uuidString: id)!, accountID: walletID, merchantName: merchant,
+        description: "Fixture transaction", category: "Purchase", date: Self.date,
+        amount: 12, currencyCode: "USD", isCredit: false, calendar: .current,
+        merchantCategoryCode: code
+      )
+    }
+  }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
   func fetchInsights() async throws -> [BackendInsight] { [] }
   func fetchComparison(for month: SpendingMonth, access: WalletSpendingAccess) async throws -> SpendingComparison {

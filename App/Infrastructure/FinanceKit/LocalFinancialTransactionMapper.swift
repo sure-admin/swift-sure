@@ -11,7 +11,8 @@ struct LocalFinancialTransactionMapper {
     amount: Decimal,
     currencyCode: String,
     isCredit: Bool,
-    calendar: Calendar
+    calendar: Calendar,
+    merchantCategoryCode: Int16? = nil
   ) throws -> FinanceTransaction {
     let signedAmount = try LocalFinancialBalanceMapper().map(
       amount: amount,
@@ -30,7 +31,8 @@ struct LocalFinancialTransactionMapper {
       date: try LocalDate(date, in: calendar),
       amount: magnitude,
       kind: kind,
-      accountID: accountID
+      accountID: accountID,
+      merchantCategoryCode: merchantCategoryCode
     )
   }
 
