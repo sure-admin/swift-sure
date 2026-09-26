@@ -174,7 +174,8 @@ struct FinanceKitAppleCardConnector: AppleCardConnecting, TransactionHistoryClie
       amount: transaction.transactionAmount.amount,
       currencyCode: transaction.transactionAmount.currencyCode,
       isCredit: transaction.creditDebitIndicator == .credit,
-      calendar: calendar
+      calendar: calendar,
+      merchantCategoryCode: transaction.merchantCategoryCode?.rawValue
     )
   }
 

@@ -13,6 +13,7 @@ struct TransactionHistoryStoreTests {
     )
     var expected = transaction(id: 1, date: Date(timeIntervalSince1970: 1_800_000_000))
     expected.accountID = accountID
+    expected.merchantCategoryCode = 5411
     let client = TransactionHistoryClientStub(outcome: .success([expected]))
     let factory = TransactionHistoryStoreFactory(
       client: client, calendar: Calendar(identifier: .gregorian),
@@ -26,6 +27,7 @@ struct TransactionHistoryStoreTests {
     #expect(store.scope.dayCount == 31)
     #expect(store.transactions.map(\.id) == [expected.id])
     #expect(store.transactions.map(\.accountID) == [accountID])
+    #expect(store.transactions.first?.merchantCategoryCode == 5411)
   }
 
   @Test("Session cleanup empties retained histories and rejects late responses")

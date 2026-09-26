@@ -17,6 +17,13 @@ struct TransactionRow: View {
         Text(transaction.category)
           .font(.caption)
           .foregroundStyle(.secondary)
+        if let code = transaction.formattedMerchantCategoryCode {
+          Text("MCC \(code)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel("Merchant category code \(code)")
+        }
       }
       Spacer()
       VStack(alignment: .trailing, spacing: 2) {

@@ -4,6 +4,33 @@ import Testing
 
 @Suite("Local financial transaction mapping")
 struct LocalFinancialTransactionMapperTests {
+  @Test("Wallet MCCs remain separate from transaction categories", arguments: [Int16(5411), 742, 9999, nil])
+  func merchantCategoryCode(code: Int16?) throws {
+    let transaction = try LocalFinancialTransactionMapper().map(
+      id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!,
+      accountID: UUID(uuidString: "00000000-0000-4000-8000-000000000002")!,
+      merchantName: "Fixture merchant",
+      description: "CARD PURCHASE",
+      category: "Purchase",
+      date: Date(timeIntervalSince1970: 1_700_000_000),
+      amount: 12,
+      currencyCode: "USD",
+      isCredit: false,
+      calendar: utcCalendar,
+      merchantCategoryCode: code
+    )
+
+    #expect(transaction.merchantCategoryCode == code)
+    #expect(transaction.category == "Purchase")
+    let expected: String? = switch code {
+    case 5411: "5411"
+    case 742: "0742"
+    case 9999: "9999"
+    default: nil
+    }
+    #expect(transaction.formattedMerchantCategoryCode == expected)
+  }
+
   @Test("Debit transactions become expenses with positive stored magnitudes")
   func debit() throws {
     let amount = try #require(Decimal(string: "12.34"))
