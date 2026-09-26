@@ -7,11 +7,6 @@ struct SpendingComparisonCard: View {
   var body: some View {
     DisclosureGroup(isExpanded: $expanded) {
       VStack(alignment: .leading, spacing: 16) {
-        if store.source == .wallet {
-          Label("Wallet spending · On this device", systemImage: "wallet.bifold")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
         if store.source == .sure, store.metadata?.source == .cache {
           Label("Downloaded from Sure", systemImage: "internaldrive")
             .font(.caption)
@@ -66,6 +61,11 @@ struct SpendingComparisonCard: View {
         case .loaded(let comparison):
           SpendingComparisonChart(comparison: comparison, isWallet: store.source == .wallet)
             .id(comparison.month)
+        }
+        if store.source == .wallet {
+          Label("Wallet spending · On this device", systemImage: "wallet.bifold")
+            .font(.caption)
+            .foregroundStyle(.primary)
         }
       }
       .padding(.top, 12)
