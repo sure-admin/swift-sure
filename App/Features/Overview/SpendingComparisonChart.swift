@@ -82,12 +82,12 @@ struct SpendingComparisonChart: View {
     VStack(alignment: .leading, spacing: 4) {
       Text(monthLabel(comparison.month.shifted(by: -1)))
         .font(.caption)
+      Text(money(comparison.previousTotal))
+        .font(.title3.bold())
       if comparison.comparisonDay < comparison.previous.count {
         Text("Days 1–\(comparison.comparisonDay)")
           .font(.caption)
       }
-      Text(money(comparison.previousTotal))
-        .font(.title3.bold())
     }
     .foregroundStyle(.secondary)
     .padding(.leading, 10)
