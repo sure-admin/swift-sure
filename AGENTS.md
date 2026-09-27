@@ -227,6 +227,29 @@ protocols are for meaningful seams and alternate implementations.
   change, and keep automatic capture, session replay, and person profiles off.
 - A missing or invalid project token/HTTPS ingestion host disables analytics.
   Test hosts and offline tests must not initialize the live SDK.
+- The project token is never committed. It reaches a build only from the
+  `SURE_POSTHOG_PROJECT_TOKEN` repository secret, applied by the TestFlight job;
+  an unset secret is a no-op that still builds. `SURE_POSTHOG_HOST` stays in
+  `Project.json`, as an ingestion endpoint is not a credential.
+
+## Diagnostics
+
+- iOS crash and diagnostics reporting uses Sentry and is enabled by default with
+  a persisted in-app opt-out. Mac and Watch must not initialize the SDK.
+- Keep the SDK behind the injected diagnostics protocols. Emit only the closed
+  `DiagnosticRecord` vocabulary; never route an error description, a server
+  response, or a caller-supplied string to a diagnostics destination.
+- Every Sentry collector that can capture a request URL, the screen, the view
+  tree, or PII stays disabled, and crash events are stripped of user, request,
+  breadcrumb, and server-name fields. Adding a collector back is a privacy
+  decision, not a configuration tweak.
+- A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
+  a public key, and must not carry the deprecated DSN secret. Test hosts and
+  offline tests must not initialize the live SDK.
+- The DSN is never committed. It reaches a build only from the `SURE_SENTRY_DSN`
+  repository secret, applied by the TestFlight job; an unset secret is a no-op
+  that still builds. See `Docs/SentryAppPrivacy.md`, and publish the App Privacy
+  label before creating that secret.
 
 ## State, concurrency, and persistence
 
