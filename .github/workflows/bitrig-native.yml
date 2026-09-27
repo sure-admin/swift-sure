@@ -3,7 +3,7 @@ name: Bitrig Native
 on:
   pull_request:
     paths:
-      - "App/**" # Includes Infrastructure/Analytics and Features/Analytics
+      - "App/**" # Includes Infrastructure/{Analytics,Diagnostics} and Features/{Analytics,Diagnostics}
       - "FinanceKitBackground/**"
       - "Shared/**"
       - "Tests/**"
@@ -11,6 +11,7 @@ on:
       - "Docs/PurchaseAccessPlan.md"
       - "Docs/FinanceKitSyncArchitecture.md"
       - "Docs/FinanceKitDeviceTesting.md"
+      - "Docs/SentryAppPrivacy.md"
       - "appStoreConnect/**"
       - "Watch/**"
       - "Project.json"

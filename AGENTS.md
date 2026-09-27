@@ -228,6 +228,23 @@ protocols are for meaningful seams and alternate implementations.
 - A missing or invalid project token/HTTPS ingestion host disables analytics.
   Test hosts and offline tests must not initialize the live SDK.
 
+## Diagnostics
+
+- iOS crash and diagnostics reporting uses Sentry and is enabled by default with
+  a persisted in-app opt-out. Mac and Watch must not initialize the SDK.
+- Keep the SDK behind the injected diagnostics protocols. Emit only the closed
+  `DiagnosticRecord` vocabulary; never route an error description, a server
+  response, or a caller-supplied string to a diagnostics destination.
+- Every Sentry collector that can capture a request URL, the screen, the view
+  tree, or PII stays disabled, and crash events are stripped of user, request,
+  breadcrumb, and server-name fields. Adding a collector back is a privacy
+  decision, not a configuration tweak.
+- A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
+  a public key, and must not carry the deprecated DSN secret. Test hosts and
+  offline tests must not initialize the live SDK.
+- See `Docs/SentryAppPrivacy.md`. `SURE_SENTRY_DSN` ships empty; publish the App
+  Privacy label before shipping a build that sets it.
+
 ## State, concurrency, and persistence
 
 - Use `@Observable` for app-owned observable models. Put UI-facing mutable

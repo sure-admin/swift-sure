@@ -5,6 +5,7 @@ struct ConnectionSettingsView: View {
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
+  var diagnostics: (any DiagnosticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
   var wallet: AppleCardConnectionStore? = nil
 
@@ -139,6 +140,16 @@ struct ConnectionSettingsView: View {
               AnalyticsSettingsView(analytics: analytics)
             } label: {
               Label("Usage analytics", systemImage: "chart.bar.xaxis")
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+          }
+
+          if let diagnostics {
+            NavigationLink {
+              DiagnosticsSettingsView(diagnostics: diagnostics)
+            } label: {
+              Label("Diagnostics", systemImage: "ladybug")
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())
             }

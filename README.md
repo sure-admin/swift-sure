@@ -170,6 +170,48 @@ collection before distributing a release.
 
 Reference: https://posthog.com/docs/libraries/ios
 
+## iOS diagnostics
+
+The iPhone/iPad app uses the Sentry Cocoa SDK 9.29.2 for crash reports and a
+fixed set of app diagnostics. Diagnostics is enabled by default and can be
+disabled under **Sure connection → Diagnostics → Share diagnostics**. The
+preference persists across launches. Mac and Watch do not initialize Sentry.
+
+`Project.json` supplies `SURE_SENTRY_DSN`. **It ships empty, so no build
+initializes Sentry until a DSN is configured.** Set it to the project's public
+client DSN — never an auth token or an internal integration key. A value that
+is empty, not HTTPS, missing the public key, carrying the deprecated DSN secret,
+or carrying a query or fragment is rejected and leaves diagnostics unavailable.
+Test hosts do not initialize the SDK.
+
+The app sends crash reports plus two log records: `app.launched` (one per
+process launch) and `cleanup.failed`, whose only attribute is a fixed
+`operation` value naming the local cleanup step that failed after a Sure session
+ended (`offline_responses`, `wallet_publisher_disconnect`,
+`wallet_background_delivery`, or `app_data_reset`). Sentry also supplies app,
+device, and OS metadata and an installation-scoped identifier.
+
+Every automatic collector is off, because Sentry's defaults would otherwise
+capture the data this app must not send. Network tracking, network breadcrumbs
+and failed-request capture would record self-hosted Sure server addresses;
+screenshots, view-hierarchy capture and session replay would record account
+balances; swizzling, automatic breadcrumbs, user-interaction tracing and
+performance tracing are unnecessary for this vocabulary. Release-health session
+tracking, watchdog-termination tracking and app-hang tracking are also off, and
+`sendDefaultPii` is false. A `beforeSendLog` hook drops any log outside the two
+messages above, and `beforeSend` clears the user, request, breadcrumb and
+server-name fields from crash events, which are the only events the app does not
+compose itself.
+
+No Sure IDs, server addresses, financial values, account or transaction details,
+credentials, or conversation text are passed to diagnostics. Opt-out stops
+collection, flushes what is queued, and uninstalls the crash handler. It does not
+delete events already received by Sentry. Review the app's published privacy
+policy and App Store privacy disclosures for this collection before distributing
+a release, and see `Docs/SentryAppPrivacy.md`.
+
+Reference: https://docs.sentry.io/platforms/apple/guides/ios/
+
 ## Consolidation validation
 
 `swiftlint lint --strict --quiet` checks the configured correctness rules.
