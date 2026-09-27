@@ -147,11 +147,29 @@ is enabled by default and can be disabled under **Sure connection → Usage
 analytics → Share usage analytics**. The preference persists across launches.
 Mac and Watch do not initialize PostHog.
 
-`Project.json` supplies `SURE_POSTHOG_PROJECT_TOKEN` (a public client ingestion
-token, never a personal API key) and `SURE_POSTHOG_HOST`. The current destination
-is PostHog US. Self-hosted distributions can replace these build settings with
-their own HTTPS ingestion host and project token, or leave either empty to
-completely disable initialization. Test hosts do not initialize the SDK.
+The project token is not committed. `Project.json` declares
+`SURE_POSTHOG_PROJECT_TOKEN` as empty, and the TestFlight job overrides it from
+the `SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
+command line, the same way the Sentry DSN is supplied. Only signed release
+archives therefore carry a token: local builds, pull-request builds, and every
+simulator CI job keep the empty default and never initialize the SDK.
+
+**A missing token is a no-op, not an error.** Analytics reports as unavailable
+and the release still builds; the archive step only logs a warning. Set the
+secret to a public client ingestion token (`phc_…`), never a personal API key.
+
+`SURE_POSTHOG_HOST` stays committed in `Project.json` because the ingestion
+endpoint is public infrastructure, not a credential. The current destination is
+PostHog US. Self-hosted distributions can point that build setting at their own
+HTTPS ingestion host, set their own token secret, or leave the token unset to
+disable analytics entirely. Test hosts do not initialize the SDK.
+
+A `phc_` token is a public client key that ships inside the app bundle, so the
+secret limits casual scraping of this public repository rather than providing
+confidentiality. The token committed before this change remains in git history
+and in already-released builds; resetting it under PostHog's **Project settings
+→ Danger zone → Reset project API key** is what actually invalidates it, at the
+cost of silencing installed builds that still carry the old one.
 
 Events are `app_opened` (one per process launch) and `screen_viewed`, whose only
 app-defined property is a fixed `screen` value: `overview`, `assistant`,
@@ -169,6 +187,62 @@ app's published privacy policy and App Store privacy disclosures for this
 collection before distributing a release.
 
 Reference: https://posthog.com/docs/libraries/ios
+
+## iOS diagnostics
+
+The iPhone/iPad app uses the Sentry Cocoa SDK 9.29.2 for crash reports and a
+fixed set of app diagnostics. Diagnostics is enabled by default and can be
+disabled under **Sure connection → Diagnostics → Share diagnostics**. The
+preference persists across launches. Mac and Watch do not initialize Sentry.
+
+The DSN is not committed. `Project.json` declares `SURE_SENTRY_DSN` as empty,
+and the TestFlight job overrides it from the `SURE_SENTRY_DSN` repository secret
+on the `xcodebuild archive` command line, which outranks the project setting.
+Only signed release archives therefore carry a DSN: local builds, pull-request
+builds, and every simulator CI job keep the empty default.
+
+**A missing DSN is a no-op, not an error.** Diagnostics reports as unavailable,
+the SDK never initializes, and the release still builds — the archive step only
+logs a warning. The same applies to a DSN that is not HTTPS, is missing its
+public key, carries the deprecated DSN secret, or carries a query or fragment;
+all are rejected. Test hosts never initialize the SDK regardless.
+
+Set the secret to the project's public client DSN — never an auth token or an
+internal integration key. A DSN is a public client key that ships inside the
+app bundle, so keeping it in a repository secret limits casual scraping of this
+public repository; it is not confidentiality. If it is ever abused, rotate the
+DSN in Sentry and use that project's inbound filters and rate limits. Forks and
+self-hosted distributions can set their own `SURE_SENTRY_DSN` secret, pass the
+build setting to `xcodebuild` directly, or leave it unset to ship without
+diagnostics.
+
+The app sends crash reports plus two log records: `app.launched` (one per
+process launch) and `cleanup.failed`, whose only attribute is a fixed
+`operation` value naming the local cleanup step that failed after a Sure session
+ended (`offline_responses`, `wallet_publisher_disconnect`,
+`wallet_background_delivery`, or `app_data_reset`). Sentry also supplies app,
+device, and OS metadata and an installation-scoped identifier.
+
+Every automatic collector is off, because Sentry's defaults would otherwise
+capture the data this app must not send. Network tracking, network breadcrumbs
+and failed-request capture would record self-hosted Sure server addresses;
+screenshots, view-hierarchy capture and session replay would record account
+balances; swizzling, automatic breadcrumbs, user-interaction tracing and
+performance tracing are unnecessary for this vocabulary. Release-health session
+tracking, watchdog-termination tracking and app-hang tracking are also off, and
+`sendDefaultPii` is false. A `beforeSendLog` hook drops any log outside the two
+messages above, and `beforeSend` clears the user, request, breadcrumb and
+server-name fields from crash events, which are the only events the app does not
+compose itself.
+
+No Sure IDs, server addresses, financial values, account or transaction details,
+credentials, or conversation text are passed to diagnostics. Opt-out stops
+collection, flushes what is queued, and uninstalls the crash handler. It does not
+delete events already received by Sentry. Review the app's published privacy
+policy and App Store privacy disclosures for this collection before distributing
+a release, and see `Docs/SentryAppPrivacy.md`.
+
+Reference: https://docs.sentry.io/platforms/apple/guides/ios/
 
 ## Consolidation validation
 

@@ -5,6 +5,7 @@ struct ConnectionSettingsView: View {
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
+  var diagnostics: (any DiagnosticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
   var wallet: AppleCardConnectionStore? = nil
 
@@ -12,7 +13,10 @@ struct ConnectionSettingsView: View {
     NavigationStack {
       Group {
         if !allowsConnection {
-          SubscriptionAccessView(access: subscriptionAccess)
+          VStack(spacing: 0) {
+            SubscriptionAccessView(access: subscriptionAccess)
+            gatedDiagnosticsLink
+          }
         } else {
           connectionContent
         }
@@ -27,6 +31,36 @@ struct ConnectionSettingsView: View {
   }
 
   private var allowsConnection: Bool { subscriptionAccess.hasAccess || connection.isDemoServer }
+
+  /// Diagnostics starts from a persisted preference and keeps running through
+  /// logout, offline use, and entitlement loss, so its opt-out must not sit
+  /// behind the subscription gate that replaces the rest of this screen.
+  @ViewBuilder
+  private var diagnosticsLink: some View {
+    #if os(iOS)
+    if let diagnostics {
+      NavigationLink {
+        DiagnosticsSettingsView(diagnostics: diagnostics)
+      } label: {
+        Label("Diagnostics", systemImage: "ladybug")
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .contentShape(Rectangle())
+      }
+    }
+    #endif
+  }
+
+  @ViewBuilder
+  private var gatedDiagnosticsLink: some View {
+    #if os(iOS)
+    if diagnostics != nil {
+      VStack(spacing: 0) {
+        Divider()
+        diagnosticsLink.padding()
+      }
+    }
+    #endif
+  }
 
   private var connectionContent: some View {
       ScrollView {
@@ -144,6 +178,8 @@ struct ConnectionSettingsView: View {
             }
           }
           #endif
+
+          diagnosticsLink
 
           if connection.canLogOut {
             Button("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
