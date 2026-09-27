@@ -147,11 +147,29 @@ is enabled by default and can be disabled under **Sure connection → Usage
 analytics → Share usage analytics**. The preference persists across launches.
 Mac and Watch do not initialize PostHog.
 
-`Project.json` supplies `SURE_POSTHOG_PROJECT_TOKEN` (a public client ingestion
-token, never a personal API key) and `SURE_POSTHOG_HOST`. The current destination
-is PostHog US. Self-hosted distributions can replace these build settings with
-their own HTTPS ingestion host and project token, or leave either empty to
-completely disable initialization. Test hosts do not initialize the SDK.
+The project token is not committed. `Project.json` declares
+`SURE_POSTHOG_PROJECT_TOKEN` as empty, and the TestFlight job overrides it from
+the `SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
+command line, the same way the Sentry DSN is supplied. Only signed release
+archives therefore carry a token: local builds, pull-request builds, and every
+simulator CI job keep the empty default and never initialize the SDK.
+
+**A missing token is a no-op, not an error.** Analytics reports as unavailable
+and the release still builds; the archive step only logs a warning. Set the
+secret to a public client ingestion token (`phc_…`), never a personal API key.
+
+`SURE_POSTHOG_HOST` stays committed in `Project.json` because the ingestion
+endpoint is public infrastructure, not a credential. The current destination is
+PostHog US. Self-hosted distributions can point that build setting at their own
+HTTPS ingestion host, set their own token secret, or leave the token unset to
+disable analytics entirely. Test hosts do not initialize the SDK.
+
+A `phc_` token is a public client key that ships inside the app bundle, so the
+secret limits casual scraping of this public repository rather than providing
+confidentiality. The token committed before this change remains in git history
+and in already-released builds; resetting it under PostHog's **Project settings
+→ Danger zone → Reset project API key** is what actually invalidates it, at the
+cost of silencing installed builds that still carry the old one.
 
 Events are `app_opened` (one per process launch) and `screen_viewed`, whose only
 app-defined property is a fixed `screen` value: `overview`, `assistant`,

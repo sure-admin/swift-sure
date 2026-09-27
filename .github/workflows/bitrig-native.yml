@@ -287,13 +287,17 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          # Optional on purpose: an unset DSN makes diagnostics a no-op rather
-          # than failing the release, so it is not in the required-credentials
-          # check above.
+          # Optional on purpose: an unset telemetry credential makes that SDK a
+          # no-op rather than failing the release, so neither is in the
+          # required-credentials check above.
           SURE_SENTRY_DSN: ${{ secrets.SURE_SENTRY_DSN }}
+          SURE_POSTHOG_PROJECT_TOKEN: ${{ secrets.SURE_POSTHOG_PROJECT_TOKEN }}
         run: |
           if [ -z "$SURE_SENTRY_DSN" ]; then
             echo "::warning::SURE_SENTRY_DSN is not configured. This build ships with diagnostics disabled."
+          fi
+          if [ -z "$SURE_POSTHOG_PROJECT_TOKEN" ]; then
+            echo "::warning::SURE_POSTHOG_PROJECT_TOKEN is not configured. This build ships with usage analytics disabled."
           fi
           xcodebuild \
             -project Sure.xcodeproj \
@@ -309,6 +313,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SURE_SENTRY_DSN="$SURE_SENTRY_DSN" \
+            SURE_POSTHOG_PROJECT_TOKEN="$SURE_POSTHOG_PROJECT_TOKEN" \
             clean archive
 
       - name: Upload archive to App Store Connect

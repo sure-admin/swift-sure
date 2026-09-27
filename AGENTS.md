@@ -227,6 +227,10 @@ protocols are for meaningful seams and alternate implementations.
   change, and keep automatic capture, session replay, and person profiles off.
 - A missing or invalid project token/HTTPS ingestion host disables analytics.
   Test hosts and offline tests must not initialize the live SDK.
+- The project token is never committed. It reaches a build only from the
+  `SURE_POSTHOG_PROJECT_TOKEN` repository secret, applied by the TestFlight job;
+  an unset secret is a no-op that still builds. `SURE_POSTHOG_HOST` stays in
+  `Project.json`, as an ingestion endpoint is not a credential.
 
 ## Diagnostics
 
