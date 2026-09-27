@@ -147,12 +147,14 @@ is enabled by default and can be disabled under **Sure connection → Usage
 analytics → Share usage analytics**. The preference persists across launches.
 Mac and Watch do not initialize PostHog.
 
-The project token is not committed. `Project.json` declares
-`SURE_POSTHOG_PROJECT_TOKEN` as empty, and the TestFlight job overrides it from
-the `SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
-command line, the same way the Sentry DSN is supplied. Only signed release
-archives therefore carry a token: local builds, pull-request builds, and every
-simulator CI job keep the empty default and never initialize the SDK.
+The project token is not committed. iOS Debug builds can read it from the
+Git-ignored `Config/Debug.local.xcconfig`; copy
+`Config/Debug.local.example.xcconfig` there and fill in the two local values.
+The committed Debug config includes that file only when present. Release builds
+default to an empty token, and the TestFlight job overrides it from the
+`SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
+command line. Pull-request and simulator CI builds have no local file and keep
+the empty default.
 
 **A missing token is a no-op, not an error.** Analytics reports as unavailable
 and the release still builds; the archive step only logs a warning. Set the
@@ -195,11 +197,12 @@ fixed set of app diagnostics. Diagnostics is enabled by default and can be
 disabled under **Sure connection → Diagnostics → Share diagnostics**. The
 preference persists across launches. Mac and Watch do not initialize Sentry.
 
-The DSN is not committed. `Project.json` declares `SURE_SENTRY_DSN` as empty,
-and the TestFlight job overrides it from the `SURE_SENTRY_DSN` repository secret
-on the `xcodebuild archive` command line, which outranks the project setting.
-Only signed release archives therefore carry a DSN: local builds, pull-request
-builds, and every simulator CI job keep the empty default.
+The DSN is not committed. The same ignored Debug config can provide an iOS
+development DSN; its `https:/$()/` spelling prevents xcconfig from treating
+the URL's double slash as a comment and expands to `https://` in the app.
+Release builds default to an empty DSN, and the TestFlight job overrides it from
+the `SURE_SENTRY_DSN` repository secret on the `xcodebuild archive` command
+line. Pull-request and simulator CI builds keep the empty default.
 
 **A missing DSN is a no-op, not an error.** Diagnostics reports as unavailable,
 the SDK never initializes, and the release still builds — the archive step only

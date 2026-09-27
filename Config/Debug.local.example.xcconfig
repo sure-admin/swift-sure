@@ -1,0 +1,8 @@
+// Copy to Debug.local.xcconfig and supply public client keys for local iOS Debug builds.
+// In xcconfig files, write an HTTPS DSN as https:/$()/KEY@HOST/PROJECT_ID.
+SURE_LOCAL_SENTRY_DSN =
+SURE_LOCAL_POSTHOG_PROJECT_TOKEN =
+SURE_SENTRY_DSN[sdk=iphoneos*] = $(SURE_LOCAL_SENTRY_DSN)
+SURE_SENTRY_DSN[sdk=iphonesimulator*] = $(SURE_LOCAL_SENTRY_DSN)
+SURE_POSTHOG_PROJECT_TOKEN[sdk=iphoneos*] = $(SURE_LOCAL_POSTHOG_PROJECT_TOKEN)
+SURE_POSTHOG_PROJECT_TOKEN[sdk=iphonesimulator*] = $(SURE_LOCAL_POSTHOG_PROJECT_TOKEN)

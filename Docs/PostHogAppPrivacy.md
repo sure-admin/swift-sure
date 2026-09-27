@@ -13,11 +13,12 @@ property, a fixed screen name. PostHog adds an installation-scoped anonymous ID,
 session metadata, and standard app/device metadata (including app version, OS,
 model, screen dimensions, locale/time zone, and connectivity information).
 
-Collection is enabled by default in builds that carry a project token. The token
-comes from the `SURE_POSTHOG_PROJECT_TOKEN` repository secret and reaches only
-signed release archives, so development and CI builds collect nothing. The
-persistent opt-out is at Sure connection → Usage analytics → Share usage
-analytics. PostHog uses the US ingestion endpoint.
+Collection is enabled by default in builds that carry a project token. Local
+iOS Debug builds can receive one from the ignored `Config/Debug.local.xcconfig`;
+CI Debug builds collect nothing. The release token comes from the
+`SURE_POSTHOG_PROJECT_TOKEN` repository secret and reaches signed release
+archives. The persistent opt-out is at Sure connection → Usage analytics → Share
+usage analytics. PostHog uses the US ingestion endpoint.
 The app does not identify users to PostHog or send Sure IDs, server addresses,
 credentials, financial content, or conversations. Automatic capture, session replay,
 crash capture, surveys, and person profiles are disabled.

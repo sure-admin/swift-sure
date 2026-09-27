@@ -1,0 +1,3 @@
+// CI supplies release telemetry values as xcodebuild settings.
+SURE_SENTRY_DSN =
+SURE_POSTHOG_PROJECT_TOKEN =

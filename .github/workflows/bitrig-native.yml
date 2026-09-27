@@ -6,6 +6,7 @@ on:
       - "App/**" # Includes Infrastructure/{Analytics,Diagnostics} and Features/{Analytics,Diagnostics}
       - "FinanceKitBackground/**"
       - "Shared/**"
+      - "Config/**"
       - "Tests/**"
       - "Docs/SpendingComparison.md"
       - "Docs/PurchaseAccessPlan.md"
