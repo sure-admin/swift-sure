@@ -177,12 +177,26 @@ fixed set of app diagnostics. Diagnostics is enabled by default and can be
 disabled under **Sure connection → Diagnostics → Share diagnostics**. The
 preference persists across launches. Mac and Watch do not initialize Sentry.
 
-`Project.json` supplies `SURE_SENTRY_DSN`. **It ships empty, so no build
-initializes Sentry until a DSN is configured.** Set it to the project's public
-client DSN — never an auth token or an internal integration key. A value that
-is empty, not HTTPS, missing the public key, carrying the deprecated DSN secret,
-or carrying a query or fragment is rejected and leaves diagnostics unavailable.
-Test hosts do not initialize the SDK.
+The DSN is not committed. `Project.json` declares `SURE_SENTRY_DSN` as empty,
+and the TestFlight job overrides it from the `SURE_SENTRY_DSN` repository secret
+on the `xcodebuild archive` command line, which outranks the project setting.
+Only signed release archives therefore carry a DSN: local builds, pull-request
+builds, and every simulator CI job keep the empty default.
+
+**A missing DSN is a no-op, not an error.** Diagnostics reports as unavailable,
+the SDK never initializes, and the release still builds — the archive step only
+logs a warning. The same applies to a DSN that is not HTTPS, is missing its
+public key, carries the deprecated DSN secret, or carries a query or fragment;
+all are rejected. Test hosts never initialize the SDK regardless.
+
+Set the secret to the project's public client DSN — never an auth token or an
+internal integration key. A DSN is a public client key that ships inside the
+app bundle, so keeping it in a repository secret limits casual scraping of this
+public repository; it is not confidentiality. If it is ever abused, rotate the
+DSN in Sentry and use that project's inbound filters and rate limits. Forks and
+self-hosted distributions can set their own `SURE_SENTRY_DSN` secret, pass the
+build setting to `xcodebuild` directly, or leave it unset to ship without
+diagnostics.
 
 The app sends crash reports plus two log records: `app.launched` (one per
 process launch) and `cleanup.failed`, whose only attribute is a fixed

@@ -242,8 +242,10 @@ protocols are for meaningful seams and alternate implementations.
 - A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
   a public key, and must not carry the deprecated DSN secret. Test hosts and
   offline tests must not initialize the live SDK.
-- See `Docs/SentryAppPrivacy.md`. `SURE_SENTRY_DSN` ships empty; publish the App
-  Privacy label before shipping a build that sets it.
+- The DSN is never committed. It reaches a build only from the `SURE_SENTRY_DSN`
+  repository secret, applied by the TestFlight job; an unset secret is a no-op
+  that still builds. See `Docs/SentryAppPrivacy.md`, and publish the App Privacy
+  label before creating that secret.
 
 ## State, concurrency, and persistence
 

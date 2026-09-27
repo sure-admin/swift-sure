@@ -287,7 +287,14 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          # Optional on purpose: an unset DSN makes diagnostics a no-op rather
+          # than failing the release, so it is not in the required-credentials
+          # check above.
+          SURE_SENTRY_DSN: ${{ secrets.SURE_SENTRY_DSN }}
         run: |
+          if [ -z "$SURE_SENTRY_DSN" ]; then
+            echo "::warning::SURE_SENTRY_DSN is not configured. This build ships with diagnostics disabled."
+          fi
           xcodebuild \
             -project Sure.xcodeproj \
             -scheme Sure \
@@ -301,6 +308,7 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            SURE_SENTRY_DSN="$SURE_SENTRY_DSN" \
             clean archive
 
       - name: Upload archive to App Store Connect
