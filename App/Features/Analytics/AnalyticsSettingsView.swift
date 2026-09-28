@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AnalyticsSettingsView: View {
   var analytics: any UsageAnalyticsControlling
+  var buildDetails: TelemetryBuildDetails
 
   var body: some View {
     Form {
@@ -19,7 +20,43 @@ struct AnalyticsSettingsView: View {
         Text("Usage analytics is not configured for this build.")
           .foregroundStyle(.secondary)
       }
+      #if DEBUG
+      Section {
+        buildSetting("PostHog project token", value: buildDetails.postHogProjectToken)
+        buildSetting("Sentry DSN", value: buildDetails.sentryDSN?.absoluteString)
+      } header: {
+        Text("Debug build configuration")
+      } footer: {
+        Text("These values are embedded in this build. Sending depends on the Usage analytics and Diagnostics settings.")
+      }
+      #endif
     }
     .navigationTitle("Usage analytics")
   }
+
+  #if DEBUG
+  private func buildSetting(_ title: LocalizedStringKey, value: String?) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(title)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+      if let value {
+        Text(value)
+          .font(.footnote.monospaced())
+          .textSelection(.enabled)
+      } else {
+        Text("Not configured")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .combine)
+  }
+  #endif
+}
+
+struct TelemetryBuildDetails {
+  var postHogProjectToken: String?
+  var sentryDSN: URL?
 }

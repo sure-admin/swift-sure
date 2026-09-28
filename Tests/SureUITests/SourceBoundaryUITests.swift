@@ -3,6 +3,28 @@ import XCTest
 final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
+  #if DEBUG
+  @MainActor
+  func testDebugUsageAnalyticsShowsConfiguredDestinations() throws {
+    let app = launch("analytics-debug")
+    XCTAssertTrue(app.staticTexts["Debug build configuration"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["phc_ui_fixture"].exists)
+    XCTAssertTrue(app.staticTexts["https://publickey@o1.ingest.example/42"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  func testUsageAnalyticsRemainsAvailableWithoutSubscription() throws {
+    let app = launch("analytics-gated")
+    let analytics = app.buttons["Usage analytics"]
+    XCTAssertTrue(analytics.waitForExistence(timeout: 10))
+    analytics.tap()
+    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Debug build configuration"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+  #endif
+
   @MainActor
   func testSynchronizedWalletUsesBackendCardAndSignedBalance() throws {
     let app = launch("wallet-synced")

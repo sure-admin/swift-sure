@@ -5,6 +5,7 @@ struct ConnectionSettingsView: View {
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
+  var telemetryBuildDetails = TelemetryBuildDetails(postHogProjectToken: nil, sentryDSN: nil)
   var diagnostics: (any DiagnosticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
   var wallet: AppleCardConnectionStore? = nil
@@ -15,7 +16,7 @@ struct ConnectionSettingsView: View {
         if !allowsConnection {
           VStack(spacing: 0) {
             SubscriptionAccessView(access: subscriptionAccess)
-            gatedDiagnosticsLink
+            gatedTelemetryLinks
           }
         } else {
           connectionContent
@@ -32,9 +33,24 @@ struct ConnectionSettingsView: View {
 
   private var allowsConnection: Bool { subscriptionAccess.hasAccess || connection.isDemoServer }
 
-  /// Diagnostics starts from a persisted preference and keeps running through
-  /// logout, offline use, and entitlement loss, so its opt-out must not sit
-  /// behind the subscription gate that replaces the rest of this screen.
+  /// Telemetry starts from persisted preferences and keeps running through
+  /// logout and entitlement loss, so both opt-outs remain reachable outside
+  /// the subscription gate.
+  @ViewBuilder
+  private var analyticsLink: some View {
+    #if os(iOS)
+    if let analytics {
+      NavigationLink {
+        AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
+      } label: {
+        Label("Usage analytics", systemImage: "chart.bar.xaxis")
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .contentShape(Rectangle())
+      }
+    }
+    #endif
+  }
+
   @ViewBuilder
   private var diagnosticsLink: some View {
     #if os(iOS)
@@ -51,12 +67,13 @@ struct ConnectionSettingsView: View {
   }
 
   @ViewBuilder
-  private var gatedDiagnosticsLink: some View {
+  private var gatedTelemetryLinks: some View {
     #if os(iOS)
-    if diagnostics != nil {
+    if analytics != nil || diagnostics != nil {
       VStack(spacing: 0) {
         Divider()
-        diagnosticsLink.padding()
+        if analytics != nil { analyticsLink.padding() }
+        if diagnostics != nil { diagnosticsLink.padding() }
       }
     }
     #endif
@@ -167,18 +184,7 @@ struct ConnectionSettingsView: View {
           }
           #endif
 
-          #if os(iOS)
-          if let analytics {
-            NavigationLink {
-              AnalyticsSettingsView(analytics: analytics)
-            } label: {
-              Label("Usage analytics", systemImage: "chart.bar.xaxis")
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-          }
-          #endif
-
+          analyticsLink
           diagnosticsLink
 
           if connection.canLogOut {

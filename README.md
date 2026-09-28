@@ -145,7 +145,8 @@ runner keychain and removes them after the deployment job.
 The iPhone/iPad app uses PostHog iOS 3.59.3 for explicit usage events. Analytics
 is enabled by default and can be disabled under **Sure connection → Usage
 analytics → Share usage analytics**. The preference persists across launches.
-Mac and Watch do not initialize PostHog.
+The opt-out remains available when Sure sync is subscription-gated. Mac and
+Watch do not initialize PostHog.
 
 The project token is not committed. iOS Debug builds can read it from the
 Git-ignored `Config/Debug.local.xcconfig`; copy
@@ -155,6 +156,10 @@ default to an empty token, and the TestFlight job overrides it from the
 `SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
 command line. Pull-request and simulator CI builds have no local file and keep
 the empty default.
+
+Debug builds show the configured PostHog project token and Sentry DSN on the
+**Usage analytics** screen so developers can verify their ingestion destinations.
+The build-configuration section is absent from Release builds.
 
 **A missing token is a no-op, not an error.** Analytics reports as unavailable
 and the release still builds; the archive step only logs a warning. Set the

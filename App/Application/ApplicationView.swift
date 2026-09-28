@@ -13,6 +13,7 @@ struct ApplicationView: View {
   @State private var appleCardConnection: AppleCardConnectionStore
   @State private var firstRun: FirstRunStore?
   private var analytics: AnalyticsStore
+  private var telemetryBuildDetails: TelemetryBuildDetails
   private var diagnostics: DiagnosticsStore
   private var notificationManager: NotificationManager
   private var oauthService: PasskeyOAuthService
@@ -51,6 +52,10 @@ struct ApplicationView: View {
     _appleCardConnection = State(initialValue: finance.appleCardConnection)
     _financeKitSync = State(initialValue: finance.financeKitSync)
     self.analytics = analytics
+    telemetryBuildDetails = TelemetryBuildDetails(
+      postHogProjectToken: PostHogConfiguration(bundle: .main)?.projectToken,
+      sentryDSN: SentryDiagnosticsConfiguration(bundle: .main)?.dsn
+    )
     self.diagnostics = diagnostics
     notificationManager = devices.notifications
     oauthService = services.oauthService
@@ -69,6 +74,7 @@ struct ApplicationView: View {
         subscriptionAccess: subscriptionAccess,
         connection: connection,
         analytics: analytics,
+        telemetryBuildDetails: telemetryBuildDetails,
         diagnostics: diagnostics,
         financeData: financeData,
         spendingComparison: spendingComparison,
