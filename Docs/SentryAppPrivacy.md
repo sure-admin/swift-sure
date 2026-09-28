@@ -19,13 +19,18 @@ creating that secret.**
 ## Implemented collection
 
 Once a DSN is configured, the app sends crash reports, two log records
-(`app.launched` and `cleanup.failed`), and a `transactions.load_failed` issue
-when transaction history cannot load and no downloaded-data fallback is shown.
-The cleanup log has one fixed `operation` attribute. The transaction issue has
-only fixed `source` (`sure` or `wallet`), `scope` (`account` or
-`recent_activity`), and failure-category tags. No account name or ID, server
-URL, request or response, raw error text, financial value, or transaction is
-included. Sentry adds an installation-scoped identifier, app/device/OS metadata,
+(`app.launched` and `cleanup.failed`), a `transactions.load_failed` issue
+when transaction history cannot load and no downloaded-data fallback is shown,
+a `budgets.load_failed` issue on a failed budget read, and a `wallet.sync_failed`
+issue on a Wallet sync failure. The cleanup log has one fixed `operation`
+attribute. The transaction issue has only fixed `source` (`sure` or `wallet`),
+`scope` (`account` or `recent_activity`), and failure-category tags.
+The budget issue has a fixed failure category and downloaded-data availability.
+The Wallet issue has fixed operation and failure categories, with a known
+protocol rejection, validation field, and validation rule when available.
+No issue includes a Wallet event index, account name or ID, server URL, request
+or response, raw error text, financial value, or transaction. Sentry adds an
+installation-scoped identifier, app/device/OS metadata,
 and, for crashes, stack traces and device state at the time of the crash.
 
 Collection is enabled by default. The persistent opt-out is at Sure connection →

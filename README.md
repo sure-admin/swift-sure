@@ -255,7 +255,13 @@ load reaches the “Couldn’t load transactions” state, the app also captures
 `transactions.load_failed` Sentry issue. Its tags and grouping fingerprint
 contain only fixed source (`sure` or `wallet`), scope (`account` or
 `recent_activity`), and failure category values. A cancelled request or one
-recovered with downloaded transactions does not create an issue. Sentry also
+recovered with downloaded transactions does not create an issue. Failed budget
+reads create a `budgets.load_failed` issue with a fixed failure category and
+whether downloaded data remains available. Wallet sync failures create a
+`wallet.sync_failed` issue with fixed operation and failure categories; rejected
+batches may also include a known protocol rejection, validation field, and
+validation rule. Pending imports, lock contention, and cancelled work are not
+reported as failures. Sentry also
 supplies app, device, and OS metadata and an installation-scoped identifier.
 
 Every automatic collector is off, because Sentry's defaults would otherwise

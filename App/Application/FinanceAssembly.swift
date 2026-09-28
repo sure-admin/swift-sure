@@ -48,7 +48,8 @@ struct FinanceAssembly {
         .appendingPathComponent("am.sure.insights/offline-responses"), remote: apiClient)
     lifecycle.clearOfflineResponses = { try await repository.clear() }
     let financeData = FinanceDataStore(connection: connection, client: repository,
-      calendar: .autoupdatingCurrent, now: { .now }, summaries: repository, syncInsights: syncInsights)
+      calendar: .autoupdatingCurrent, now: { .now }, summaries: repository,
+      diagnostics: diagnostics, syncInsights: syncInsights)
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector
@@ -85,6 +86,7 @@ struct FinanceAssembly {
     self.financeKitPublisher = financeKitPublisher
     self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher,
       preferences: UserDefaultsFinanceKitSyncPreferences(defaults: .standard),
+      diagnostics: diagnostics,
       accountsDidChange: { await financeData.refreshAccounts() })
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory

@@ -250,6 +250,12 @@ protocols are for meaningful seams and alternate implementations.
   after cancellation and downloaded-data fallback are ruled out. It may carry
   fixed source, scope, and failure-category tags, but no account identity,
   server URL, raw error text, or financial data.
+- Failed budget reads and Wallet sync errors create Sentry issues with fixed
+  failure and operation categories. Budget issues indicate whether downloaded
+  data remains available. Wallet batch rejections may include only a recognized
+  protocol code, validation field, and validation rule; never include the raw
+  server code, event index, account identity, or financial data. Pending imports,
+  lock contention, and cancelled work are not failures.
 - The DSN is never committed. Local Debug builds read the ignored
   `Config/Debug.local.xcconfig`; the TestFlight job reads the
   `SURE_SENTRY_DSN` repository secret. An unset DSN is a no-op that still

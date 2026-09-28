@@ -87,13 +87,22 @@ struct FinanceKitSyncStoreTests {
     let publisher = FinanceKitPublisherStub(connectionID: Self.connection)
     await publisher.setDisconnectFailures(1)
     let transport = HTTPDataTransportStub([])
-    let first = store(transport: transport, publisher: publisher, preferences: preferences)
+    let diagnostics = DiagnosticRecordSpy()
+    let first = store(transport: transport, publisher: publisher, preferences: preferences,
+      diagnostics: diagnostics)
     await first.stopKeepingHistory()
+    #expect(diagnostics.records == [.walletSyncFailed(operation: .disconnect, failure: .offline)])
     #expect(!first.consentAcknowledged)
     #expect(first.needsDisconnectRetry)
     #expect(preferences.consentWithdrawalPending)
-    let second = store(transport: transport, publisher: publisher, preferences: preferences)
+    let second = store(transport: transport, publisher: publisher, preferences: preferences,
+      diagnostics: diagnostics)
     await second.refresh()
+    await second.refresh()
+    #expect(diagnostics.records == [
+      .walletSyncFailed(operation: .disconnect, failure: .offline),
+      .walletSyncFailed(operation: .disconnect, failure: .disconnectPending)
+    ])
     #expect(second.needsDisconnectRetry)
     #expect(!second.consentAcknowledged)
     await second.stopKeepingHistory()
@@ -118,34 +127,41 @@ struct FinanceKitSyncStoreTests {
   @Test("A capture Sure has accepted but not imported reads as importing, not as a failure")
   func pendingImportIsNotAFailure() async throws {
     let recorder = SyncRecorder(result: { throw FinanceKitSyncError.importPending })
-    let store = makeStore(responses: Self.refreshResponses, recorder: recorder)
+    let diagnostics = DiagnosticRecordSpy()
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder, diagnostics: diagnostics)
 
     await store.refresh()
     await store.sync()
 
     #expect(store.state == .importing)
+    #expect(diagnostics.records.isEmpty)
   }
 
   @Test("Losing the process lock is not shown to the user as a failure")
   func lockContentionIsNotAFailure() async throws {
     let recorder = SyncRecorder(result: { throw FinanceKitProcessLockError.busy })
-    let store = makeStore(responses: Self.refreshResponses + Self.refreshResponses, recorder: recorder)
+    let diagnostics = DiagnosticRecordSpy()
+    let store = makeStore(responses: Self.refreshResponses + Self.refreshResponses,
+      recorder: recorder, diagnostics: diagnostics)
 
     await store.refresh()
     await store.sync()
 
     #expect(store.state == .active)
+    #expect(diagnostics.records.isEmpty)
   }
 
   @Test("An unexpected failure is reported once the user can act on it")
   func unexpectedFailureIsReported() async throws {
     let recorder = SyncRecorder(result: { throw FinanceKitSyncError.invalidReceipt })
-    let store = makeStore(responses: Self.refreshResponses, recorder: recorder)
+    let diagnostics = DiagnosticRecordSpy()
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder, diagnostics: diagnostics)
 
     await store.refresh()
     await store.sync()
 
     #expect(store.state == .failed("Wallet sync couldn’t finish. Try again."))
+    #expect(diagnostics.records == [.walletSyncFailed(operation: .sync, failure: .invalidReceipt)])
   }
 
   @Test("Validation code stays visible through refresh and foreground without another upload")
@@ -165,23 +181,31 @@ struct FinanceKitSyncStoreTests {
   func unknownValidationCode() async {
     let secret = "unexpected server text containing private data"
     let recorder = SyncRecorder(result: { throw FinanceKitBatchUploadError(kind: .rejected, code: secret) })
-    let store = makeStore(responses: Self.refreshResponses, recorder: recorder)
+    let diagnostics = DiagnosticRecordSpy()
+    let store = makeStore(responses: Self.refreshResponses, recorder: recorder, diagnostics: diagnostics)
     await store.refresh()
     await store.sync()
     #expect(store.batchRejection == .unknown)
     #expect(store.rejectionMessage?.contains(secret) == false)
     #expect(store.rejectionMessage?.contains("HTTP 422") == true)
+    #expect(diagnostics.records == [.walletSyncFailed(
+      operation: .sync, failure: .rejected, rejection: .unknown)])
+    #expect(!diagnostics.records[0].attributes.values.contains(secret))
   }
 
   @Test("Opening an existing rejection explains the offending field without syncing")
   func existingRejectionExplainsField() async {
     let publisher = FinanceKitPublisherStub(connectionID: Self.connection, rejection: .invalidPayload)
     let transport = HTTPDataTransportStub(Self.refreshResponses)
-    let store = store(transport: transport, publisher: publisher)
+    let diagnostics = DiagnosticRecordSpy()
+    let store = store(transport: transport, publisher: publisher, diagnostics: diagnostics)
+    await store.refresh()
     await store.refresh()
     #expect(store.rejectionMessage?.contains("events[0].transaction.posted_at") == true)
     #expect(store.rejectionMessage?.contains("A booked transaction has no posting date") == true)
     #expect(await transport.requests().isEmpty)
+    #expect(diagnostics.records == [.walletSyncFailed(operation: .sync, failure: .rejected,
+      rejection: .invalidPayload, field: .postedAt, rule: .requiredForBooked)])
     await store.repair()
     #expect(store.batchValidationIssue == nil)
     #expect(store.rejectionMessage == nil)
@@ -351,6 +375,24 @@ struct FinanceKitSyncStoreTests {
     #expect(await transport.requests().map(\.httpMethod) == ["GET", "POST", "PUT", "DELETE", "DELETE"])
   }
 
+  @Test("Wallet setup cleanup and health failures report their own safe categories")
+  func controlPlaneFailures() async throws {
+    let diagnostics = DiagnosticRecordSpy()
+    let transport = HTTPDataTransportStub([
+      try .http(json: #"{"available":true}"#), try .http(fixture: "financekit-connection-health", status: 201),
+      .failure(URLError(.notConnectedToInternet)), .failure(URLError(.notConnectedToInternet))
+    ])
+    let enrollment = store(transport: transport, publisher: FinanceKitPublisherStub(connectionID: nil),
+      diagnostics: diagnostics)
+    await enrollment.enroll(accounts: [Self.account])
+    #expect(diagnostics.records == [.walletSyncFailed(operation: .enrollmentCleanup, failure: .offline)])
+
+    let health = store(transport: HTTPDataTransportStub([.failure(URLError(.notConnectedToInternet))]),
+      publisher: FinanceKitPublisherStub(connectionID: Self.connection), diagnostics: diagnostics)
+    await health.refresh()
+    #expect(diagnostics.records.last == .walletSyncFailed(operation: .status, failure: .offline))
+  }
+
   @Test("Overlapping enrollment and refresh cannot start another connection")
   func duplicateEnrollmentIsRejected() async throws {
     let gate = EnrollmentGate()
@@ -456,10 +498,13 @@ struct FinanceKitSyncStoreTests {
     kind: .liability, balance: Money(minorUnits: 100, currency: CurrencyCode("USD")!))
   private static let mappingJSON = #"{"source_id":"00000000-0000-4000-8000-000000000001","lineage_id":"10000000-0000-4000-8000-000000000001","mapping_version":2,"account_id":"00000000-0000-4000-8000-000000000101"}"#
 
-  private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub, preferences: (any FinanceKitSyncPreferences)? = nil) -> FinanceKitSyncStore {
+  private func store(transport: HTTPDataTransportStub, publisher: FinanceKitPublisherStub,
+                     preferences: (any FinanceKitSyncPreferences)? = nil,
+                     diagnostics: (any DiagnosticsLogging)? = nil) -> FinanceKitSyncStore {
     FinanceKitSyncStore(client: FinanceKitControlPlaneClient(transport: SureAPITransport(
       baseURL: URL(string: "https://sure.example")!, dataTransport: transport, authorizer: UnauthenticatedRequestAuthorizer())),
-      publisher: publisher, preferences: preferences ?? TestSyncPreferences(true), entitlementExpiration: { Date.distantFuture }, runSync: { _ in .noChanges })
+      publisher: publisher, preferences: preferences ?? TestSyncPreferences(true), diagnostics: diagnostics,
+      entitlementExpiration: { Date.distantFuture }, runSync: { _ in .noChanges })
   }
 
   private static var refreshResponses: [HTTPDataTransportStub.Result] {
@@ -475,7 +520,8 @@ struct FinanceKitSyncStoreTests {
     responses: [HTTPDataTransportStub.Result],
     recorder: SyncRecorder,
     connectionID: UUID? = FinanceKitSyncStoreTests.connection,
-    now: @escaping @Sendable () -> Date = { .now }
+    now: @escaping @Sendable () -> Date = { .now },
+    diagnostics: (any DiagnosticsLogging)? = nil
   ) -> FinanceKitSyncStore {
     let transport = SureAPITransport(
       baseURL: URL(string: "https://sure.example")!,
@@ -485,6 +531,7 @@ struct FinanceKitSyncStoreTests {
     return FinanceKitSyncStore(
       client: FinanceKitControlPlaneClient(transport: transport),
       publisher: FinanceKitPublisherStub(connectionID: connectionID), preferences: TestSyncPreferences(true),
+      diagnostics: diagnostics,
       runSync: { try recorder.run($0) },
       now: now
     )

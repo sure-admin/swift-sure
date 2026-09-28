@@ -15,6 +15,7 @@ final class FinanceDataStore {
   private let sync = FinanceSyncCoordinator()
   private let connection: any ConnectionStateProviding
   private let client: any FinanceDataClient
+  private let diagnostics: (any DiagnosticsLogging)?
   private let summaries: (any CashFlowProviding)?
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
@@ -25,9 +26,10 @@ final class FinanceDataStore {
   init(connection: any ConnectionStateProviding, client: any FinanceDataClient,
        calendar: Calendar, now: @escaping () -> Date,
        summaries: (any CashFlowProviding)? = nil,
+       diagnostics: (any DiagnosticsLogging)? = nil,
        syncInsights: @escaping ([BackendInsight]) -> Void) {
     self.connection = connection; self.client = client; self.now = now
-    self.summaries = summaries; self.syncInsights = syncInsights
+    self.summaries = summaries; self.diagnostics = diagnostics; self.syncInsights = syncInsights
     reporting = ReportingPeriodStore(calendar: calendar, now: now)
   }
 
@@ -87,7 +89,7 @@ final class FinanceDataStore {
       { [self] in _ = await balanceSheetResource.load(now: now, metadata: { await self.client.readMetadata(for: "balance-sheet") }) { try await self.client.fetchBalanceSheet() } },
       { [self] in _ = await accountsResource.load(now: now, metadata: { await self.client.readMetadata(for: "accounts") }) { try await self.client.fetchAccounts() } },
       { [self] in await loadRecentTransactions() },
-      { [self] in _ = await budgetsResource.load(now: now, metadata: { await self.client.readMetadata(for: "budgets") }) { try await self.client.fetchBudgetCategories() } },
+      { [self] in await loadBudgets(request: request) },
       { [self] in
         let live = await insightsResource.load(now: now, metadata: { await self.client.readMetadata(for: "insights") }) { try await self.client.fetchInsights() }
         if live { syncInsights(insights) }
@@ -117,6 +119,14 @@ final class FinanceDataStore {
     _ = await summaryResource.load(now: now, metadata: { await self.client.readMetadata(for: "summary/" + month.start.iso8601String) }) {
       try await summaries.fetchSummary(for: month)
     }
+  }
+  private func loadBudgets(request: Int) async {
+    _ = await budgetsResource.load(now: now, metadata: { await self.client.readMetadata(for: "budgets") }) {
+      try await self.client.fetchBudgetCategories()
+    }
+    guard !Task.isCancelled, request == generation, connection.isConfigured, !disconnected,
+          let failure = budgetsResource.failure, failure != .cancelled else { return }
+    diagnostics?.log(.budgetLoadFailed(failure: failure, hasDownloadedData: budgetsResource.hasValue))
   }
   private func loadRecentTransactions() async {
     let window = try? recentWindow()

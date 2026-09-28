@@ -52,6 +52,38 @@ struct FinanceDataStoreTests {
     #expect(store.budgetsResource.failure == nil)
   }
 
+  @Test("Budget failures report the safe reason and whether downloaded data remains")
+  func budgetFailureDiagnostics() async {
+    let client = FinanceReadFake()
+    let diagnostics = DiagnosticRecordSpy()
+    let store = makeStore(client, diagnostics: diagnostics)
+    client.budgetFailure = SureAPIError.server(503)
+    await store.refresh()
+    #expect(diagnostics.records == [.budgetLoadFailed(failure: .server, hasDownloadedData: false)])
+    #expect(store.budgetsResource.failure == .server)
+
+    client.budgetFailure = nil
+    await store.refresh()
+    #expect(store.budgetsResource.failure == nil)
+    client.budgetFailure = SureAPIError.unauthorized
+    await store.refresh()
+    #expect(diagnostics.records == [
+      .budgetLoadFailed(failure: .server, hasDownloadedData: false),
+      .budgetLoadFailed(failure: .authentication, hasDownloadedData: true)
+    ])
+    #expect(store.budgetsResource.hasValue)
+  }
+
+  @Test("Cancelled budget reads do not report an issue")
+  func cancelledBudgetRead() async {
+    let client = FinanceReadFake()
+    let diagnostics = DiagnosticRecordSpy()
+    client.budgetFailure = CancellationError()
+    let store = makeStore(client, diagnostics: diagnostics)
+    await store.refresh()
+    #expect(diagnostics.records.isEmpty)
+  }
+
   @Test("Disconnect discards responses from suspended requests")
   func disconnect() async {
     let client = FinanceReadFake()
@@ -126,8 +158,10 @@ struct FinanceDataStoreTests {
     #expect(client.accountCalls == 0)
   }
 
-  private func makeStore(_ client: FinanceReadFake, connection: ReadConnectionFake? = nil) -> FinanceDataStore {
+  private func makeStore(_ client: FinanceReadFake, connection: ReadConnectionFake? = nil,
+                         diagnostics: (any DiagnosticsLogging)? = nil) -> FinanceDataStore {
     FinanceDataStore(connection: connection ?? ReadConnectionFake(), client: client,
-      calendar: testReadCalendar, now: { testReadDate }, summaries: client, syncInsights: { _ in })
+      calendar: testReadCalendar, now: { testReadDate }, summaries: client,
+      diagnostics: diagnostics, syncInsights: { _ in })
   }
 }

@@ -17,37 +17,68 @@ enum DiagnosticRecord: Equatable {
     scope: DiagnosticTransactionScope,
     failure: DataFailure
   )
+  /// Budget reads may fail even when downloaded values remain visible.
+  case budgetLoadFailed(failure: DataFailure, hasDownloadedData: Bool)
+  /// Wallet errors are classified locally. A server-supplied error code must
+  /// be converted to the closed rejection vocabulary before constructing this.
+  case walletSyncFailed(
+    operation: DiagnosticWalletOperation,
+    failure: DiagnosticWalletFailure,
+    rejection: FinanceKitBatchRejection? = nil,
+    field: FinanceKitEventValidationIssue.Field? = nil,
+    rule: DiagnosticWalletValidationRule? = nil
+  )
 
   var message: String {
     switch self {
     case .launched: "app.launched"
     case .cleanupFailed: "cleanup.failed"
     case .transactionHistoryLoadFailed: "transactions.load_failed"
+    case .budgetLoadFailed: "budgets.load_failed"
+    case .walletSyncFailed: "wallet.sync_failed"
     }
   }
 
   var level: DiagnosticLevel {
     switch self {
     case .launched: .info
-    case .cleanupFailed, .transactionHistoryLoadFailed: .error
+    case .cleanupFailed, .transactionHistoryLoadFailed, .budgetLoadFailed, .walletSyncFailed: .error
     }
   }
 
   var attributes: [String: String] {
     switch self {
-    case .launched: [:]
-    case .cleanupFailed(let operation): ["operation": operation.rawValue]
-    case .transactionHistoryLoadFailed(let source, let scope, let failure): [
+    case .launched: return [:]
+    case .cleanupFailed(let operation): return ["operation": operation.rawValue]
+    case .transactionHistoryLoadFailed(let source, let scope, let failure): return [
       "source": source.rawValue,
       "scope": scope.rawValue,
       "failure": failure.diagnosticCode
     ]
+    case .budgetLoadFailed(let failure, let hasDownloadedData): return [
+      "failure": failure.diagnosticCode,
+      "downloaded_data": hasDownloadedData ? "available" : "none"
+    ]
+    case .walletSyncFailed(let operation, let failure, let rejection, let field, let rule):
+      var values = ["operation": operation.rawValue, "failure": failure.rawValue]
+      if let rejection { values["rejection"] = rejection.rawValue }
+      if let field { values["field"] = field.rawValue }
+      if let rule { values["rule"] = rule.rawValue }
+      return values
     }
   }
 
   var issueFingerprint: [String]? {
-    guard case .transactionHistoryLoadFailed(let source, let scope, let failure) = self else { return nil }
-    return [message, source.rawValue, scope.rawValue, failure.diagnosticCode]
+    switch self {
+    case .transactionHistoryLoadFailed(let source, let scope, let failure):
+      return [message, source.rawValue, scope.rawValue, failure.diagnosticCode]
+    case .budgetLoadFailed(let failure, _):
+      return [message, failure.diagnosticCode]
+    case .walletSyncFailed(let operation, let failure, let rejection, let field, let rule):
+      return [message, operation.rawValue, failure.rawValue, rejection?.rawValue ?? "none",
+        field?.rawValue ?? "none", rule?.rawValue ?? "none"]
+    case .launched, .cleanupFailed: return nil
+    }
   }
 
   /// Logs and issue events use separate Sentry pipelines. Unrecognized SDK
@@ -60,8 +91,45 @@ enum DiagnosticRecord: Equatable {
   static let messages: Set<String> = logMessages.union([
     DiagnosticRecord.transactionHistoryLoadFailed(
       source: .sure, scope: .recentActivity, failure: .unknown
-    ).message
+    ).message,
+    DiagnosticRecord.budgetLoadFailed(failure: .unknown, hasDownloadedData: false).message,
+    DiagnosticRecord.walletSyncFailed(operation: .sync, failure: .unknown).message
   ])
+}
+
+enum DiagnosticWalletOperation: String, CaseIterable {
+  case disconnect, enroll, enrollmentCleanup = "enrollment_cleanup", sync, status, repair, renew, resolve
+}
+
+enum DiagnosticWalletFailure: String, CaseIterable {
+  case authentication, authorization, conflict, invalidResponse = "invalid_response"
+  case publisherRevoked = "publisher_revoked", rateLimited = "rate_limited"
+  case rejected, server, tooLarge = "too_large", offline, subscription
+  case validation, malformed, unavailable, persistence, unknown
+  case eventTooLarge = "event_too_large", historyTokenInvalid = "history_token_invalid"
+  case invalidAmount = "invalid_amount", invalidCheckpoint = "invalid_checkpoint"
+  case invalidReceipt = "invalid_receipt", invalidState = "invalid_state"
+  case sequenceExhausted = "sequence_exhausted", streamFailed = "stream_failed"
+  case unsupportedSourceValue = "unsupported_source_value"
+  case repairRequired = "repair_required", disconnectPending = "disconnect_pending"
+}
+
+enum DiagnosticWalletValidationRule: String, CaseIterable {
+  case requiredForBooked = "required_for_booked", nonblank, textLimit = "text_limit"
+  case supportedStatus = "supported_status", notAfterCapture = "not_after_capture"
+  case uniqueIdentity = "unique_identity", readablePayload = "readable_payload"
+
+  init(_ rule: FinanceKitEventValidationIssue.Rule) {
+    self = switch rule {
+    case .requiredForBooked: .requiredForBooked
+    case .nonblank: .nonblank
+    case .textLimit: .textLimit
+    case .supportedStatus: .supportedStatus
+    case .notAfterCapture: .notAfterCapture
+    case .uniqueIdentity: .uniqueIdentity
+    case .readablePayload: .readablePayload
+    }
+  }
 }
 
 enum DiagnosticLevel: String {

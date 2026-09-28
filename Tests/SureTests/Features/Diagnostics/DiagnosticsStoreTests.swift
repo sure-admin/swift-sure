@@ -59,12 +59,33 @@ struct DiagnosticsStoreTests {
     }
     #expect(DiagnosticRecord.messages.contains(DiagnosticRecord.launched.message))
     #expect(DiagnosticRecord.logMessages.count == 2)
-    #expect(DiagnosticRecord.messages.count == 3)
-    let vocabulary = DiagnosticOperation.allCases.map(\.rawValue) + Array(DiagnosticRecord.messages)
+    #expect(DiagnosticRecord.messages.count == 5)
+    let vocabulary = DiagnosticOperation.allCases.map(\.rawValue)
+      + DiagnosticWalletOperation.allCases.map(\.rawValue)
+      + DiagnosticWalletFailure.allCases.map(\.rawValue)
+      + DiagnosticWalletValidationRule.allCases.map(\.rawValue)
+      + Array(DiagnosticRecord.messages)
     for term in vocabulary {
       #expect(term == term.lowercased())
       #expect(!term.contains(where: { $0.isWhitespace }))
     }
+  }
+
+  @Test func budgetAndWalletIssuesContainOnlyFixedClassifications() {
+    let budget = DiagnosticRecord.budgetLoadFailed(failure: .malformed, hasDownloadedData: true)
+    #expect(budget.message == "budgets.load_failed")
+    #expect(budget.attributes == ["failure": "malformed", "downloaded_data": "available"])
+    #expect(budget.issueFingerprint == ["budgets.load_failed", "malformed"])
+
+    let wallet = DiagnosticRecord.walletSyncFailed(operation: .sync, failure: .rejected,
+      rejection: .invalidPayload, field: .postedAt, rule: .requiredForBooked)
+    #expect(wallet.message == "wallet.sync_failed")
+    #expect(wallet.attributes == ["operation": "sync", "failure": "rejected",
+      "rejection": "invalid_payload", "field": "transaction.posted_at", "rule": "required_for_booked"])
+    #expect(wallet.issueFingerprint == ["wallet.sync_failed", "sync", "rejected",
+      "invalid_payload", "transaction.posted_at", "required_for_booked"])
+    #expect(!DiagnosticRecord.logMessages.contains(budget.message))
+    #expect(!DiagnosticRecord.logMessages.contains(wallet.message))
   }
 
   @Test func transactionIssueContainsOnlyFixedClassifications() {

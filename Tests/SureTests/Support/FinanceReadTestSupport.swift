@@ -28,6 +28,7 @@ final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, CashFl
   var accountsFailure: Error?
   var accountsOperation: (() async -> [FinanceAccount])?
   var budgetOperation: (() async -> [BudgetCategory])?
+  var budgetFailure: Error?
   var transactions = [testReadTransaction]
   var summary: CashFlow?
   var summaryMonths: [SpendingMonth] = []
@@ -51,13 +52,22 @@ final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, CashFl
     if let historyFailure { throw historyFailure }
     return transactions
   }
-  func fetchBudgetCategories() async throws -> [BudgetCategory] { await budgetOperation?() ?? [] }
+  func fetchBudgetCategories() async throws -> [BudgetCategory] {
+    if let budgetFailure { throw budgetFailure }
+    return await budgetOperation?() ?? []
+  }
   func fetchInsights() async throws -> [BackendInsight] { [] }
   func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
     summaryMonths.append(month)
     guard let summary, summary.month == month else { throw SureAPIError.notFound }
     return summary
   }
+}
+
+@MainActor
+final class DiagnosticRecordSpy: DiagnosticsLogging {
+  private(set) var records: [DiagnosticRecord] = []
+  func log(_ record: DiagnosticRecord) { records.append(record) }
 }
 
 actor ReadBarrier<Value: Sendable> {
