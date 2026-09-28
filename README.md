@@ -233,8 +233,8 @@ and `SENTRY_PROJECT` repository variables for their own Sentry instance. A
 configured DSN without an upload token, or an archive without dSYMs, fails the
 release before upload. If the DSN is absent, the symbol step is skipped.
 
-For a Debug build on a physical iPhone or iPad, the generated app target has a
-post-build symbol-upload phase. Install `sentry-cli` locally with
+For a Debug build on a physical iPhone or iPad, the generated `Sure` scheme has
+a post-build symbol-upload action. Install `sentry-cli` locally with
 `brew install getsentry/tools/sentry-cli`, then provide an auth token through
 `SENTRY_AUTH_TOKEN` in the build environment or an ignored `.sentryclirc` in
 the project root. For example, the local file can contain `[auth]` followed by
@@ -243,8 +243,14 @@ the project root. For example, the local file can contain `[auth]` followed by
 `SENTRY_PROJECT` environment variables override those for another Sentry
 project. The build still runs and sends diagnostics with its configured DSN
 when the CLI or upload token is absent, but crash frames may remain
-unsymbolicated until the matching dSYM is uploaded. Keep the auth token out of
-the app bundle and the repository.
+unsymbolicated until the matching dSYM is uploaded. Debug builds that contain
+`Sure.debug.dylib` need its matching DWARF image inside `Sure.app.dSYM`; the
+post-build action checks for that image before uploading the bundle. Rebuild
+and run the app after configuring uploads,
+then inspect a new Sentry event to verify its image UUID matches the uploaded
+dSYM. A newly built dSYM has a new UUID and cannot symbolicate an event from
+an older build; that event needs its original matching dSYM. Keep the auth
+token out of the app bundle and the repository.
 
 The app sends crash reports plus two log records: `app.launched` (one per
 process launch) and `cleanup.failed`, whose only attribute is a fixed

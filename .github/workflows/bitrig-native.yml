@@ -47,7 +47,9 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Test CI scripts
-        run: ruby .github/scripts/next_testflight_build_number_test.rb
+        run: |
+          ruby .github/scripts/next_testflight_build_number_test.rb
+          sh .github/scripts/upload_local_sentry_symbols_test.sh
 
       - name: Install XcodeGen and SwiftLint
         run: brew install xcodegen swiftlint

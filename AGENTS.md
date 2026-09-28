@@ -262,7 +262,9 @@ protocols are for meaningful seams and alternate implementations.
   builds. TestFlight archives upload dSYMs with a separate
   `SENTRY_AUTH_TOKEN` CI secret. Physical-device Debug builds attempt a local
   dSYM upload when `sentry-cli` and an ignored `.sentryclirc` or environment
-  auth token are available. Never embed the upload token in the app build.
+  auth token are available. Those builds must generate and upload the matching
+  `Sure.debug.dylib` image inside `Sure.app.dSYM` when Xcode's Debug Dylib
+  layout is enabled. Never embed the upload token in the app build.
   See `Docs/SentryAppPrivacy.md`, and publish the App Privacy label before
   enabling the release DSN.
 

@@ -80,15 +80,14 @@
         }
       },
       "platform" : "auto",
-      "postBuildScripts" : [
-        {
-          "name" : "Upload local iOS Debug symbols to Sentry",
-          "script" : "\"${PROJECT_DIR}/.github/scripts/upload_local_sentry_symbols.sh\"",
-          "basedOnDependencyAnalysis" : false,
-          "showEnvVars" : false
-        }
-      ],
       "scheme" : {
+        "postActions" : [
+          {
+            "name" : "Upload local iOS Debug symbols to Sentry",
+            "script" : "\"${PROJECT_DIR}/.github/scripts/upload_local_sentry_symbols.sh\"",
+            "settingsTarget" : "Sure"
+          }
+        ],
         "coverageTargets" : [
           "Sure"
         ],
@@ -108,6 +107,7 @@
           "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*]" : "$(inherited) FINANCEKIT_ENABLED",
           "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*]" : "$(inherited) FINANCEKIT_ENABLED",
           "CURRENT_PROJECT_VERSION" : "1",
+          "DEBUG_INFORMATION_FORMAT[sdk=iphoneos*]" : "dwarf-with-dsym",
           "MARKETING_VERSION" : "0.7.4",
           "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights",
           "PRODUCT_NAME" : "$(TARGET_NAME)",
@@ -115,9 +115,6 @@
           "TARGETED_DEVICE_FAMILY" : "1,2"
         },
         "configs" : {
-          "Debug" : {
-            "DEBUG_INFORMATION_FORMAT[sdk=iphoneos*]" : "dwarf-with-dsym"
-          },
           "Release" : {
             "CODE_SIGN_STYLE" : "Automatic"
           }
