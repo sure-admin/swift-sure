@@ -22,8 +22,10 @@ struct AnalyticsSettingsView: View {
       }
       #if DEBUG
       Section {
-        buildSetting("PostHog project token", value: buildDetails.postHogProjectToken)
-        buildSetting("Sentry DSN", value: buildDetails.sentryDSN?.absoluteString)
+        buildSetting("PostHog project token", value: buildDetails.postHogProjectToken,
+          identifier: "posthog-build-token")
+        buildSetting("Sentry DSN", value: buildDetails.sentryDSN?.absoluteString,
+          identifier: "sentry-build-dsn")
       } header: {
         Text("Debug build configuration")
       } footer: {
@@ -35,7 +37,7 @@ struct AnalyticsSettingsView: View {
   }
 
   #if DEBUG
-  private func buildSetting(_ title: LocalizedStringKey, value: String?) -> some View {
+  private func buildSetting(_ title: LocalizedStringKey, value: String?, identifier: String) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(title)
         .font(.subheadline)
@@ -52,6 +54,7 @@ struct AnalyticsSettingsView: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .accessibilityElement(children: .combine)
+    .accessibilityIdentifier(identifier)
   }
   #endif
 }

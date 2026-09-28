@@ -7,9 +7,12 @@ final class SourceBoundaryUITests: XCTestCase {
   @MainActor
   func testDebugUsageAnalyticsShowsConfiguredDestinations() throws {
     let app = launch("analytics-debug")
-    XCTAssertTrue(app.staticTexts["Debug build configuration"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["phc_ui_fixture"].exists)
-    XCTAssertTrue(app.staticTexts["https://publickey@o1.ingest.example/42"].exists)
+    let postHog = app.descendants(matching: .any)["posthog-build-token"]
+    XCTAssertTrue(postHog.waitForExistence(timeout: 10))
+    XCTAssertTrue(postHog.label.contains("phc_ui_fixture"))
+    let sentry = app.descendants(matching: .any)["sentry-build-dsn"]
+    XCTAssertTrue(sentry.waitForExistence(timeout: 10))
+    XCTAssertTrue(sentry.label.contains("https://publickey@o1.ingest.example/42"))
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
   }
 
@@ -20,7 +23,9 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(analytics.waitForExistence(timeout: 10))
     analytics.tap()
     XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["Debug build configuration"].exists)
+    let consent = app.switches["Share usage analytics"]
+    XCTAssertTrue(consent.waitForExistence(timeout: 10))
+    XCTAssertTrue(consent.isEnabled)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
   }
   #endif
