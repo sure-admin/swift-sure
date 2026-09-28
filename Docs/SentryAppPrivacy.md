@@ -10,11 +10,11 @@ App Privacy page: https://appstoreconnect.apple.com/apps/6804843427/distribution
 
 No DSN is committed. Developers can enable Sentry in local iOS Debug builds
 through the ignored `Config/Debug.local.xcconfig`; CI Debug builds keep the
-empty default. A release DSN reaches the app only through the
-`SURE_SENTRY_DSN` repository secret, which the TestFlight job passes to
-`xcodebuild archive`; while that secret is unset the release still builds and
-diagnostics is inert. **Complete this worksheet and publish the label before
-creating that secret.**
+empty default. GitHub TestFlight archives receive a release DSN through the
+`SURE_SENTRY_DSN` repository secret; local Bitrig TestFlight archives can use
+the ignored `Config/Release.local.xcconfig`. Without either source, the release
+still builds and diagnostics is inert. **Complete this worksheet and publish
+the label before enabling a release DSN through either source.**
 
 ## Implemented collection
 

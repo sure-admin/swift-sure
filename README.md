@@ -151,19 +151,29 @@ Watch do not initialize PostHog.
 The project token is not committed. iOS Debug builds can read it from the
 Git-ignored `Config/Debug.local.xcconfig`; copy
 `Config/Debug.local.example.xcconfig` there and fill in the two local values.
-The committed Debug config includes that file only when present. Release builds
-default to an empty token, and the TestFlight job overrides it from the
-`SURE_POSTHOG_PROJECT_TOKEN` repository secret on the `xcodebuild archive`
-command line. Pull-request and simulator CI builds have no local file and keep
-the empty default.
+For TestFlight archives made in Bitrig from this checkout, copy
+`Config/Release.local.example.xcconfig` to the ignored
+`Config/Release.local.xcconfig` and fill in the iOS release values. Bitrig's
+Release archive will then embed them; the Debug file alone does not affect it.
+The GitHub TestFlight job instead passes the
+`SURE_POSTHOG_PROJECT_TOKEN` repository secret to `xcodebuild archive`.
+When neither source is present, Release builds default to an empty token.
+Pull-request and simulator CI builds have no local file and keep the empty
+default.
+After a Bitrig upload, install that TestFlight build and open **Sure connection
+→ Usage analytics** and **Sure connection → Diagnostics**. Neither screen
+should say it is not configured. Release builds do not display the key values.
+If either screen does, check that `Config/Release.local.xcconfig` exists in the
+same checkout Bitrig archived, then make a new build; changing the file cannot
+repair an already uploaded build.
 
 Debug builds show the configured PostHog project token and Sentry DSN on the
 **Usage analytics** screen so developers can verify their ingestion destinations.
 The build-configuration section is absent from Release builds.
 
 **A missing token is a no-op, not an error.** Analytics reports as unavailable
-and the release still builds; the archive step only logs a warning. Set the
-secret to a public client ingestion token (`phc_…`), never a personal API key.
+and the release still builds; the GitHub archive step logs a warning. Use a
+public client ingestion token (`phc_…`), never a personal API key.
 
 `SURE_POSTHOG_HOST` stays committed in `Project.json` because the ingestion
 endpoint is public infrastructure, not a credential. The current destination is
@@ -202,20 +212,22 @@ fixed set of app diagnostics. Diagnostics is enabled by default and can be
 disabled under **Sure connection → Diagnostics → Share diagnostics**. The
 preference persists across launches. Mac and Watch do not initialize Sentry.
 
-The DSN is not committed. The same ignored Debug config can provide an iOS
+The DSN is not committed. The ignored Debug config can provide an iOS
 development DSN; its `https:/$()/` spelling prevents xcconfig from treating
 the URL's double slash as a comment and expands to `https://` in the app.
-Release builds default to an empty DSN, and the TestFlight job overrides it from
-the `SURE_SENTRY_DSN` repository secret on the `xcodebuild archive` command
-line. Pull-request and simulator CI builds keep the empty default.
+Bitrig TestFlight archives can use the ignored `Config/Release.local.xcconfig`
+described above. The GitHub TestFlight job instead passes the
+`SURE_SENTRY_DSN` repository secret on the `xcodebuild archive` command line.
+Release builds without either source default to an empty DSN; pull-request and
+simulator CI builds keep that default.
 
 **A missing DSN is a no-op, not an error.** Diagnostics reports as unavailable,
-the SDK never initializes, and the release still builds — the archive step only
-logs a warning. The same applies to a DSN that is not HTTPS, is missing its
+the SDK never initializes, and the release still builds; the GitHub archive
+step logs a warning. The same applies to a DSN that is not HTTPS, is missing its
 public key, carries the deprecated DSN secret, or carries a query or fragment;
 all are rejected. Test hosts never initialize the SDK regardless.
 
-Set the secret to the project's public client DSN — never an auth token or an
+Use the project's public client DSN — never an auth token or an
 internal integration key. A DSN is a public client key that ships inside the
 app bundle, so keeping it in a repository secret limits casual scraping of this
 public repository; it is not confidentiality. If it is ever abused, rotate the
@@ -224,7 +236,7 @@ self-hosted distributions can set their own `SURE_SENTRY_DSN` secret, pass the
 build setting to `xcodebuild` directly, or leave it unset to ship without
 diagnostics.
 
-The TestFlight workflow uploads the Release archive's dSYMs to Sentry before
+The GitHub TestFlight workflow uploads the Release archive's dSYMs to Sentry before
 exporting it to App Store Connect. If `SURE_SENTRY_DSN` is configured, set a
 separate `SENTRY_AUTH_TOKEN` repository secret with access to the `chancen` /
 `swift-sure` Sentry project and CI symbol-upload permissions. The workflow uses
@@ -232,6 +244,11 @@ Sentry's DE endpoint by default. Forks can set the `SENTRY_URL`, `SENTRY_ORG`,
 and `SENTRY_PROJECT` repository variables for their own Sentry instance. A
 configured DSN without an upload token, or an archive without dSYMs, fails the
 release before upload. If the DSN is absent, the symbol step is skipped.
+
+Bitrig TestFlight uploads do not run that GitHub symbol step. Save the matching
+archive's dSYMs and upload them separately with `sentry-cli debug-files upload`
+using an auth token outside the app build. The DSN alone enables reports but
+does not symbolicate crash frames.
 
 For a Debug build on a physical iPhone or iPad, the generated `Sure` scheme has
 a post-build symbol-upload action. Install `sentry-cli` locally with

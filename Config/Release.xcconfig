@@ -1,3 +1,5 @@
-// CI supplies release telemetry values as xcodebuild settings.
+// CI supplies release telemetry values as xcodebuild settings. Bitrig local
+// archives can use the ignored optional file without committing client keys.
 SURE_SENTRY_DSN =
 SURE_POSTHOG_PROJECT_TOKEN =
+#include? "Release.local.xcconfig"

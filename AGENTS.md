@@ -227,9 +227,10 @@ protocols are for meaningful seams and alternate implementations.
   change, and keep automatic capture, session replay, and person profiles off.
 - A missing or invalid project token/HTTPS ingestion host disables analytics.
   Test hosts and offline tests must not initialize the live SDK.
-- The project token is never committed. It reaches a build only from the
-  `SURE_POSTHOG_PROJECT_TOKEN` repository secret, applied by the TestFlight job;
-  an unset secret is a no-op that still builds. `SURE_POSTHOG_HOST` stays in
+- The project token is never committed. GitHub TestFlight archives receive it
+  from the `SURE_POSTHOG_PROJECT_TOKEN` repository secret; local Bitrig
+  TestFlight archives may read the ignored `Config/Release.local.xcconfig`.
+  An unset token is a no-op that still builds. `SURE_POSTHOG_HOST` stays in
   `Project.json`, as an ingestion endpoint is not a credential.
 
 ## Diagnostics
@@ -257,10 +258,13 @@ protocols are for meaningful seams and alternate implementations.
   server code, event index, account identity, or financial data. Pending imports,
   lock contention, and cancelled work are not failures.
 - The DSN is never committed. Local Debug builds read the ignored
-  `Config/Debug.local.xcconfig`; the TestFlight job reads the
+  `Config/Debug.local.xcconfig`; local Bitrig TestFlight archives may read the
+  ignored `Config/Release.local.xcconfig`; the GitHub TestFlight job reads the
   `SURE_SENTRY_DSN` repository secret. An unset DSN is a no-op that still
-  builds. TestFlight archives upload dSYMs with a separate
-  `SENTRY_AUTH_TOKEN` CI secret. Physical-device Debug builds attempt a local
+  builds. GitHub TestFlight archives upload dSYMs with a separate
+  `SENTRY_AUTH_TOKEN` CI secret. Bitrig archives need a separate matching dSYM
+  upload; embedding the DSN alone does not provide symbolication.
+  Physical-device Debug builds attempt a local
   dSYM upload when `sentry-cli` and an ignored `.sentryclirc` or environment
   auth token are available. Those builds must generate and upload the matching
   `Sure.debug.dylib` image inside `Sure.app.dSYM` when Xcode's Debug Dylib

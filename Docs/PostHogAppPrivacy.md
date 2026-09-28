@@ -15,9 +15,10 @@ model, screen dimensions, locale/time zone, and connectivity information).
 
 Collection is enabled by default in builds that carry a project token. Local
 iOS Debug builds can receive one from the ignored `Config/Debug.local.xcconfig`;
-CI Debug builds collect nothing. The release token comes from the
-`SURE_POSTHOG_PROJECT_TOKEN` repository secret and reaches signed release
-archives. The persistent opt-out is at Sure connection → Usage analytics → Share
+CI Debug builds collect nothing. GitHub TestFlight archives receive the token
+from the `SURE_POSTHOG_PROJECT_TOKEN` repository secret; Bitrig TestFlight
+archives can receive it from the ignored `Config/Release.local.xcconfig`.
+The persistent opt-out is at Sure connection → Usage analytics → Share
 usage analytics. PostHog uses the US ingestion endpoint.
 The app does not identify users to PostHog or send Sure IDs, server addresses,
 credentials, financial content, or conversations. Automatic capture, session replay,
