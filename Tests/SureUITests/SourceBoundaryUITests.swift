@@ -3,6 +3,33 @@ import XCTest
 final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
+  #if DEBUG
+  @MainActor
+  func testDebugUsageAnalyticsShowsConfiguredDestinations() throws {
+    let app = launch("analytics-debug")
+    let postHog = app.descendants(matching: .any)["posthog-build-token"]
+    XCTAssertTrue(postHog.waitForExistence(timeout: 10))
+    XCTAssertTrue(postHog.label.contains("phc_ui_fixture"))
+    let sentry = app.descendants(matching: .any)["sentry-build-dsn"]
+    XCTAssertTrue(sentry.waitForExistence(timeout: 10))
+    XCTAssertTrue(sentry.label.contains("https://publickey@o1.ingest.example/42"))
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  func testUsageAnalyticsRemainsAvailableWithoutSubscription() throws {
+    let app = launch("analytics-gated")
+    let analytics = app.buttons["Usage analytics"]
+    XCTAssertTrue(analytics.waitForExistence(timeout: 10))
+    analytics.tap()
+    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
+    let consent = app.switches["Share usage analytics"]
+    XCTAssertTrue(consent.waitForExistence(timeout: 10))
+    XCTAssertTrue(consent.isEnabled)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+  #endif
+
   @MainActor
   func testSynchronizedWalletUsesBackendCardAndSignedBalance() throws {
     let app = launch("wallet-synced")

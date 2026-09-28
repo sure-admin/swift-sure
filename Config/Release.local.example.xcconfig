@@ -1,0 +1,6 @@
+// Copy to Release.local.xcconfig for local Bitrig TestFlight archives.
+// In xcconfig files, write an HTTPS DSN as https:/$()/KEY@HOST/PROJECT_ID.
+SURE_LOCAL_SENTRY_DSN =
+SURE_LOCAL_POSTHOG_PROJECT_TOKEN =
+SURE_SENTRY_DSN[sdk=iphoneos*] = $(SURE_LOCAL_SENTRY_DSN)
+SURE_POSTHOG_PROJECT_TOKEN[sdk=iphoneos*] = $(SURE_LOCAL_POSTHOG_PROJECT_TOKEN)

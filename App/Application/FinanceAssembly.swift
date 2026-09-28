@@ -11,7 +11,11 @@ struct FinanceAssembly {
   let transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   let localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
-  init(connection services: ConnectionAssembly, syncInsights: @escaping ([BackendInsight]) -> Void) {
+  init(
+    connection services: ConnectionAssembly,
+    diagnostics: any DiagnosticsLogging,
+    syncInsights: @escaping ([BackendInsight]) -> Void
+  ) {
     let connection = services.connection
     let apiClient = services.apiClient
     let transport = services.transport
@@ -44,7 +48,8 @@ struct FinanceAssembly {
         .appendingPathComponent("am.sure.insights/offline-responses"), remote: apiClient)
     lifecycle.clearOfflineResponses = { try await repository.clear() }
     let financeData = FinanceDataStore(connection: connection, client: repository,
-      calendar: .autoupdatingCurrent, now: { .now }, summaries: repository, syncInsights: syncInsights)
+      calendar: .autoupdatingCurrent, now: { .now }, summaries: repository,
+      diagnostics: diagnostics, syncInsights: syncInsights)
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector
@@ -63,12 +68,15 @@ struct FinanceAssembly {
 
     let transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: repository,
+      diagnostics: diagnostics,
       isOffline: { [weak connection] in !accessGate.isAllowed(for: connection?.connectedServerURL) },
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
     let localTransactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: financeKitConnector,
+      diagnostics: diagnostics,
+      diagnosticSource: .wallet,
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
@@ -78,6 +86,7 @@ struct FinanceAssembly {
     self.financeKitPublisher = financeKitPublisher
     self.financeKitSync = FinanceKitSyncStore(client: controlPlane, publisher: financeKitPublisher,
       preferences: UserDefaultsFinanceKitSyncPreferences(defaults: .standard),
+      diagnostics: diagnostics,
       accountsDidChange: { await financeData.refreshAccounts() })
     self.spendingComparison = spendingComparison
     self.transactionHistoryStoreFactory = transactionHistoryStoreFactory

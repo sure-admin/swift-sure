@@ -1,0 +1,4 @@
+// Local telemetry values apply only to Debug builds. The optional file is ignored by Git.
+SURE_SENTRY_DSN =
+SURE_POSTHOG_PROJECT_TOKEN =
+#include? "Debug.local.xcconfig"

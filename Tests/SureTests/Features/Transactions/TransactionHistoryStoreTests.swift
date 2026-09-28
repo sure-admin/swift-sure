@@ -144,15 +144,46 @@ struct TransactionHistoryStoreTests {
 
   @Test("Failures become an explicit failed state")
   func failedLoad() async {
+    let diagnostics = HistoryDiagnosticsSpy()
     let store = makeStore(
       scope: .recentActivity,
-      client: TransactionHistoryClientStub(outcome: .failure)
+      client: TransactionHistoryClientStub(outcome: .failure),
+      diagnostics: diagnostics
     )
 
     await store.load()
 
     #expect(store.state == .failed(DataFailure.unknown.localizedDescription))
     #expect(store.transactions.isEmpty)
+    #expect(diagnostics.records == [.transactionHistoryLoadFailed(
+      source: .sure, scope: .recentActivity, failure: .unknown
+    )])
+  }
+
+  @Test("A Wallet account failure reports an issue without account details")
+  func walletAccountFailure() async throws {
+    let accountID = try #require(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+    let accountName = "Private Savings Account"
+    let diagnostics = HistoryDiagnosticsSpy()
+    let store = makeStore(
+      scope: .account(id: accountID, name: accountName),
+      client: TransactionHistoryClientStub(outcome: .dataFailure(.malformed)),
+      diagnostics: diagnostics,
+      diagnosticSource: .wallet
+    )
+
+    await store.load()
+
+    #expect(store.state == .failed(DataFailure.malformed.localizedDescription))
+    let record = try #require(diagnostics.records.first)
+    #expect(diagnostics.records.count == 1)
+    #expect(record.attributes == [
+      "source": "wallet", "scope": "account", "failure": "malformed"
+    ])
+    let sentText = ([record.message] + Array(record.attributes.values)).joined(separator: " ")
+    #expect(!sentText.contains(accountName))
+    #expect(!sentText.contains(accountID.uuidString))
+    #expect(!sentText.contains(DataFailure.malformed.localizedDescription))
   }
 
   @Test("A failed load can be retried successfully")
@@ -170,17 +201,66 @@ struct TransactionHistoryStoreTests {
     #expect(store.transactions.map(\.id) == [historyTestID(4)])
   }
 
+  @Test("A refresh failure retaining visible transactions does not report an issue")
+  func failedRefreshKeepsTransactions() async {
+    let client = TransactionHistoryClientStub(outcome: .success([
+      transaction(id: 4, date: referenceDate)
+    ]))
+    let diagnostics = HistoryDiagnosticsSpy()
+    let store = makeStore(scope: .recentActivity, client: client, diagnostics: diagnostics)
+
+    await store.load()
+    await client.setOutcome(.failure)
+    await store.load()
+
+    #expect(store.state == .loaded)
+    #expect(store.transactions.map(\.id) == [historyTestID(4)])
+    #expect(diagnostics.records.isEmpty)
+  }
+
+  @Test("A downloaded-data fallback does not report an issue")
+  func downloadedFallback() async throws {
+    let request = TransactionHistoryRequest(
+      accountID: nil,
+      dateWindow: try TransactionDateWindow(
+        startDate: LocalDate(year: 2026, month: 8, day: 22),
+        endDate: LocalDate(year: 2026, month: 8, day: 28)
+      )
+    )
+    let cachedTransaction = transaction(id: 5, date: referenceDate)
+    let client = TransactionHistoryClientStub(
+      outcome: .dataFailure(.offline),
+      downloaded: DownloadedTransactionWindow(
+        request: request,
+        transactions: [cachedTransaction],
+        metadata: ReadMetadata(fetchedAt: referenceDate, source: .cache)
+      )
+    )
+    let diagnostics = HistoryDiagnosticsSpy()
+    let store = makeStore(scope: .recentActivity, client: client, diagnostics: diagnostics)
+
+    await store.load()
+
+    #expect(store.state == .loaded)
+    #expect(store.showingDownloadedData)
+    #expect(store.transactions.map(\.id) == [cachedTransaction.id])
+    #expect(diagnostics.records.isEmpty)
+  }
+
   @Test("Cancellation restores the previous state instead of failing")
   func cancelledLoad() async {
+    let diagnostics = HistoryDiagnosticsSpy()
     let store = makeStore(
       scope: .recentActivity,
-      client: TransactionHistoryClientStub(outcome: .cancelled)
+      client: TransactionHistoryClientStub(outcome: .cancelled),
+      diagnostics: diagnostics
     )
 
     await store.load()
 
     #expect(store.state == .idle)
     #expect(store.transactions.isEmpty)
+    #expect(diagnostics.records.isEmpty)
   }
 
   @Test("The clock is captured once per load")
@@ -218,11 +298,15 @@ struct TransactionHistoryStoreTests {
 
   private func makeStore(
     scope: TransactionHistoryScope,
-    client: any TransactionHistoryClient
+    client: any TransactionHistoryClient,
+    diagnostics: (any DiagnosticsLogging)? = nil,
+    diagnosticSource: DiagnosticTransactionSource = .sure
   ) -> TransactionHistoryStore {
     TransactionHistoryStore(
       scope: scope,
       client: client,
+      diagnostics: diagnostics,
+      diagnosticSource: diagnosticSource,
       calendar: utcCalendar,
       now: { referenceDate }
     )
@@ -271,9 +355,14 @@ private func historyTestID(_ value: Int) -> UUID {
 private actor TransactionHistoryClientStub: TransactionHistoryClient {
   private var requests: [TransactionHistoryRequest] = []
   private var outcome: TransactionHistoryClientOutcome
+  private var downloaded: DownloadedTransactionWindow?
 
-  init(outcome: TransactionHistoryClientOutcome = .success([])) {
+  init(
+    outcome: TransactionHistoryClientOutcome = .success([]),
+    downloaded: DownloadedTransactionWindow? = nil
+  ) {
     self.outcome = outcome
+    self.downloaded = downloaded
   }
 
   func fetchTransactions(_ request: TransactionHistoryRequest) async throws -> [FinanceTransaction] {
@@ -283,6 +372,8 @@ private actor TransactionHistoryClientStub: TransactionHistoryClient {
       return transactions
     case .failure:
       throw HistoryTestFailure.expected
+    case .dataFailure(let failure):
+      throw failure
     case .cancelled:
       throw CancellationError()
     }
@@ -290,6 +381,10 @@ private actor TransactionHistoryClientStub: TransactionHistoryClient {
 
   func recordedRequests() -> [TransactionHistoryRequest] {
     requests
+  }
+
+  func latestDownloadedTransactions(accountID: UUID?) -> DownloadedTransactionWindow? {
+    downloaded
   }
 
   func setOutcome(_ outcome: TransactionHistoryClientOutcome) {
@@ -350,5 +445,15 @@ private enum HistoryTestFailure: LocalizedError {
 private enum TransactionHistoryClientOutcome {
   case success([FinanceTransaction])
   case failure
+  case dataFailure(DataFailure)
   case cancelled
+}
+
+@MainActor
+private final class HistoryDiagnosticsSpy: DiagnosticsLogging {
+  private(set) var records: [DiagnosticRecord] = []
+
+  func log(_ record: DiagnosticRecord) {
+    records.append(record)
+  }
 }

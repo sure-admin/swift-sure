@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
   weak var analytics: (any UsageAnalytics)?
+  weak var diagnostics: (any DiagnosticsLogging)?
   private(set) var dataCleanupFailure: DataFailure?
   var clearOfflineResponses: () async throws -> Void = {}
   var resetAppData: () throws -> Void = {}
@@ -20,7 +21,7 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     if isExplicitlySignedOut {
       dataCleanupFailure = nil
       do { try financeKitPublisher?.blockBackgroundDelivery() }
-      catch { dataCleanupFailure = .cleanup }
+      catch { reportCleanupFailure(.walletBackgroundDelivery) }
       financeData?.disconnect()
       Task {
         await clearDownloadedData()
@@ -68,12 +69,19 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
 
   private func clearDownloadedData() async {
     do { try await clearOfflineResponses() }
-    catch { dataCleanupFailure = .cleanup }
+    catch { reportCleanupFailure(.offlineResponses) }
   }
 
   private func clearFinanceKitPublisher() async {
     do { try await financeKitPublisher?.disconnect() }
-    catch { dataCleanupFailure = .cleanup }
+    catch { reportCleanupFailure(.walletPublisherDisconnect) }
+  }
+
+  /// Cleanup steps collapse into one user-facing failure, so the step that
+  /// actually failed is only recoverable from diagnostics.
+  private func reportCleanupFailure(_ operation: DiagnosticOperation) {
+    dataCleanupFailure = .cleanup
+    diagnostics?.log(.cleanupFailed(operation))
   }
 
   private func clearLocalData() {
@@ -87,6 +95,6 @@ final class ApplicationConnectionLifecycle: SureConnectionLifecycleHandling {
     financeData?.disconnect()
     financeKitSync?.resetForLogout()
     do { try resetAppData() }
-    catch { dataCleanupFailure = .cleanup }
+    catch { reportCleanupFailure(.appDataReset) }
   }
 }

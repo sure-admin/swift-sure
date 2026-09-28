@@ -11,6 +11,10 @@ struct UITestApp: App {
   private let wallet: AppleCardConnectionStore
   private let comparison: SpendingComparisonStore
   private let factory: TransactionHistoryStoreFactory
+  private let analytics: AnalyticsStore
+  private let subscriptionAccess: SubscriptionAccessStore
+  private let sureConnection: SureConnection
+  private let telemetryBuildDetails: TelemetryBuildDetails
 
   init() {
     let scenario = ProcessInfo.processInfo.environment["SURE_SCENARIO"] ?? "onboarding"
@@ -24,11 +28,36 @@ struct UITestApp: App {
     comparison = SpendingComparisonStore(client: client, connection: connection, calendar: .current,
       now: { FixtureClient.date }, walletClient: client, walletAccess: wallet)
     factory = TransactionHistoryStoreFactory(client: client, calendar: .current, now: { FixtureClient.date })
+    analytics = AnalyticsStore(preferences: FixtureAnalyticsPreferences(), client: FixtureAnalyticsClient())
+    subscriptionAccess = SubscriptionAccessStore(
+      service: FixtureSubscriptionService(),
+      gate: BackendAccessGate(now: { Date(timeIntervalSince1970: 0) }),
+      waitUntil: { _ in }
+    )
+    sureConnection = SureConnection(
+      initialState: SureConnectionInitialState(
+        serverURL: "", credentials: StoredCredentialSnapshot(session: nil),
+        isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
+      ),
+      authentication: FixtureAuthentication()
+    )
+    telemetryBuildDetails = TelemetryBuildDetails(
+      postHogProjectToken: "phc_ui_fixture",
+      sentryDSN: URL(string: "https://publickey@o1.ingest.example/42")
+    )
   }
 
   var body: some Scene {
     WindowGroup {
-      if scenario == "wallet-consent" {
+      if scenario == "analytics-debug" {
+        NavigationStack {
+          AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
+        }
+      } else if scenario == "analytics-gated" {
+        ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
+          analytics: analytics, telemetryBuildDetails: telemetryBuildDetails)
+          .task { await subscriptionAccess.refresh() }
+      } else if scenario == "wallet-consent" {
         FixtureFinanceKitSyncScreen(persistConsent: true)
       } else if scenario == "wallet-rejection" {
         FixtureFinanceKitSyncScreen(rejection: .invalidPayload)
@@ -49,6 +78,47 @@ struct UITestApp: App {
       }
     }
   }
+}
+
+@MainActor
+private final class FixtureAnalyticsPreferences: AnalyticsPreferences {
+  var analyticsEnabled = true
+}
+
+@MainActor
+private final class FixtureAnalyticsClient: AnalyticsClient {
+  func start() {}
+  func stop() {}
+  func capture(_ event: UsageEvent) {}
+  func resetIdentity() {}
+}
+
+@MainActor
+private struct FixtureSubscriptionService: SubscriptionServicing {
+  func plans() async throws -> [SubscriptionPlan] { [] }
+  func entitlement() async -> SubscriptionEntitlement? { nil }
+  func purchase(_ id: String) async throws -> SubscriptionPurchaseOutcome { .cancelled }
+  func restore() async throws {}
+  func observe(_ changed: @escaping @MainActor () async -> Void) async {}
+}
+
+@MainActor
+private final class FixtureAuthentication: ConnectionAuthenticating {
+  var status: ConnectionStatus { .notConnected }
+  var pendingOnboarding: MobileSSOOnboardingContext? { nil }
+  var isConfigured: Bool { false }
+  var isSignedOut: Bool { true }
+  var generation: Int { 0 }
+  var canLogOut: Bool { false }
+  var allowsWalletPreview: Bool { false }
+  var connectionID: String? { nil }
+  var serverURL: URL? { nil }
+  var isOAuthConnected: Bool { false }
+  func matchesStoredAPIKey(_ key: String) -> Bool { false }
+  func signIn(_ method: AuthenticationMethod, serverURL: String) async {}
+  func cancel() {}
+  func cancelOnboarding() {}
+  func logOut() async {}
 }
 
 @MainActor

@@ -227,6 +227,50 @@ protocols are for meaningful seams and alternate implementations.
   change, and keep automatic capture, session replay, and person profiles off.
 - A missing or invalid project token/HTTPS ingestion host disables analytics.
   Test hosts and offline tests must not initialize the live SDK.
+- The project token is never committed. GitHub TestFlight archives receive it
+  from the `SURE_POSTHOG_PROJECT_TOKEN` repository secret; local Bitrig
+  TestFlight archives may read the ignored `Config/Release.local.xcconfig`.
+  An unset token is a no-op that still builds. `SURE_POSTHOG_HOST` stays in
+  `Project.json`, as an ingestion endpoint is not a credential.
+
+## Diagnostics
+
+- iOS crash and diagnostics reporting uses Sentry and is enabled by default with
+  a persisted in-app opt-out. Mac and Watch must not initialize the SDK.
+- Keep the SDK behind the injected diagnostics protocols. Emit only the closed
+  `DiagnosticRecord` vocabulary; never route an error description, a server
+  response, or a caller-supplied string to a diagnostics destination.
+- Every Sentry collector that can capture a request URL, the screen, the view
+  tree, or PII stays disabled, and crash events are stripped of user, request,
+  breadcrumb, and server-name fields. Adding a collector back is a privacy
+  decision, not a configuration tweak.
+- A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
+  a public key, and must not carry the deprecated DSN secret. Test hosts and
+  offline tests must not initialize the live SDK.
+- A user-visible transaction history load failure creates a Sentry issue only
+  after cancellation and downloaded-data fallback are ruled out. It may carry
+  fixed source, scope, and failure-category tags, but no account identity,
+  server URL, raw error text, or financial data.
+- Failed budget reads and Wallet sync errors create Sentry issues with fixed
+  failure and operation categories. Budget issues indicate whether downloaded
+  data remains available. Wallet batch rejections may include only a recognized
+  protocol code, validation field, and validation rule; never include the raw
+  server code, event index, account identity, or financial data. Pending imports,
+  lock contention, and cancelled work are not failures.
+- The DSN is never committed. Local Debug builds read the ignored
+  `Config/Debug.local.xcconfig`; local Bitrig TestFlight archives may read the
+  ignored `Config/Release.local.xcconfig`; the GitHub TestFlight job reads the
+  `SURE_SENTRY_DSN` repository secret. An unset DSN is a no-op that still
+  builds. GitHub TestFlight archives upload dSYMs with a separate
+  `SENTRY_AUTH_TOKEN` CI secret. Bitrig archives need a separate matching dSYM
+  upload; embedding the DSN alone does not provide symbolication.
+  Physical-device Debug builds attempt a local
+  dSYM upload when `sentry-cli` and an ignored `.sentryclirc` or environment
+  auth token are available. Those builds must generate and upload the matching
+  `Sure.debug.dylib` image inside `Sure.app.dSYM` when Xcode's Debug Dylib
+  layout is enabled. Never embed the upload token in the app build.
+  See `Docs/SentryAppPrivacy.md`, and publish the App Privacy label before
+  enabling the release DSN.
 
 ## State, concurrency, and persistence
 

@@ -5,6 +5,8 @@ struct ContentView: View {
   var subscriptionAccess: SubscriptionAccessStore
   var connection: SureConnection
   var analytics: AnalyticsStore
+  var telemetryBuildDetails: TelemetryBuildDetails
+  var diagnostics: DiagnosticsStore
   var financeData: FinanceDataStore
   var spendingComparison: SpendingComparisonStore
   var appleCardConnection: AppleCardConnectionStore
@@ -42,7 +44,8 @@ struct ContentView: View {
       switch presentation {
       case .settings:
         ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
-          financeKitSync: financeKitSync, wallet: appleCardConnection)
+          telemetryBuildDetails: telemetryBuildDetails,
+          diagnostics: diagnostics, financeKitSync: financeKitSync, wallet: appleCardConnection)
       case .demoSignIn:
         SignInView(subscriptionAccess: subscriptionAccess, connection: connection,
           showConnectionSettings: { connectionPresentation = .settings })

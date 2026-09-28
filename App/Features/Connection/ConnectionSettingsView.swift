@@ -5,6 +5,8 @@ struct ConnectionSettingsView: View {
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var analytics: (any UsageAnalyticsControlling)? = nil
+  var telemetryBuildDetails = TelemetryBuildDetails(postHogProjectToken: nil, sentryDSN: nil)
+  var diagnostics: (any DiagnosticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
   var wallet: AppleCardConnectionStore? = nil
 
@@ -12,7 +14,10 @@ struct ConnectionSettingsView: View {
     NavigationStack {
       Group {
         if !allowsConnection {
-          SubscriptionAccessView(access: subscriptionAccess)
+          VStack(spacing: 0) {
+            SubscriptionAccessView(access: subscriptionAccess)
+            gatedTelemetryLinks
+          }
         } else {
           connectionContent
         }
@@ -27,6 +32,52 @@ struct ConnectionSettingsView: View {
   }
 
   private var allowsConnection: Bool { subscriptionAccess.hasAccess || connection.isDemoServer }
+
+  /// Telemetry starts from persisted preferences and keeps running through
+  /// logout and entitlement loss, so both opt-outs remain reachable outside
+  /// the subscription gate.
+  @ViewBuilder
+  private var analyticsLink: some View {
+    #if os(iOS)
+    if let analytics {
+      NavigationLink {
+        AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
+      } label: {
+        Label("Usage analytics", systemImage: "chart.bar.xaxis")
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .contentShape(Rectangle())
+      }
+    }
+    #endif
+  }
+
+  @ViewBuilder
+  private var diagnosticsLink: some View {
+    #if os(iOS)
+    if let diagnostics {
+      NavigationLink {
+        DiagnosticsSettingsView(diagnostics: diagnostics)
+      } label: {
+        Label("Diagnostics", systemImage: "ladybug")
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .contentShape(Rectangle())
+      }
+    }
+    #endif
+  }
+
+  @ViewBuilder
+  private var gatedTelemetryLinks: some View {
+    #if os(iOS)
+    if analytics != nil || diagnostics != nil {
+      VStack(spacing: 0) {
+        Divider()
+        if analytics != nil { analyticsLink.padding() }
+        if diagnostics != nil { diagnosticsLink.padding() }
+      }
+    }
+    #endif
+  }
 
   private var connectionContent: some View {
       ScrollView {
@@ -133,17 +184,8 @@ struct ConnectionSettingsView: View {
           }
           #endif
 
-          #if os(iOS)
-          if let analytics {
-            NavigationLink {
-              AnalyticsSettingsView(analytics: analytics)
-            } label: {
-              Label("Usage analytics", systemImage: "chart.bar.xaxis")
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-          }
-          #endif
+          analyticsLink
+          diagnosticsLink
 
           if connection.canLogOut {
             Button("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {

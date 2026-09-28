@@ -3,14 +3,16 @@ name: Bitrig Native
 on:
   pull_request:
     paths:
-      - "App/**" # Includes Infrastructure/Analytics and Features/Analytics
+      - "App/**" # Includes Infrastructure/{Analytics,Diagnostics} and Features/{Analytics,Diagnostics}
       - "FinanceKitBackground/**"
       - "Shared/**"
+      - "Config/**"
       - "Tests/**"
       - "Docs/SpendingComparison.md"
       - "Docs/PurchaseAccessPlan.md"
       - "Docs/FinanceKitSyncArchitecture.md"
       - "Docs/FinanceKitDeviceTesting.md"
+      - "Docs/SentryAppPrivacy.md"
       - "appStoreConnect/**"
       - "Watch/**"
       - "Project.json"
@@ -45,7 +47,9 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Test CI scripts
-        run: ruby .github/scripts/next_testflight_build_number_test.rb
+        run: |
+          ruby .github/scripts/next_testflight_build_number_test.rb
+          sh .github/scripts/upload_local_sentry_symbols_test.sh
 
       - name: Install XcodeGen and SwiftLint
         run: brew install xcodegen swiftlint
@@ -286,7 +290,18 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          # Optional on purpose: an unset telemetry credential makes that SDK a
+          # no-op rather than failing the release, so neither is in the
+          # required-credentials check above.
+          SURE_SENTRY_DSN: ${{ secrets.SURE_SENTRY_DSN }}
+          SURE_POSTHOG_PROJECT_TOKEN: ${{ secrets.SURE_POSTHOG_PROJECT_TOKEN }}
         run: |
+          if [ -z "$SURE_SENTRY_DSN" ]; then
+            echo "::warning::SURE_SENTRY_DSN is not configured. This build ships with diagnostics disabled."
+          fi
+          if [ -z "$SURE_POSTHOG_PROJECT_TOKEN" ]; then
+            echo "::warning::SURE_POSTHOG_PROJECT_TOKEN is not configured. This build ships with usage analytics disabled."
+          fi
           xcodebuild \
             -project Sure.xcodeproj \
             -scheme Sure \
@@ -300,7 +315,33 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            SURE_SENTRY_DSN="$SURE_SENTRY_DSN" \
+            SURE_POSTHOG_PROJECT_TOKEN="$SURE_POSTHOG_PROJECT_TOKEN" \
             clean archive
+
+      - name: Upload iOS debug symbols to Sentry
+        env:
+          SURE_SENTRY_DSN: ${{ secrets.SURE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ vars.SENTRY_URL || 'https://de.sentry.io' }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG || 'chancen' }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || 'swift-sure' }}
+        run: |
+          if [ -z "$SURE_SENTRY_DSN" ]; then
+            echo "Sentry is disabled for this archive; skipping symbol upload."
+            exit 0
+          fi
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "::error::SENTRY_AUTH_TOKEN is required to upload symbols when SURE_SENTRY_DSN is configured."
+            exit 1
+          fi
+          symbols_path="$RUNNER_TEMP/Sure.xcarchive/dSYMs"
+          if [ ! -d "$symbols_path" ]; then
+            echo "::error::The archive contains no dSYMs at $symbols_path."
+            exit 1
+          fi
+          brew install getsentry/tools/sentry-cli
+          sentry-cli debug-files upload --wait "$symbols_path"
 
       - name: Upload archive to App Store Connect
         env:

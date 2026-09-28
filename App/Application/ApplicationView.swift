@@ -13,6 +13,8 @@ struct ApplicationView: View {
   @State private var appleCardConnection: AppleCardConnectionStore
   @State private var firstRun: FirstRunStore?
   private var analytics: AnalyticsStore
+  private var telemetryBuildDetails: TelemetryBuildDetails
+  private var diagnostics: DiagnosticsStore
   private var notificationManager: NotificationManager
   private var oauthService: PasskeyOAuthService
   private var mobileSSOService: MobileSSOAuthService
@@ -25,12 +27,16 @@ struct ApplicationView: View {
 
   init(configureNotifications: (NotificationManager, BackendAccessGate) -> Void = { _, _ in }) {
     let analytics = AnalyticsAssembly.make()
+    let diagnostics = DiagnosticsAssembly.make()
     let services = ConnectionAssembly()
     let devices = DeviceAssembly(connection: services)
-    let finance = FinanceAssembly(connection: services, syncInsights: devices.syncInsights)
+    let finance = FinanceAssembly(
+      connection: services, diagnostics: diagnostics, syncInsights: devices.syncInsights
+    )
     let lifecycle = services.lifecycle
     lifecycle.resetAppData = { try ApplicationDataResetter().reset() }
     lifecycle.analytics = analytics
+    lifecycle.diagnostics = diagnostics
     lifecycle.notificationLifecycle = devices.notifications
     lifecycle.financeData = finance.financeData
     lifecycle.financeKitSync = finance.financeKitSync
@@ -48,6 +54,11 @@ struct ApplicationView: View {
     _appleCardConnection = State(initialValue: finance.appleCardConnection)
     _financeKitSync = State(initialValue: finance.financeKitSync)
     self.analytics = analytics
+    telemetryBuildDetails = TelemetryBuildDetails(
+      postHogProjectToken: PostHogConfiguration(bundle: .main)?.projectToken,
+      sentryDSN: SentryDiagnosticsConfiguration(bundle: .main)?.dsn
+    )
+    self.diagnostics = diagnostics
     notificationManager = devices.notifications
     oauthService = services.oauthService
     mobileSSOService = services.mobileSSOService
@@ -65,6 +76,8 @@ struct ApplicationView: View {
         subscriptionAccess: subscriptionAccess,
         connection: connection,
         analytics: analytics,
+        telemetryBuildDetails: telemetryBuildDetails,
+        diagnostics: diagnostics,
         financeData: financeData,
         spendingComparison: spendingComparison,
         appleCardConnection: appleCardConnection,

@@ -145,13 +145,48 @@ runner keychain and removes them after the deployment job.
 The iPhone/iPad app uses PostHog iOS 3.59.3 for explicit usage events. Analytics
 is enabled by default and can be disabled under **Sure connection → Usage
 analytics → Share usage analytics**. The preference persists across launches.
-Mac and Watch do not initialize PostHog.
+The opt-out remains available when Sure sync is subscription-gated. Mac and
+Watch do not initialize PostHog.
 
-`Project.json` supplies `SURE_POSTHOG_PROJECT_TOKEN` (a public client ingestion
-token, never a personal API key) and `SURE_POSTHOG_HOST`. The current destination
-is PostHog US. Self-hosted distributions can replace these build settings with
-their own HTTPS ingestion host and project token, or leave either empty to
-completely disable initialization. Test hosts do not initialize the SDK.
+The project token is not committed. iOS Debug builds can read it from the
+Git-ignored `Config/Debug.local.xcconfig`; copy
+`Config/Debug.local.example.xcconfig` there and fill in the two local values.
+For TestFlight archives made in Bitrig from this checkout, copy
+`Config/Release.local.example.xcconfig` to the ignored
+`Config/Release.local.xcconfig` and fill in the iOS release values. Bitrig's
+Release archive will then embed them; the Debug file alone does not affect it.
+The GitHub TestFlight job instead passes the
+`SURE_POSTHOG_PROJECT_TOKEN` repository secret to `xcodebuild archive`.
+When neither source is present, Release builds default to an empty token.
+Pull-request and simulator CI builds have no local file and keep the empty
+default.
+After a Bitrig upload, install that TestFlight build and open **Sure connection
+→ Usage analytics** and **Sure connection → Diagnostics**. Neither screen
+should say it is not configured. Release builds do not display the key values.
+If either screen does, check that `Config/Release.local.xcconfig` exists in the
+same checkout Bitrig archived, then make a new build; changing the file cannot
+repair an already uploaded build.
+
+Debug builds show the configured PostHog project token and Sentry DSN on the
+**Usage analytics** screen so developers can verify their ingestion destinations.
+The build-configuration section is absent from Release builds.
+
+**A missing token is a no-op, not an error.** Analytics reports as unavailable
+and the release still builds; the GitHub archive step logs a warning. Use a
+public client ingestion token (`phc_…`), never a personal API key.
+
+`SURE_POSTHOG_HOST` stays committed in `Project.json` because the ingestion
+endpoint is public infrastructure, not a credential. The current destination is
+PostHog US. Self-hosted distributions can point that build setting at their own
+HTTPS ingestion host, set their own token secret, or leave the token unset to
+disable analytics entirely. Test hosts do not initialize the SDK.
+
+A `phc_` token is a public client key that ships inside the app bundle, so the
+secret limits casual scraping of this public repository rather than providing
+confidentiality. The token committed before this change remains in git history
+and in already-released builds; resetting it under PostHog's **Project settings
+→ Danger zone → Reset project API key** is what actually invalidates it, at the
+cost of silencing installed builds that still carry the old one.
 
 Events are `app_opened` (one per process launch) and `screen_viewed`, whose only
 app-defined property is a fixed `screen` value: `overview`, `assistant`,
@@ -169,6 +204,108 @@ app's published privacy policy and App Store privacy disclosures for this
 collection before distributing a release.
 
 Reference: https://posthog.com/docs/libraries/ios
+
+## iOS diagnostics
+
+The iPhone/iPad app uses the Sentry Cocoa SDK 9.29.2 for crash reports and a
+fixed set of app diagnostics. Diagnostics is enabled by default and can be
+disabled under **Sure connection → Diagnostics → Share diagnostics**. The
+preference persists across launches. Mac and Watch do not initialize Sentry.
+
+The DSN is not committed. The ignored Debug config can provide an iOS
+development DSN; its `https:/$()/` spelling prevents xcconfig from treating
+the URL's double slash as a comment and expands to `https://` in the app.
+Bitrig TestFlight archives can use the ignored `Config/Release.local.xcconfig`
+described above. The GitHub TestFlight job instead passes the
+`SURE_SENTRY_DSN` repository secret on the `xcodebuild archive` command line.
+Release builds without either source default to an empty DSN; pull-request and
+simulator CI builds keep that default.
+
+**A missing DSN is a no-op, not an error.** Diagnostics reports as unavailable,
+the SDK never initializes, and the release still builds; the GitHub archive
+step logs a warning. The same applies to a DSN that is not HTTPS, is missing its
+public key, carries the deprecated DSN secret, or carries a query or fragment;
+all are rejected. Test hosts never initialize the SDK regardless.
+
+Use the project's public client DSN — never an auth token or an
+internal integration key. A DSN is a public client key that ships inside the
+app bundle, so keeping it in a repository secret limits casual scraping of this
+public repository; it is not confidentiality. If it is ever abused, rotate the
+DSN in Sentry and use that project's inbound filters and rate limits. Forks and
+self-hosted distributions can set their own `SURE_SENTRY_DSN` secret, pass the
+build setting to `xcodebuild` directly, or leave it unset to ship without
+diagnostics.
+
+The GitHub TestFlight workflow uploads the Release archive's dSYMs to Sentry before
+exporting it to App Store Connect. If `SURE_SENTRY_DSN` is configured, set a
+separate `SENTRY_AUTH_TOKEN` repository secret with access to the `chancen` /
+`swift-sure` Sentry project and CI symbol-upload permissions. The workflow uses
+Sentry's DE endpoint by default. Forks can set the `SENTRY_URL`, `SENTRY_ORG`,
+and `SENTRY_PROJECT` repository variables for their own Sentry instance. A
+configured DSN without an upload token, or an archive without dSYMs, fails the
+release before upload. If the DSN is absent, the symbol step is skipped.
+
+Bitrig TestFlight uploads do not run that GitHub symbol step. Save the matching
+archive's dSYMs and upload them separately with `sentry-cli debug-files upload`
+using an auth token outside the app build. The DSN alone enables reports but
+does not symbolicate crash frames.
+
+For a Debug build on a physical iPhone or iPad, the generated `Sure` scheme has
+a post-build symbol-upload action. Install `sentry-cli` locally with
+`brew install getsentry/tools/sentry-cli`, then provide an auth token through
+`SENTRY_AUTH_TOKEN` in the build environment or an ignored `.sentryclirc` in
+the project root. For example, the local file can contain `[auth]` followed by
+`token=<your token>` on the next line. It uses the DE endpoint and
+`chancen` / `swift-sure` by default; `SENTRY_URL`, `SENTRY_ORG`, and
+`SENTRY_PROJECT` environment variables override those for another Sentry
+project. The build still runs and sends diagnostics with its configured DSN
+when the CLI or upload token is absent, but crash frames may remain
+unsymbolicated until the matching dSYM is uploaded. Debug builds that contain
+`Sure.debug.dylib` need its matching DWARF image inside `Sure.app.dSYM`; the
+post-build action checks for that image before uploading the bundle. Rebuild
+and run the app after configuring uploads,
+then inspect a new Sentry event to verify its image UUID matches the uploaded
+dSYM. A newly built dSYM has a new UUID and cannot symbolicate an event from
+an older build; that event needs its original matching dSYM. Keep the auth
+token out of the app bundle and the repository.
+
+The app sends crash reports plus two log records: `app.launched` (one per
+process launch) and `cleanup.failed`, whose only attribute is a fixed
+`operation` value naming the local cleanup step that failed after a Sure session
+ended (`offline_responses`, `wallet_publisher_disconnect`,
+`wallet_background_delivery`, or `app_data_reset`). When a transaction history
+load reaches the “Couldn’t load transactions” state, the app also captures a
+`transactions.load_failed` Sentry issue. Its tags and grouping fingerprint
+contain only fixed source (`sure` or `wallet`), scope (`account` or
+`recent_activity`), and failure category values. A cancelled request or one
+recovered with downloaded transactions does not create an issue. Failed budget
+reads create a `budgets.load_failed` issue with a fixed failure category and
+whether downloaded data remains available. Wallet sync failures create a
+`wallet.sync_failed` issue with fixed operation and failure categories; rejected
+batches may also include a known protocol rejection, validation field, and
+validation rule. Pending imports, lock contention, and cancelled work are not
+reported as failures. Sentry also
+supplies app, device, and OS metadata and an installation-scoped identifier.
+
+Every automatic collector is off, because Sentry's defaults would otherwise
+capture the data this app must not send. Network tracking, network breadcrumbs
+and failed-request capture would record self-hosted Sure server addresses;
+screenshots, view-hierarchy capture and session replay would record account
+balances; swizzling, automatic breadcrumbs, user-interaction tracing and
+performance tracing are unnecessary for this vocabulary. Release-health session
+tracking, watchdog-termination tracking and app-hang tracking are also off, and
+`sendDefaultPii` is false. A `beforeSendLog` hook drops any log outside the two
+messages above, and `beforeSend` clears the user, request, breadcrumb and
+server-name fields from issue events, including crashes.
+
+No Sure IDs, server addresses, financial values, account or transaction details,
+credentials, or conversation text are passed to diagnostics. Opt-out stops
+collection, flushes what is queued, and uninstalls the crash handler. It does not
+delete events already received by Sentry. Review the app's published privacy
+policy and App Store privacy disclosures for this collection before distributing
+a release, and see `Docs/SentryAppPrivacy.md`.
+
+Reference: https://docs.sentry.io/platforms/apple/guides/ios/
 
 ## Consolidation validation
 
