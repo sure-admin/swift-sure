@@ -8,6 +8,9 @@ struct DiagnosticsStoreTests {
     let client = DiagnosticsSpy()
     let store = DiagnosticsStore(preferences: MemoryDiagnosticsPreferences(), client: client)
     store.log(.launched)
+    store.log(.transactionHistoryLoadFailed(
+      source: .sure, scope: .recentActivity, failure: .server
+    ))
     #expect(!store.isEnabled)
     #expect(client.calls.isEmpty)
   }
@@ -55,12 +58,39 @@ struct DiagnosticsStoreTests {
       #expect(DiagnosticRecord.messages.contains(record.message))
     }
     #expect(DiagnosticRecord.messages.contains(DiagnosticRecord.launched.message))
-    #expect(DiagnosticRecord.messages.count == 2)
+    #expect(DiagnosticRecord.logMessages.count == 2)
+    #expect(DiagnosticRecord.messages.count == 3)
     let vocabulary = DiagnosticOperation.allCases.map(\.rawValue) + Array(DiagnosticRecord.messages)
     for term in vocabulary {
       #expect(term == term.lowercased())
       #expect(!term.contains(where: { $0.isWhitespace }))
     }
+  }
+
+  @Test func transactionIssueContainsOnlyFixedClassifications() {
+    let expectedFailures: [(DataFailure, String)] = [
+      (.cancelled, "cancelled"), (.offline, "offline"), (.authentication, "authentication"),
+      (.authorization, "authorization"), (.subscription, "subscription"),
+      (.unavailable, "unavailable"), (.validation, "validation"),
+      (.malformed, "malformed"), (.rateLimited, "rate_limited"), (.server, "server"),
+      (.persistence, "persistence"), (.cleanup, "cleanup"), (.unknown, "unknown")
+    ]
+    for source in DiagnosticTransactionSource.allCases {
+      for scope in DiagnosticTransactionScope.allCases {
+        for (failure, code) in expectedFailures {
+          let record = DiagnosticRecord.transactionHistoryLoadFailed(
+            source: source, scope: scope, failure: failure
+          )
+          #expect(record.message == "transactions.load_failed")
+          #expect(record.level == .error)
+          #expect(record.attributes == [
+            "source": source.rawValue, "scope": scope.rawValue, "failure": code
+          ])
+          #expect(record.issueFingerprint == [record.message, source.rawValue, scope.rawValue, code])
+        }
+      }
+    }
+    #expect(!DiagnosticRecord.logMessages.contains("transactions.load_failed"))
   }
 
   @Test func cleanupFailuresAreReportedPerStep() async {

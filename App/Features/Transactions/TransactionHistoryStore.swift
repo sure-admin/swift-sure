@@ -15,18 +15,24 @@ final class TransactionHistoryStore {
   let scope: TransactionHistoryScope
 
   private let client: any TransactionHistoryClient
+  private let diagnostics: (any DiagnosticsLogging)?
+  private let diagnosticSource: DiagnosticTransactionSource
   private let calendar: Calendar
   private let now: () -> Date
 
   init(
     scope: TransactionHistoryScope,
     client: any TransactionHistoryClient,
+    diagnostics: (any DiagnosticsLogging)? = nil,
+    diagnosticSource: DiagnosticTransactionSource = .sure,
     isOffline: @escaping () -> Bool = { false },
     calendar: Calendar,
     now: @escaping () -> Date
   ) {
     self.scope = scope
     self.client = client
+    self.diagnostics = diagnostics
+    self.diagnosticSource = diagnosticSource
     self.isOffline = isOffline
     self.calendar = calendar
     self.now = now
@@ -76,7 +82,8 @@ final class TransactionHistoryStore {
       state = .loaded
     } catch {
       guard !isInvalidated else { return }
-      failure = DataFailure(error)
+      let dataFailure = DataFailure(error)
+      failure = dataFailure
       if failure?.allowsCachedRead == true,
          let saved = await client.latestDownloadedTransactions(accountID: scope.accountID) {
         guard !isInvalidated, !Task.isCancelled else { return }
@@ -92,7 +99,16 @@ final class TransactionHistoryStore {
         transactions = previousTransactions
         state = .loaded
       } else {
-        state = .failed(DataFailure(error).localizedDescription)
+        state = .failed(dataFailure.localizedDescription)
+        let diagnosticScope: DiagnosticTransactionScope = switch scope {
+        case .account: .account
+        case .recentActivity: .recentActivity
+        }
+        diagnostics?.log(.transactionHistoryLoadFailed(
+          source: diagnosticSource,
+          scope: diagnosticScope,
+          failure: dataFailure
+        ))
       }
     }
   }

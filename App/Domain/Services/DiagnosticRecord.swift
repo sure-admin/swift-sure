@@ -9,18 +9,27 @@ enum DiagnosticRecord: Equatable {
   /// collapse into a single user-facing `DataFailure.cleanup`, which hides
   /// which step actually failed.
   case cleanupFailed(DiagnosticOperation)
+  /// A transaction history request reached the user-visible failure state
+  /// without a downloaded-data fallback. Only fixed classifications cross the
+  /// diagnostics boundary; the account and underlying error stay on device.
+  case transactionHistoryLoadFailed(
+    source: DiagnosticTransactionSource,
+    scope: DiagnosticTransactionScope,
+    failure: DataFailure
+  )
 
   var message: String {
     switch self {
     case .launched: "app.launched"
     case .cleanupFailed: "cleanup.failed"
+    case .transactionHistoryLoadFailed: "transactions.load_failed"
     }
   }
 
   var level: DiagnosticLevel {
     switch self {
     case .launched: .info
-    case .cleanupFailed: .error
+    case .cleanupFailed, .transactionHistoryLoadFailed: .error
     }
   }
 
@@ -28,15 +37,31 @@ enum DiagnosticRecord: Equatable {
     switch self {
     case .launched: [:]
     case .cleanupFailed(let operation): ["operation": operation.rawValue]
+    case .transactionHistoryLoadFailed(let source, let scope, let failure): [
+      "source": source.rawValue,
+      "scope": scope.rawValue,
+      "failure": failure.diagnosticCode
+    ]
     }
   }
 
-  /// Every message the app may emit. A destination drops anything else,
-  /// including records an SDK would otherwise contribute on its own.
-  static let messages: Set<String> = [
+  var issueFingerprint: [String]? {
+    guard case .transactionHistoryLoadFailed(let source, let scope, let failure) = self else { return nil }
+    return [message, source.rawValue, scope.rawValue, failure.diagnosticCode]
+  }
+
+  /// Logs and issue events use separate Sentry pipelines. Unrecognized SDK
+  /// logs must never be admitted because a message resembles an issue title.
+  static let logMessages: Set<String> = [
     DiagnosticRecord.launched.message,
     DiagnosticRecord.cleanupFailed(.appDataReset).message
   ]
+
+  static let messages: Set<String> = logMessages.union([
+    DiagnosticRecord.transactionHistoryLoadFailed(
+      source: .sure, scope: .recentActivity, failure: .unknown
+    ).message
+  ])
 }
 
 enum DiagnosticLevel: String {
@@ -50,4 +75,33 @@ enum DiagnosticOperation: String, CaseIterable {
   case walletPublisherDisconnect = "wallet_publisher_disconnect"
   case walletBackgroundDelivery = "wallet_background_delivery"
   case appDataReset = "app_data_reset"
+}
+
+enum DiagnosticTransactionSource: String, CaseIterable {
+  case sure, wallet
+}
+
+enum DiagnosticTransactionScope: String, CaseIterable {
+  case account
+  case recentActivity = "recent_activity"
+}
+
+private extension DataFailure {
+  var diagnosticCode: String {
+    switch self {
+    case .cancelled: "cancelled"
+    case .offline: "offline"
+    case .authentication: "authentication"
+    case .authorization: "authorization"
+    case .subscription: "subscription"
+    case .unavailable: "unavailable"
+    case .validation: "validation"
+    case .malformed: "malformed"
+    case .rateLimited: "rate_limited"
+    case .server: "server"
+    case .persistence: "persistence"
+    case .cleanup: "cleanup"
+    case .unknown: "unknown"
+    }
+  }
 }

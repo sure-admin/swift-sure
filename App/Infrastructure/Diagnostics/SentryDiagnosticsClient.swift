@@ -57,12 +57,11 @@ final class SentryDiagnosticsClient: DiagnosticsClient {
     options.attachStacktrace = true
 
     options.beforeSendLog = { log in
-      guard DiagnosticRecord.messages.contains(log.body) else { return nil }
+      guard DiagnosticRecord.logMessages.contains(log.body) else { return nil }
       return log
     }
-    // A crash report is the one event the app does not compose itself, so the
-    // fields that could carry an address or an identity are cleared here rather
-    // than trusted to stay empty.
+    // Crash reports are not composed by the app. Clear fields that could carry
+    // an address or identity on every issue event as a final privacy boundary.
     options.beforeSend = { event in
       event.user = nil
       event.request = nil
@@ -80,6 +79,16 @@ final class SentryDiagnosticsClient: DiagnosticsClient {
 
   func log(_ record: DiagnosticRecord) {
     guard isStarted else { return }
+    if let fingerprint = record.issueFingerprint {
+      let scope = Scope(maxBreadcrumbs: 0)
+      scope.setLevel(.error)
+      scope.setFingerprint(fingerprint)
+      for (key, value) in record.attributes {
+        scope.setTag(value: value, key: key)
+      }
+      SentrySDK.capture(message: record.message, scope: scope)
+      return
+    }
     let message = record.message
     let attributes: [String: Any] = record.attributes
     switch record.level {

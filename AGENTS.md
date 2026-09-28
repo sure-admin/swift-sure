@@ -246,6 +246,10 @@ protocols are for meaningful seams and alternate implementations.
 - A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
   a public key, and must not carry the deprecated DSN secret. Test hosts and
   offline tests must not initialize the live SDK.
+- A user-visible transaction history load failure creates a Sentry issue only
+  after cancellation and downloaded-data fallback are ruled out. It may carry
+  fixed source, scope, and failure-category tags, but no account identity,
+  server URL, raw error text, or financial data.
 - The DSN is never committed. Local Debug builds read the ignored
   `Config/Debug.local.xcconfig`; the TestFlight job reads the
   `SURE_SENTRY_DSN` repository secret. An unset DSN is a no-op that still

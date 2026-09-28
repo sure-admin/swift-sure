@@ -3,17 +3,23 @@ import Foundation
 @MainActor
 final class TransactionHistoryStoreFactory {
   var client: any TransactionHistoryClient
+  private let diagnostics: (any DiagnosticsLogging)?
+  private let diagnosticSource: DiagnosticTransactionSource
   var isOffline: () -> Bool
   var calendar: Calendar
   var now: () -> Date
 
   init(
     client: any TransactionHistoryClient,
+    diagnostics: (any DiagnosticsLogging)? = nil,
+    diagnosticSource: DiagnosticTransactionSource = .sure,
     isOffline: @escaping () -> Bool = { false },
     calendar: Calendar,
     now: @escaping () -> Date
   ) {
     self.client = client
+    self.diagnostics = diagnostics
+    self.diagnosticSource = diagnosticSource
     self.isOffline = isOffline
     self.calendar = calendar
     self.now = now
@@ -34,6 +40,8 @@ final class TransactionHistoryStoreFactory {
     let store = TransactionHistoryStore(
       scope: scope,
       client: client,
+      diagnostics: diagnostics,
+      diagnosticSource: diagnosticSource,
       isOffline: isOffline,
       calendar: calendar,
       now: now

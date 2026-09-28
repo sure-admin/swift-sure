@@ -250,8 +250,13 @@ The app sends crash reports plus two log records: `app.launched` (one per
 process launch) and `cleanup.failed`, whose only attribute is a fixed
 `operation` value naming the local cleanup step that failed after a Sure session
 ended (`offline_responses`, `wallet_publisher_disconnect`,
-`wallet_background_delivery`, or `app_data_reset`). Sentry also supplies app,
-device, and OS metadata and an installation-scoped identifier.
+`wallet_background_delivery`, or `app_data_reset`). When a transaction history
+load reaches the “Couldn’t load transactions” state, the app also captures a
+`transactions.load_failed` Sentry issue. Its tags and grouping fingerprint
+contain only fixed source (`sure` or `wallet`), scope (`account` or
+`recent_activity`), and failure category values. A cancelled request or one
+recovered with downloaded transactions does not create an issue. Sentry also
+supplies app, device, and OS metadata and an installation-scoped identifier.
 
 Every automatic collector is off, because Sentry's defaults would otherwise
 capture the data this app must not send. Network tracking, network breadcrumbs
@@ -262,8 +267,7 @@ performance tracing are unnecessary for this vocabulary. Release-health session
 tracking, watchdog-termination tracking and app-hang tracking are also off, and
 `sendDefaultPii` is false. A `beforeSendLog` hook drops any log outside the two
 messages above, and `beforeSend` clears the user, request, breadcrumb and
-server-name fields from crash events, which are the only events the app does not
-compose itself.
+server-name fields from issue events, including crashes.
 
 No Sure IDs, server addresses, financial values, account or transaction details,
 credentials, or conversation text are passed to diagnostics. Opt-out stops

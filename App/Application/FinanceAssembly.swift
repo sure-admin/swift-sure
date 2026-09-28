@@ -11,7 +11,11 @@ struct FinanceAssembly {
   let transactionHistoryStoreFactory: TransactionHistoryStoreFactory
   let localTransactionHistoryStoreFactory: TransactionHistoryStoreFactory
 
-  init(connection services: ConnectionAssembly, syncInsights: @escaping ([BackendInsight]) -> Void) {
+  init(
+    connection services: ConnectionAssembly,
+    diagnostics: any DiagnosticsLogging,
+    syncInsights: @escaping ([BackendInsight]) -> Void
+  ) {
     let connection = services.connection
     let apiClient = services.apiClient
     let transport = services.transport
@@ -63,12 +67,15 @@ struct FinanceAssembly {
 
     let transactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: repository,
+      diagnostics: diagnostics,
       isOffline: { [weak connection] in !accessGate.isAllowed(for: connection?.connectedServerURL) },
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
     let localTransactionHistoryStoreFactory = TransactionHistoryStoreFactory(
       client: financeKitConnector,
+      diagnostics: diagnostics,
+      diagnosticSource: .wallet,
       calendar: .autoupdatingCurrent,
       now: { .now }
     )
