@@ -317,6 +317,30 @@ jobs:
             SURE_POSTHOG_PROJECT_TOKEN="$SURE_POSTHOG_PROJECT_TOKEN" \
             clean archive
 
+      - name: Upload iOS debug symbols to Sentry
+        env:
+          SURE_SENTRY_DSN: ${{ secrets.SURE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ vars.SENTRY_URL || 'https://de.sentry.io' }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG || 'chancen' }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || 'swift-sure' }}
+        run: |
+          if [ -z "$SURE_SENTRY_DSN" ]; then
+            echo "Sentry is disabled for this archive; skipping symbol upload."
+            exit 0
+          fi
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "::error::SENTRY_AUTH_TOKEN is required to upload symbols when SURE_SENTRY_DSN is configured."
+            exit 1
+          fi
+          symbols_path="$RUNNER_TEMP/Sure.xcarchive/dSYMs"
+          if [ ! -d "$symbols_path" ]; then
+            echo "::error::The archive contains no dSYMs at $symbols_path."
+            exit 1
+          fi
+          brew install getsentry/tools/sentry-cli
+          sentry-cli debug-files upload --wait "$symbols_path"
+
       - name: Upload archive to App Store Connect
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

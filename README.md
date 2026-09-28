@@ -224,6 +224,28 @@ self-hosted distributions can set their own `SURE_SENTRY_DSN` secret, pass the
 build setting to `xcodebuild` directly, or leave it unset to ship without
 diagnostics.
 
+The TestFlight workflow uploads the Release archive's dSYMs to Sentry before
+exporting it to App Store Connect. If `SURE_SENTRY_DSN` is configured, set a
+separate `SENTRY_AUTH_TOKEN` repository secret with access to the `chancen` /
+`swift-sure` Sentry project and CI symbol-upload permissions. The workflow uses
+Sentry's DE endpoint by default. Forks can set the `SENTRY_URL`, `SENTRY_ORG`,
+and `SENTRY_PROJECT` repository variables for their own Sentry instance. A
+configured DSN without an upload token, or an archive without dSYMs, fails the
+release before upload. If the DSN is absent, the symbol step is skipped.
+
+For a Debug build on a physical iPhone or iPad, the generated app target has a
+post-build symbol-upload phase. Install `sentry-cli` locally with
+`brew install getsentry/tools/sentry-cli`, then provide an auth token through
+`SENTRY_AUTH_TOKEN` in the build environment or an ignored `.sentryclirc` in
+the project root. For example, the local file can contain `[auth]` followed by
+`token=<your token>` on the next line. It uses the DE endpoint and
+`chancen` / `swift-sure` by default; `SENTRY_URL`, `SENTRY_ORG`, and
+`SENTRY_PROJECT` environment variables override those for another Sentry
+project. The build still runs and sends diagnostics with its configured DSN
+when the CLI or upload token is absent, but crash frames may remain
+unsymbolicated until the matching dSYM is uploaded. Keep the auth token out of
+the app bundle and the repository.
+
 The app sends crash reports plus two log records: `app.launched` (one per
 process launch) and `cleanup.failed`, whose only attribute is a fixed
 `operation` value naming the local cleanup step that failed after a Sure session

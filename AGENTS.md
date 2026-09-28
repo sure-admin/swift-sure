@@ -246,10 +246,15 @@ protocols are for meaningful seams and alternate implementations.
 - A missing or invalid DSN disables diagnostics. A DSN must be HTTPS, must carry
   a public key, and must not carry the deprecated DSN secret. Test hosts and
   offline tests must not initialize the live SDK.
-- The DSN is never committed. It reaches a build only from the `SURE_SENTRY_DSN`
-  repository secret, applied by the TestFlight job; an unset secret is a no-op
-  that still builds. See `Docs/SentryAppPrivacy.md`, and publish the App Privacy
-  label before creating that secret.
+- The DSN is never committed. Local Debug builds read the ignored
+  `Config/Debug.local.xcconfig`; the TestFlight job reads the
+  `SURE_SENTRY_DSN` repository secret. An unset DSN is a no-op that still
+  builds. TestFlight archives upload dSYMs with a separate
+  `SENTRY_AUTH_TOKEN` CI secret. Physical-device Debug builds attempt a local
+  dSYM upload when `sentry-cli` and an ignored `.sentryclirc` or environment
+  auth token are available. Never embed the upload token in the app build.
+  See `Docs/SentryAppPrivacy.md`, and publish the App Privacy label before
+  enabling the release DSN.
 
 ## State, concurrency, and persistence
 

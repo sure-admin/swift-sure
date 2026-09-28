@@ -80,6 +80,14 @@
         }
       },
       "platform" : "auto",
+      "postBuildScripts" : [
+        {
+          "name" : "Upload local iOS Debug symbols to Sentry",
+          "script" : "\"${PROJECT_DIR}/.github/scripts/upload_local_sentry_symbols.sh\"",
+          "basedOnDependencyAnalysis" : false,
+          "showEnvVars" : false
+        }
+      ],
       "scheme" : {
         "coverageTargets" : [
           "Sure"
@@ -107,6 +115,9 @@
           "TARGETED_DEVICE_FAMILY" : "1,2"
         },
         "configs" : {
+          "Debug" : {
+            "DEBUG_INFORMATION_FORMAT[sdk=iphoneos*]" : "dwarf-with-dsym"
+          },
           "Release" : {
             "CODE_SIGN_STYLE" : "Automatic"
           }
