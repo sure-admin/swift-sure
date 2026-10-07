@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  #if os(iOS)
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  #endif
   var subscriptionAccess: SubscriptionAccessStore
   var connection: SureConnection
   var analytics: AnalyticsStore
@@ -21,6 +24,10 @@ struct ContentView: View {
 
   @State private var selection: AppSection = .overview
   @State private var connectionPresentation: ConnectionPresentation?
+  @State private var sectionWidth: CGFloat = 0
+  @State private var sectionArrival: SectionArrival?
+  @GestureState(resetTransaction: Transaction(animation: .spring(duration: 0.4, bounce: 0)))
+  private var sectionDrag = SectionDrag()
 
   var body: some View {
     appTabs
@@ -98,6 +105,7 @@ struct ContentView: View {
           transactionHistoryStoreFactory: transactionHistoryStoreFactory
         )
         .id(connection.sessionGeneration)
+        .sectionSwipe(.overview, drag: sectionDrag, arrival: sectionArrival)
       }
 
       Tab("Assistant", systemImage: "sparkles", value: .assistant) {
@@ -109,6 +117,7 @@ struct ContentView: View {
           now: now
         )
         .id(connection.sessionGeneration)
+        .sectionSwipe(.assistant, drag: sectionDrag, arrival: sectionArrival)
       }
 
       Tab("Accounts", systemImage: "building.columns.fill", value: .accounts) {
@@ -120,37 +129,124 @@ struct ContentView: View {
           localTransactionHistoryStoreFactory: localTransactionHistoryStoreFactory
         )
         .id(connection.sessionGeneration)
+        .sectionSwipe(.accounts, drag: sectionDrag, arrival: sectionArrival)
       }
 
       Tab("Budget", systemImage: "chart.pie.fill", value: .budget) {
         BudgetView(data: financeData, hasSyncAccess: hasBackendAccess)
           .id(connection.sessionGeneration)
+          .sectionSwipe(.budget, drag: sectionDrag, arrival: sectionArrival)
       }
     }
     .tabViewStyle(.sidebarAdaptable)
-    .simultaneousGesture(
-      DragGesture(minimumDistance: 24)
-        .onEnded(changeSection)
-    )
+    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sectionWidth = $0 }
+    .simultaneousGesture(sectionSwipeGesture)
+    .sensoryFeedback(.selection, trigger: sectionArrival)
   }
 
   private var hasBackendAccess: Bool {
     subscriptionAccess.gate.isAllowed(for: connection.connectedServerURL)
   }
 
-  private func changeSection(_ value: DragGesture.Value) {
-    let horizontalDistance = value.predictedEndTranslation.width
-    let verticalDistance = value.predictedEndTranslation.height
-    guard abs(horizontalDistance) > 60,
-          abs(horizontalDistance) > abs(verticalDistance) * 1.25 else {
-      return
-    }
+  /// Content follows the finger only in compact layouts. Beside a sidebar, or
+  /// with Reduce Motion on, the arriving section fades in instead of sliding.
+  private var followsFinger: Bool {
+    #if os(iOS)
+    return !reduceMotion && horizontalSizeClass == .compact
+    #else
+    return false
+    #endif
+  }
 
-    let destination = selection.moving(by: horizontalDistance < 0 ? 1 : -1)
-    guard destination != selection else { return }
-    withAnimation(reduceMotion ? nil : .snappy) {
-      selection = destination
-    }
+  private var sectionSwipeGesture: some Gesture {
+    DragGesture(minimumDistance: 24)
+      .updating($sectionDrag) { value, drag, _ in
+        guard followsFinger else { return }
+        let swipe = SectionSwipe(value)
+        // Lock the axis on the first update so a vertical scroll never shifts content sideways.
+        if drag.section == nil {
+          drag.section = selection
+          drag.isHorizontal = swipe.isHorizontal
+        }
+        guard drag.isHorizontal, let section = drag.section else { return }
+        drag.offset = swipe.dragOffset(from: section)
+      }
+      .onEnded(changeSection)
+  }
+
+  private func changeSection(_ value: DragGesture.Value) {
+    let swipe = SectionSwipe(value)
+    guard let destination = swipe.destination(from: selection) else { return }
+
+    let start = followsFinger
+      ? SectionArrival.Frame(
+          offset: swipe.arrivalOffset(entering: destination, from: selection, width: sectionWidth),
+          opacity: 1)
+      : SectionArrival.Frame(offset: 0, opacity: 0)
+    sectionArrival = SectionArrival(id: (sectionArrival?.id ?? 0) + 1, section: destination, start: start)
+    selection = destination
+  }
+}
+
+/// An in-progress swipe, tied to the section it started on so the reset after
+/// a committed swipe never shifts the section that replaced it.
+private struct SectionDrag {
+  var section: AppSection?
+  var isHorizontal = false
+  var offset: CGFloat = 0
+}
+
+/// The section a swipe just selected and the frame its content enters from.
+private struct SectionArrival: Equatable {
+  struct Frame: Equatable {
+    static let settled = Frame(offset: 0, opacity: 1)
+
+    var offset: CGFloat
+    var opacity: Double
+  }
+
+  var id: Int
+  var section: AppSection
+  var start: Frame
+}
+
+/// Moves one section's content with an in-progress swipe, then plays its
+/// entrance when a swipe selects it.
+private struct SectionSwipePresentation: ViewModifier {
+  var section: AppSection
+  var drag: SectionDrag
+  var arrival: SectionArrival?
+
+  func body(content: Content) -> some View {
+    let start = arrival.flatMap { $0.section == section ? $0.start : nil } ?? .settled
+    content
+      .offset(x: drag.section == section ? drag.offset : 0)
+      .keyframeAnimator(initialValue: SectionArrival.Frame.settled, trigger: arrival) { content, frame in
+        content
+          .offset(x: frame.offset)
+          .opacity(frame.opacity)
+      } keyframes: { _ in
+        KeyframeTrack(\.offset) {
+          MoveKeyframe(start.offset)
+          SpringKeyframe(0, duration: 0.45, spring: .smooth)
+        }
+        KeyframeTrack(\.opacity) {
+          MoveKeyframe(start.opacity)
+          LinearKeyframe(1, duration: 0.2)
+        }
+      }
+  }
+}
+
+private extension View {
+  func sectionSwipe(_ section: AppSection, drag: SectionDrag, arrival: SectionArrival?) -> some View {
+    modifier(SectionSwipePresentation(section: section, drag: drag, arrival: arrival))
+  }
+}
+
+private extension SectionSwipe {
+  init(_ value: DragGesture.Value) {
+    self.init(translation: value.translation, predictedEndTranslation: value.predictedEndTranslation)
   }
 }
 
