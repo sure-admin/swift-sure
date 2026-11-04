@@ -3,6 +3,45 @@ import XCTest
 final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
+  @MainActor
+  func testSignInLightAppearance() throws {
+    try checkSignInAppearance("sign-in-light")
+  }
+
+  @MainActor
+  func testSignInDarkAppearance() throws {
+    try checkSignInAppearance("sign-in-dark")
+  }
+
+  @MainActor
+  private func checkSignInAppearance(_ scenario: String) throws {
+    let app = launch(scenario)
+    let email = app.textFields["Email"]
+    let password = app.secureTextFields["Password"]
+    XCTAssertTrue(email.waitForExistence(timeout: 10))
+    XCTAssertTrue(password.isHittable)
+    XCTAssertFalse(app.buttons["Continue"].isEnabled)
+    // Inspect gradient contrast in the attached screenshots; audit labels and sizing here.
+    try app.performAccessibilityAudit(for: [.sufficientElementDescription, .textClipped])
+    let emptyFields = XCTAttachment(screenshot: app.screenshot())
+    emptyFields.name = "\(scenario)-empty-fields"
+    emptyFields.lifetime = .keepAlways
+    add(emptyFields)
+    email.tap()
+    email.typeText("user@example.com")
+    XCTAssertEqual(email.value as? String, "user@example.com")
+    email.typeText("\n")
+    XCTAssertTrue(password.isHittable)
+    password.typeText("Password1!")
+    XCTAssertTrue(app.buttons["Continue"].isEnabled)
+    if !app.buttons["Continue"].isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(app.buttons["Continue"].isHittable)
+    try app.performAccessibilityAudit(for: [.sufficientElementDescription, .textClipped])
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   #if DEBUG
   @MainActor
   func testDebugUsageAnalyticsShowsConfiguredDestinations() throws {

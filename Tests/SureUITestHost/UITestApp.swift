@@ -36,7 +36,8 @@ struct UITestApp: App {
     )
     sureConnection = SureConnection(
       initialState: SureConnectionInitialState(
-        serverURL: "", credentials: StoredCredentialSnapshot(session: nil),
+        serverURL: scenario.hasPrefix("sign-in-") ? SureDemoServer.baseURL.absoluteString : "",
+        credentials: StoredCredentialSnapshot(session: nil),
         isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
       ),
       authentication: FixtureAuthentication()
@@ -49,7 +50,13 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      if scenario == "analytics-debug" {
+      if scenario.hasPrefix("sign-in-") {
+        Color.clear.sheet(isPresented: .constant(true)) {
+          SignInView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
+            showConnectionSettings: {})
+            .preferredColorScheme(scenario == "sign-in-dark" ? .dark : .light)
+        }
+      } else if scenario == "analytics-debug" {
         NavigationStack {
           AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
         }

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SignInView: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @FocusState private var focusedField: Field?
   var subscriptionAccess: SubscriptionAccessStore
   @Bindable var connection: SureConnection
   var showConnectionSettings: () -> Void
@@ -35,40 +37,61 @@ struct SignInView: View {
               .fixedSize(horizontal: false, vertical: true)
             Text("Sign in to connect your Sure account and see your complete financial picture.")
               .font(.body)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(.primary)
               .multilineTextAlignment(.center)
           }
 
           VStack(spacing: 12) {
             VStack(spacing: 10) {
-              TextField("Email", text: $connection.email)
+              TextField("Email", text: $connection.email,
+                prompt: Text("Email").foregroundStyle(fieldPromptColor))
+                .textFieldStyle(.plain)
+                .foregroundStyle(.primary)
                 .textContentType(.username)
+                .focused($focusedField, equals: .email)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .password }
                 #if os(iOS)
+                .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 #endif
                 .padding(.horizontal, 16)
-                .frame(height: 48)
-                .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
-              SecureField("Password", text: $connection.password)
+                .padding(.vertical, 12)
+                .frame(minHeight: 48)
+                .background(.background.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+              SecureField("Password", text: $connection.password,
+                prompt: Text("Password").foregroundStyle(fieldPromptColor))
+                .textFieldStyle(.plain)
+                .foregroundStyle(.primary)
                 .textContentType(.password)
+                .focused($focusedField, equals: .password)
+                .submitLabel(.go)
+                .onSubmit {
+                  guard connection.canSignInWithPassword, connection.status != .connecting else { return }
+                  Task { await connection.signInWithPassword() }
+                }
                 .padding(.horizontal, 16)
-                .frame(height: 48)
-                .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
-              Button("Continue", systemImage: "arrow.right") {
+                .padding(.vertical, 12)
+                .frame(minHeight: 48)
+                .background(.background.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+              Button {
                 Task { await connection.signInWithPassword() }
+              } label: {
+                Label("Continue", systemImage: "arrow.right")
+                  .font(.headline)
+                  .frame(maxWidth: .infinity, minHeight: 48)
+                  .foregroundStyle(.background)
+                  .background(Color.primary, in: RoundedRectangle(cornerRadius: 14))
               }
-              .font(.headline)
-              .frame(maxWidth: .infinity, minHeight: 48)
-              .foregroundStyle(.white)
-              .background(.black, in: RoundedRectangle(cornerRadius: 14))
+              .buttonStyle(.plain)
               .disabled(!connection.canSignInWithPassword || connection.status == .connecting)
             }
 
             HStack {
-              Rectangle().frame(height: 1).foregroundStyle(.black.opacity(0.2))
-              Text("OR").font(.caption.bold()).foregroundStyle(.black.opacity(0.6))
-              Rectangle().frame(height: 1).foregroundStyle(.black.opacity(0.2))
+              Rectangle().frame(height: 1).foregroundStyle(.primary.opacity(0.2))
+              Text("OR").font(.caption.bold()).foregroundStyle(.primary)
+              Rectangle().frame(height: 1).foregroundStyle(.primary.opacity(0.2))
             }
 
             AppleSSOButton(
@@ -79,6 +102,11 @@ struct SignInView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 48)
+            .overlay {
+              RoundedRectangle(cornerRadius: 14)
+                .stroke(.primary.opacity(0.2))
+                .allowsHitTesting(false)
+            }
             .accessibilityHint("Opens Apple’s secure sign-in page")
 
             googleSSOButton
@@ -92,14 +120,15 @@ struct SignInView: View {
           HStack(spacing: 4) {
             Text("Powered by:")
               .fontWeight(.bold)
-              .foregroundStyle(.black)
+              .foregroundStyle(.primary)
             if let serverWebURL {
               Link(serverDisplayName, destination: serverWebURL)
-                .foregroundStyle(.blue)
+                .foregroundStyle(.primary)
+                .underline()
                 .accessibilityHint("Opens the Sure server website")
             } else {
               Text(serverDisplayName)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
             }
           }
           .font(.caption.monospaced())
@@ -107,10 +136,10 @@ struct SignInView: View {
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
-        .containerRelativeFrame(.vertical)
         .padding(.horizontal, 24)
         .padding(.bottom, 20)
       }
+      .scrollDismissesKeyboard(.interactively)
       .background(greenGradientBackground)
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
@@ -135,22 +164,24 @@ struct SignInView: View {
           .accessibilityHidden(true)
         Text("Continue with Google")
           .font(.headline)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
       }
       .padding(.horizontal, 18)
+      .padding(.vertical, 12)
       .frame(maxWidth: .infinity, minHeight: 48)
-      .foregroundStyle(.black)
+      .foregroundStyle(.primary)
       .background(
-        Color.white.opacity(0.94),
+        .background.opacity(0.94),
         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
       )
       .overlay {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(.black.opacity(0.12))
+          .stroke(.primary.opacity(0.12))
       }
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity)
-    .frame(height: 48)
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens Google’s secure sign-in page")
   }
@@ -165,22 +196,24 @@ struct SignInView: View {
           .accessibilityHidden(true)
         Text("Continue with Passkey")
           .font(.headline)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
       }
       .padding(.horizontal, 18)
+      .padding(.vertical, 12)
       .frame(maxWidth: .infinity, minHeight: 48)
-      .foregroundStyle(.black)
+      .foregroundStyle(.primary)
       .background(
-        Color.white.opacity(0.94),
+        .background.opacity(0.94),
         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
       )
       .overlay {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(.black.opacity(0.12))
+          .stroke(.primary.opacity(0.12))
       }
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity)
-    .frame(height: 48)
     .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
     .accessibilityHint("Opens Sure’s secure passkey sign-in page")
   }
@@ -194,7 +227,7 @@ struct SignInView: View {
         Text("Opening secure sign-in…")
         Button("Cancel", action: connection.cancelAuthentication)
       }
-      .foregroundStyle(.secondary)
+      .foregroundStyle(.primary)
       .accessibilityElement(children: .combine)
     case .failed(let message):
       Label(message, systemImage: "exclamationmark.triangle.fill")
@@ -213,14 +246,28 @@ struct SignInView: View {
     return host
   }
 
+  private var fieldPromptColor: Color {
+    colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.65)
+  }
+
+  private enum Field: Hashable {
+    case email
+    case password
+  }
+
   private var serverWebURL: URL? {
     URL(string: connection.serverURL)
   }
 
   private var greenGradientBackground: some View {
     ZStack {
+      Rectangle().fill(.background)
       LinearGradient(
-        colors: [
+        colors: colorScheme == .dark ? [
+          SureTheme.highlight.opacity(0.04),
+          SureTheme.accent.opacity(0.20),
+          SureTheme.accent.opacity(0.35)
+        ] : [
           Color(red: 0.80, green: 0.96, blue: 0.82),
           Color(red: 0.55, green: 0.84, blue: 0.61),
           Color(red: 0.25, green: 0.62, blue: 0.39)
@@ -229,13 +276,13 @@ struct SignInView: View {
         endPoint: .bottomTrailing
       )
       RadialGradient(
-        colors: [.white.opacity(0.55), .clear],
+        colors: [.white.opacity(colorScheme == .dark ? 0.04 : 0.55), .clear],
         center: .topTrailing,
         startRadius: 20,
         endRadius: 360
       )
       RadialGradient(
-        colors: [SureTheme.highlight.opacity(0.65), .clear],
+        colors: [SureTheme.highlight.opacity(colorScheme == .dark ? 0.04 : 0.65), .clear],
         center: .bottomLeading,
         startRadius: 10,
         endRadius: 320
