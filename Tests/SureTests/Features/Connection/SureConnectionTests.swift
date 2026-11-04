@@ -5,6 +5,28 @@ import Testing
 @MainActor
 @Suite("Sure connection")
 struct SureConnectionTests {
+  @Test("Server attribution never displays an empty or invalid server", arguments: [
+    "", " \n ", "relative/path", "https://", "https://user:password@sure.example"
+  ])
+  func serverAttributionFallback(_ server: String) {
+    let connection = makeHarness(context: nil).connection
+    connection.serverURL = server
+    #expect(connection.serverDisplayName == "Sure")
+    #expect(connection.serverWebsiteURL == nil)
+  }
+
+  @Test("Server attribution displays the validated host and follows draft changes")
+  func serverAttributionHost() {
+    let connection = makeHarness(context: nil).connection
+    connection.serverURL = "  https://demo.sure.am/ \n"
+    #expect(connection.serverDisplayName == "demo.sure.am")
+    #expect(connection.serverWebsiteURL?.host == "demo.sure.am")
+    connection.serverURL = "https://my.sure.example/finance"
+    #expect(connection.serverDisplayName == "my.sure.example")
+    connection.serverURL = ""
+    #expect(connection.serverDisplayName == "Sure")
+  }
+
   @Test("OAuth snapshots are isolated between logins on the same installation")
   func snapshotIdentityIsolation() throws {
     let first = makeHarness(

@@ -121,18 +121,25 @@ struct SignInView: View {
             Text("Powered by:")
               .fontWeight(.bold)
               .foregroundStyle(.primary)
-            if let serverWebURL {
-              Link(serverDisplayName, destination: serverWebURL)
-                .foregroundStyle(.primary)
-                .underline()
-                .accessibilityHint("Opens the Sure server website")
+            if let url = connection.serverWebsiteURL {
+              Link(destination: url) {
+                Text(connection.serverDisplayName)
+                  .foregroundStyle(serverAttributionColor)
+                  .underline()
+                  .fixedSize(horizontal: false, vertical: true)
+              }
+              .buttonStyle(.plain)
+              .layoutPriority(1)
+              .accessibilityIdentifier("sign-in-server-attribution")
+              .accessibilityLabel(Text("Sure server: \(connection.serverDisplayName)"))
+              .accessibilityHint("Opens the Sure server website")
             } else {
-              Text(serverDisplayName)
-                .foregroundStyle(.primary)
+              Text(connection.serverDisplayName)
+                .foregroundStyle(serverAttributionColor)
+                .accessibilityIdentifier("sign-in-server-attribution")
             }
           }
           .font(.caption.monospaced())
-          .lineLimit(1)
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
@@ -239,11 +246,8 @@ struct SignInView: View {
     }
   }
 
-  private var serverDisplayName: String {
-    guard let url = URL(string: connection.serverURL), let host = url.host else {
-      return connection.serverURL
-    }
-    return host
+  private var serverAttributionColor: Color {
+    colorScheme == .dark ? .white : SureTheme.ink
   }
 
   private var fieldPromptColor: Color {
@@ -253,10 +257,6 @@ struct SignInView: View {
   private enum Field: Hashable {
     case email
     case password
-  }
-
-  private var serverWebURL: URL? {
-    URL(string: connection.serverURL)
   }
 
   private var greenGradientBackground: some View {

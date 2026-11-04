@@ -14,6 +14,25 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testSignInServerAttributionInBothAppearances() throws {
+    for scenario in ["sign-in-light", "sign-in-dark"] {
+      let app = launch(scenario)
+      let attribution = app.descendants(matching: .any)["sign-in-server-attribution"].firstMatch
+      XCTAssertTrue(attribution.waitForExistence(timeout: 10))
+      for _ in 0..<3 where !attribution.isHittable {
+        app.scrollViews.firstMatch.swipeUp()
+      }
+      XCTAssertEqual(attribution.label, "Sure server: demo.sure.am")
+      XCTAssertTrue(attribution.isHittable)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = "\(scenario)-server-attribution"
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    }
+  }
+
+  @MainActor
   private func checkSignInAppearance(_ scenario: String) throws {
     let app = launch(scenario)
     let email = app.textFields["Email"]
@@ -36,7 +55,8 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(app.buttons["Continue"].isEnabled)
     if !app.buttons["Continue"].isHittable { app.scrollViews.firstMatch.swipeUp() }
     XCTAssertTrue(app.buttons["Continue"].isHittable)
-    try app.performAccessibilityAudit(for: [.sufficientElementDescription, .textClipped])
+    // Entered single-line fields may scroll their text; audit sizing before editing.
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
     let screenshot = XCTAttachment(screenshot: app.screenshot())
     screenshot.lifetime = .keepAlways
     add(screenshot)

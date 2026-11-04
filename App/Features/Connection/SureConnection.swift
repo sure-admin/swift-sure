@@ -26,6 +26,13 @@ final class SureConnection {
   var allowsWalletPreview: Bool { authentication.allowsWalletPreview }
   var connectedSnapshotIdentity: String? { authentication.connectionID }
   var connectedServerURL: URL? { authentication.serverURL }
+  var serverWebsiteURL: URL? {
+    try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines)).url
+  }
+  var serverDisplayName: String {
+    guard let host = serverWebsiteURL?.host, !host.isEmpty else { return "Sure" }
+    return host
+  }
   var isDemoServer: Bool {
     SureDemoServer.matchesBaseURL(try? OAuthServerURL(serverURL.trimmingCharacters(in: .whitespacesAndNewlines)).url)
   }
