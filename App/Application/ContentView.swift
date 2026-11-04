@@ -30,27 +30,19 @@ struct ContentView: View {
     .onChange(of: connection.status) { _, status in
       if status == .notConnected && connection.isSignedOut {
         connectionPresentation = nil
-      } else if status == .connected && connectionPresentation == .demoSignIn {
+      } else if status == .connected && connectionPresentation == .signIn {
         connectionPresentation = nil
       }
     }
     .onChange(of: visibleScreen, initial: true) { _, screen in
       analytics.capture(.screenViewed(screen))
     }
-    .environment(\.showConnectionSettings) {
-      connectionPresentation = .settings
-    }
-    .sheet(item: $connectionPresentation) { presentation in
-      switch presentation {
-      case .settings:
-        ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
-          telemetryBuildDetails: telemetryBuildDetails,
-          diagnostics: diagnostics, financeKitSync: financeKitSync, wallet: appleCardConnection)
-      case .demoSignIn:
-        SignInView(subscriptionAccess: subscriptionAccess, connection: connection,
-          showConnectionSettings: { connectionPresentation = .settings })
-      }
-    }
+    .modifier(ConnectionPresentationModifier(
+      presentation: $connectionPresentation,
+      subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
+      telemetryBuildDetails: telemetryBuildDetails, diagnostics: diagnostics,
+      financeKitSync: financeKitSync, wallet: appleCardConnection
+    ))
     #if os(iOS)
     .fullScreenCover(isPresented: .constant(firstRun?.isFinished == false), onDismiss: routeAfterFirstRun) {
       if let firstRun { FirstRunView(store: firstRun) }
@@ -66,7 +58,7 @@ struct ContentView: View {
       selection = .overview
     case .exploreDemo:
       connection.prepareDemoSignIn()
-      connectionPresentation = .demoSignIn
+      connectionPresentation = .signIn
     case nil:
       break
     }
@@ -75,7 +67,7 @@ struct ContentView: View {
   private var visibleScreen: UsageScreen {
     switch connectionPresentation {
     case .settings: return .connectionSettings
-    case .demoSignIn: return .signIn
+    case .signIn: return .signIn
     case nil: break
     }
     switch selection {
@@ -152,9 +144,4 @@ struct ContentView: View {
       selection = destination
     }
   }
-}
-
-private enum ConnectionPresentation: String, Identifiable {
-  case settings, demoSignIn
-  var id: Self { self }
 }

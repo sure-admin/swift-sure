@@ -36,7 +36,7 @@ struct UITestApp: App {
     )
     sureConnection = SureConnection(
       initialState: SureConnectionInitialState(
-        serverURL: scenario.hasPrefix("sign-in-") ? SureDemoServer.baseURL.absoluteString : "",
+        serverURL: (scenario.hasPrefix("sign-in-") || scenario == "connection-routing") ? SureDemoServer.baseURL.absoluteString : "",
         credentials: StoredCredentialSnapshot(session: nil),
         isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
       ),
@@ -50,7 +50,10 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      if scenario.hasPrefix("sign-in-") {
+      if scenario.hasPrefix("connection-routing") {
+        FixtureConnectionRouting(subscriptionAccess: subscriptionAccess, connection: sureConnection,
+          hasSyncAccess: scenario == "connection-routing")
+      } else if scenario.hasPrefix("sign-in-") {
         Color.clear.sheet(isPresented: .constant(true)) {
           SignInView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
             showConnectionSettings: {})
@@ -84,6 +87,37 @@ struct UITestApp: App {
           }
         }
       }
+    }
+  }
+}
+
+private struct FixtureConnectionRouting: View {
+  var subscriptionAccess: SubscriptionAccessStore
+  var connection: SureConnection
+  var hasSyncAccess: Bool
+  @State private var presentation: ConnectionPresentation?
+
+  var body: some View {
+    FixtureConnectionPrompt(hasSyncAccess: hasSyncAccess)
+      .modifier(ConnectionPresentationModifier(presentation: $presentation,
+        subscriptionAccess: subscriptionAccess, connection: connection))
+      .task { await subscriptionAccess.refresh() }
+  }
+}
+
+private struct FixtureConnectionPrompt: View {
+  @Environment(\.showConnectionSettings) private var showSettings
+  var hasSyncAccess: Bool
+
+  var body: some View {
+    NavigationStack {
+      SureConnectionPrompt(hasSyncAccess: hasSyncAccess)
+        .toolbar {
+          ToolbarItem(placement: .primaryAction) {
+            Button("Settings", systemImage: "gearshape") { showSettings() }
+              .labelStyle(.iconOnly)
+          }
+        }
     }
   }
 }

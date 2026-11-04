@@ -19,7 +19,12 @@ struct SignInView: View {
         signInContent
       }
     } else {
-      SubscriptionAccessView(access: subscriptionAccess)
+      NavigationStack {
+        SubscriptionAccessView(access: subscriptionAccess)
+          .toolbar {
+            ToolbarItem(placement: .primaryAction) { settingsButton }
+          }
+      }
     }
   }
 
@@ -150,13 +155,15 @@ struct SignInView: View {
       .background(greenGradientBackground)
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
-          Button("Connection settings", systemImage: "gearshape") {
-            showConnectionSettings()
-          }
-          .labelStyle(.iconOnly)
+          settingsButton
         }
       }
     }
+  }
+
+  private var settingsButton: some View {
+    Button("Settings", systemImage: "gearshape") { showConnectionSettings() }
+      .labelStyle(.iconOnly)
   }
 
   private var googleSSOButton: some View {

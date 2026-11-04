@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SureConnectionPrompt: View {
-  @Environment(\.showConnectionSettings) private var showConnectionSettings
+  @Environment(\.showSignIn) private var showSignIn
   var hasSyncAccess: Bool
 
   var body: some View {
@@ -13,7 +13,7 @@ struct SureConnectionPrompt: View {
       }
     } description: {
       if hasSyncAccess {
-        Text("Sign in with a passkey or connect with an API key to load your finances.")
+        Text("Sign in to your Sure account to load your finances.")
       } else {
         Text("A subscription is required to sync with Sure. Complete your in-app purchase to start your trial or subscription before connecting. Local Apple Wallet, on-device Assistant, and downloaded data remain available.")
       }
@@ -22,7 +22,7 @@ struct SureConnectionPrompt: View {
         hasSyncAccess ? "Connect to Sure" : "View subscription plans",
         systemImage: hasSyncAccess ? "link" : "creditcard"
       ) {
-        showConnectionSettings()
+        showSignIn()
       }
       .buttonStyle(.borderedProminent)
     }

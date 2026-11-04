@@ -4,6 +4,44 @@ final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
   @MainActor
+  func testConnectOpensLoginAndCogOpensSettings() throws {
+    let app = launch("connection-routing")
+    XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))
+    app.buttons["Connect to Sure"].tap()
+    XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.secureTextFields["Password"].exists)
+    XCTAssertTrue(app.buttons["Continue with Apple"].exists)
+    XCTAssertTrue(app.buttons["Continue with Google"].exists)
+    XCTAssertFalse(app.navigationBars["Settings"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    app.buttons["Settings"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.textFields["https://demo.sure.am"].exists)
+    app.buttons["Done"].tap()
+    XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))
+    app.buttons["Settings"].tap()
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = "settings-from-cog"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
+  @MainActor
+  func testConnectPreservesSubscriptionGate() throws {
+    let app = launch("connection-routing-locked")
+    XCTAssertTrue(app.buttons["View subscription plans"].waitForExistence(timeout: 10))
+    app.buttons["View subscription plans"].tap()
+    XCTAssertTrue(app.buttons["Subscribe"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.textFields["Email"].exists)
+    XCTAssertFalse(app.secureTextFields["Password"].exists)
+    app.buttons["Settings"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.textFields["Email"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
   func testSignInLightAppearance() throws {
     try checkSignInAppearance("sign-in-light")
   }

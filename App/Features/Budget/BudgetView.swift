@@ -91,7 +91,7 @@ struct BudgetView: View {
       #endif
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
-          Button("Connection settings", systemImage: "gearshape") {
+          Button("Settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
           .accessibilityHint("Manage your Sure connection")

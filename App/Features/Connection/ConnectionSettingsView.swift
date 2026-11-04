@@ -9,6 +9,7 @@ struct ConnectionSettingsView: View {
   var diagnostics: (any DiagnosticsControlling)? = nil
   var financeKitSync: FinanceKitSyncStore? = nil
   var wallet: AppleCardConnectionStore? = nil
+  var showSignIn: () -> Void = {}
 
   var body: some View {
     NavigationStack {
@@ -19,7 +20,7 @@ struct ConnectionSettingsView: View {
           connectionContent
         }
       }
-      .navigationTitle(allowsConnection ? "Sure connection" : "")
+      .navigationTitle("Settings")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
@@ -148,8 +149,8 @@ struct ConnectionSettingsView: View {
           .buttonStyle(.plain)
           .disabled(!connection.canConnectWithAPIKey || connection.status == .connecting)
 
-          NavigationLink(connection.isDemoServer ? "Sign in with demo credentials" : "Password or provider sign-in") {
-            SignInView(subscriptionAccess: subscriptionAccess, connection: connection, showConnectionSettings: {})
+          Button(connection.isDemoServer ? "Sign in with demo credentials" : "Password or provider sign-in") {
+            showSignIn()
           }
 
           statusView
