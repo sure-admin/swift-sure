@@ -24,8 +24,9 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(subscribe.isHittable)
     XCTAssertFalse(app.buttons["Usage analytics"].exists)
     XCTAssertFalse(app.buttons["Diagnostics"].exists)
-    let renewal = app.staticTexts["Renews automatically unless cancelled."]
-    XCTAssertGreaterThan(renewal.frame.maxY, app.frame.maxY - 100)
+    XCTAssertFalse(app.staticTexts["Renews automatically unless cancelled."].exists)
+    XCTAssertFalse(app.staticTexts["$0.99 every 1 month. Cancel any time."].exists)
+    XCTAssertGreaterThan(subscribe.frame.maxY, app.frame.maxY - 80)
     let purchasePosition = subscribe.frame.minY
     app.scrollViews.firstMatch.swipeUp()
     XCTAssertEqual(subscribe.frame.minY, purchasePosition, accuracy: 1)
