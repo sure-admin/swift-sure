@@ -53,9 +53,10 @@ struct UITestApp: App {
         NavigationStack {
           AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
         }
-      } else if scenario == "analytics-gated" {
+      } else if scenario == "subscription-sheet" {
         ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
-          analytics: analytics, telemetryBuildDetails: telemetryBuildDetails)
+          analytics: analytics, telemetryBuildDetails: telemetryBuildDetails,
+          diagnostics: FixtureDiagnostics())
           .task { await subscriptionAccess.refresh() }
       } else if scenario == "wallet-consent" {
         FixtureFinanceKitSyncScreen(persistConsent: true)
@@ -95,11 +96,22 @@ private final class FixtureAnalyticsClient: AnalyticsClient {
 
 @MainActor
 private struct FixtureSubscriptionService: SubscriptionServicing {
-  func plans() async throws -> [SubscriptionPlan] { [] }
+  func plans() async throws -> [SubscriptionPlan] {
+    [SubscriptionPlan(id: "monthly", price: "$0.99", isAnnual: false,
+      title: "Monthly", billingPeriod: "1 month")]
+  }
   func entitlement() async -> SubscriptionEntitlement? { nil }
   func purchase(_ id: String) async throws -> SubscriptionPurchaseOutcome { .cancelled }
   func restore() async throws {}
   func observe(_ changed: @escaping @MainActor () async -> Void) async {}
+}
+
+@MainActor
+private final class FixtureDiagnostics: DiagnosticsControlling {
+  var isEnabled = true
+  var isAvailable: Bool { true }
+  func setEnabled(_ enabled: Bool) { isEnabled = enabled }
+  func log(_ record: DiagnosticRecord) {}
 }
 
 @MainActor

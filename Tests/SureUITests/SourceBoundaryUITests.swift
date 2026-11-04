@@ -17,16 +17,22 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
-  func testUsageAnalyticsRemainsAvailableWithoutSubscription() throws {
-    let app = launch("analytics-gated")
-    let analytics = app.buttons["Usage analytics"]
-    XCTAssertTrue(analytics.waitForExistence(timeout: 10))
-    analytics.tap()
-    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
-    let consent = app.switches["Share usage analytics"]
-    XCTAssertTrue(consent.waitForExistence(timeout: 10))
-    XCTAssertTrue(consent.isEnabled)
+  func testSubscriptionSheetKeepsPurchaseBarAtBottomWithoutTelemetryLinks() throws {
+    let app = launch("subscription-sheet")
+    let subscribe = app.buttons["Subscribe"]
+    XCTAssertTrue(subscribe.waitForExistence(timeout: 10))
+    XCTAssertTrue(subscribe.isHittable)
+    XCTAssertFalse(app.buttons["Usage analytics"].exists)
+    XCTAssertFalse(app.buttons["Diagnostics"].exists)
+    let renewal = app.staticTexts["Renews automatically unless cancelled."]
+    XCTAssertGreaterThan(renewal.frame.maxY, app.frame.maxY - 100)
+    let purchasePosition = subscribe.frame.minY
+    app.scrollViews.firstMatch.swipeUp()
+    XCTAssertEqual(subscribe.frame.minY, purchasePosition, accuracy: 1)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
   }
   #endif
 

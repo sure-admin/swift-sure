@@ -14,10 +14,7 @@ struct ConnectionSettingsView: View {
     NavigationStack {
       Group {
         if !allowsConnection {
-          VStack(spacing: 0) {
-            SubscriptionAccessView(access: subscriptionAccess)
-            gatedTelemetryLinks
-          }
+          SubscriptionAccessView(access: subscriptionAccess)
         } else {
           connectionContent
         }
@@ -33,9 +30,6 @@ struct ConnectionSettingsView: View {
 
   private var allowsConnection: Bool { subscriptionAccess.hasAccess || connection.isDemoServer }
 
-  /// Telemetry starts from persisted preferences and keeps running through
-  /// logout and entitlement loss, so both opt-outs remain reachable outside
-  /// the subscription gate.
   @ViewBuilder
   private var analyticsLink: some View {
     #if os(iOS)
@@ -61,19 +55,6 @@ struct ConnectionSettingsView: View {
         Label("Diagnostics", systemImage: "ladybug")
           .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
           .contentShape(Rectangle())
-      }
-    }
-    #endif
-  }
-
-  @ViewBuilder
-  private var gatedTelemetryLinks: some View {
-    #if os(iOS)
-    if analytics != nil || diagnostics != nil {
-      VStack(spacing: 0) {
-        Divider()
-        if analytics != nil { analyticsLink.padding() }
-        if diagnostics != nil { diagnosticsLink.padding() }
       }
     }
     #endif
