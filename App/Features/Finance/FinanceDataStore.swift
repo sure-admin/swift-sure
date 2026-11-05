@@ -19,6 +19,7 @@ final class FinanceDataStore {
   private let summaries: (any CashFlowProviding)?
   private let now: () -> Date
   private let syncInsights: ([BackendInsight]) -> Void
+  private let syncWidget: (AccountsWidgetUpdate?) -> Void
   private var hasRequestedSessionRefresh = false
   private var disconnected = false
   private var generation = 0
@@ -27,9 +28,11 @@ final class FinanceDataStore {
        calendar: Calendar, now: @escaping () -> Date,
        summaries: (any CashFlowProviding)? = nil,
        diagnostics: (any DiagnosticsLogging)? = nil,
-       syncInsights: @escaping ([BackendInsight]) -> Void) {
+       syncInsights: @escaping ([BackendInsight]) -> Void,
+       syncWidget: @escaping (AccountsWidgetUpdate?) -> Void = { _ in }) {
     self.connection = connection; self.client = client; self.now = now
     self.summaries = summaries; self.diagnostics = diagnostics; self.syncInsights = syncInsights
+    self.syncWidget = syncWidget
     reporting = ReportingPeriodStore(calendar: calendar, now: now)
   }
 
@@ -96,13 +99,28 @@ final class FinanceDataStore {
       },
       { [self] in await loadSummary() }
     ])
+    publishWidget(request: request)
   }
 
   func refreshAccounts() async {
     guard connection.isConfigured, !disconnected else { return }
+    let request = generation
     _ = await accountsResource.load(now: now, metadata: { await self.client.readMetadata(for: "accounts") }) {
       try await self.client.fetchAccounts()
     }
+    publishWidget(request: request)
+  }
+
+  /// Shares the account list with the home screen widget. Only a complete read
+  /// from the current session is published; a disconnect in the meantime wins.
+  private func publishWidget(request: Int) {
+    guard request == generation, !disconnected, connection.isConfigured,
+          accountsResource.hasValue, let updatedAt = accountsResource.metadata?.fetchedAt else { return }
+    syncWidget(AccountsWidgetUpdate(
+      accounts: accounts,
+      netWorth: balanceSheetResource.hasValue ? netWorth : nil,
+      updatedAt: updatedAt
+    ))
   }
 
   func selectPreviousReportingMonth() async { await selectMonth(offset: -1) }
@@ -171,5 +189,6 @@ final class FinanceDataStore {
     balanceSheetResource.clear(); accountsResource.clear(); transactionsResource.clear()
     budgetsResource.clear(); insightsResource.clear(); summaryResource.clear()
     syncInsights([])
+    syncWidget(nil)
   }
 }

@@ -158,10 +158,79 @@ struct FinanceDataStoreTests {
     #expect(client.accountCalls == 0)
   }
 
+  @Test("A completed refresh shares the accounts and server net worth with the widget")
+  func widgetPublication() async {
+    let widget = WidgetUpdateRecorder()
+    let store = makeWidgetStore(FinanceReadFake(), widget: widget)
+    await store.refresh()
+    let usd = CurrencyCode("USD")!
+    #expect(widget.updates.last == AccountsWidgetUpdate(
+      accounts: [testReadAccount],
+      netWorth: DecimalMoney(amount: 100, currency: usd),
+      updatedAt: testReadDate
+    ))
+  }
+
+  @Test("Refreshing only accounts also updates the widget")
+  func widgetAccountsRefresh() async {
+    let widget = WidgetUpdateRecorder()
+    let store = makeWidgetStore(FinanceReadFake(), widget: widget)
+    await store.refreshAccounts()
+    #expect(widget.updates.count == 1)
+    #expect(widget.updates.last??.accounts == [testReadAccount])
+  }
+
+  @Test("A failed accounts read publishes nothing")
+  func widgetFailure() async {
+    let client = FinanceReadFake()
+    client.accountsFailure = SureAPIError.unauthorized
+    let widget = WidgetUpdateRecorder()
+    let store = makeWidgetStore(client, widget: widget)
+    await store.refresh()
+    #expect(widget.updates.isEmpty)
+  }
+
+  @Test("Disconnecting clears the widget")
+  func widgetDisconnect() async {
+    let widget = WidgetUpdateRecorder()
+    let store = makeWidgetStore(FinanceReadFake(), widget: widget)
+    await store.refresh()
+    store.disconnect()
+    #expect(widget.updates.count == 2)
+    #expect(widget.updates.last == .some(nil))
+  }
+
+  @Test("A refresh that finishes after a disconnect never republishes old accounts")
+  func widgetLateRefresh() async {
+    let client = FinanceReadFake()
+    let barrier = ReadBarrier<[FinanceAccount]>()
+    client.accountsOperation = { await barrier.wait() }
+    let widget = WidgetUpdateRecorder()
+    let store = makeWidgetStore(client, widget: widget)
+    let task = Task { await store.refresh() }
+    await barrier.started()
+    store.disconnect()
+    await barrier.finish([testReadAccount])
+    await task.value
+    #expect(widget.updates.count == 1)
+    #expect(widget.updates.last == .some(nil))
+  }
+
+  private func makeWidgetStore(_ client: FinanceReadFake, widget: WidgetUpdateRecorder) -> FinanceDataStore {
+    FinanceDataStore(connection: ReadConnectionFake(), client: client,
+      calendar: testReadCalendar, now: { testReadDate }, summaries: client,
+      syncInsights: { _ in }, syncWidget: { widget.updates.append($0) })
+  }
+
   private func makeStore(_ client: FinanceReadFake, connection: ReadConnectionFake? = nil,
                          diagnostics: (any DiagnosticsLogging)? = nil) -> FinanceDataStore {
     FinanceDataStore(connection: connection ?? ReadConnectionFake(), client: client,
       calendar: testReadCalendar, now: { testReadDate }, summaries: client,
       diagnostics: diagnostics, syncInsights: { _ in })
   }
+}
+
+@MainActor
+private final class WidgetUpdateRecorder {
+  var updates: [AccountsWidgetUpdate?] = []
 }

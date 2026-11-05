@@ -64,6 +64,9 @@ The current targets are:
 
 - `App/`: sources and assets for the iOS, iPadOS, and macOS app.
 - `Watch/`: watchOS-only application sources.
+- `Widget/`: the iOS home screen and Lock Screen widget extension.
+- `WidgetShared/`: the widget snapshot types and storage, compiled into the app
+  and the widget extension.
 - `Shared/`: the smallest possible set of types compiled into both app targets.
 - `appStoreConnect/`: App Store listing metadata, not runtime app code.
 
@@ -78,6 +81,8 @@ App/
   DesignSystem/      Reusable SwiftUI styling and controls
 Shared/              Cross-target value types only
 Watch/               Watch app UI and watch-specific infrastructure
+Widget/              Widget extension UI, timeline, and configuration
+WidgetShared/        Widget snapshot types shared by the app and the widget
 Tests/SureTests/      Unit and contract tests mirroring production areas
 Tests/SureWatchTests/ Watch-owned state tests
 ```
@@ -105,6 +110,11 @@ primary type, and framework type names must not be reused for app types.
   abstraction, not another feature's view model.
 - `Shared/` is for code genuinely required by both app and watch targets; it is
   not a general-purpose common folder.
+- The widget extension only reads the snapshot the app writes to the
+  `group.am.sure.insights.widget` App Group after a complete Sure accounts
+  read. It never contacts the server, never receives credentials, and the app
+  removes the snapshot when the session disconnects or logs out. Keep it that
+  way so the widget stays behind the authentication and subscription boundaries.
 
 Use dependency injection at nondeterministic or side-effecting boundaries.
 Construct production dependencies at the app root and pass them through

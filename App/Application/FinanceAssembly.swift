@@ -47,9 +47,15 @@ struct FinanceAssembly {
       legacyResponsesURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("am.sure.insights/offline-responses"), remote: apiClient)
     lifecycle.clearOfflineResponses = { try await repository.clear() }
+    #if os(iOS)
+    let widgetPublisher = AccountsWidgetPublisher(store: .appGroup())
+    let syncWidget: (AccountsWidgetUpdate?) -> Void = { widgetPublisher.publish($0) }
+    #else
+    let syncWidget: (AccountsWidgetUpdate?) -> Void = { _ in }
+    #endif
     let financeData = FinanceDataStore(connection: connection, client: repository,
       calendar: .autoupdatingCurrent, now: { .now }, summaries: repository,
-      diagnostics: diagnostics, syncInsights: syncInsights)
+      diagnostics: diagnostics, syncInsights: syncInsights, syncWidget: syncWidget)
     let financeKitConnector = FinanceKitAppleCardConnector(calendar: .autoupdatingCurrent)
     let appleCardConnection = AppleCardConnectionStore(
       connector: financeKitConnector

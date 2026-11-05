@@ -11,7 +11,10 @@ included:
   - App
   - Shared
   - Watch
+  - Widget
+  - WidgetShared
   - Tests
 excluded:
   - App/Info.plist
   - Watch/Info.plist
+  - Widget/Info.plist

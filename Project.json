@@ -44,6 +44,13 @@
           ],
           "embed" : true,
           "target" : "Sure Watch"
+        },
+        {
+          "destinationFilters" : [
+            "iOS"
+          ],
+          "embed" : true,
+          "target" : "Sure Widget"
         }
       ],
       "info" : {
@@ -53,6 +60,7 @@
           "SurePostHogHost" : "$(SURE_POSTHOG_HOST)",
           "SureSentryDSN" : "$(SURE_SENTRY_DSN)",
           "SureFinanceKitKeychainAccessGroup" : "$(AppIdentifierPrefix)am.sure.insights.financekit",
+          "SureWidgetAppGroup" : "group.am.sure.insights.widget",
           "CFBundleDisplayName" : "Sure",
           "CFBundleShortVersionString" : "0.7.4",
           "CFBundleURLTypes" : [
@@ -126,6 +134,9 @@
         },
         {
           "path" : "Shared"
+        },
+        {
+          "path" : "WidgetShared"
         }
       ],
       "supportedDestinations" : [
@@ -133,6 +144,47 @@
         "macOS"
       ],
       "type" : "application"
+    },
+    "Sure Widget" : {
+      "info" : {
+        "path" : "Widget\/Info.plist",
+        "properties" : {
+          "CFBundleDisplayName" : "Sure",
+          "CFBundleShortVersionString" : "0.7.4",
+          "CFBundleVersion" : "1",
+          "NSExtension" : {
+            "NSExtensionPointIdentifier" : "com.apple.widgetkit-extension"
+          },
+          "SureWidgetAppGroup" : "group.am.sure.insights.widget"
+        }
+      },
+      "platform" : "iOS",
+      "settings" : {
+        "base" : {
+          "CODE_SIGN_ENTITLEMENTS" : "Widget\/SureWidget.entitlements",
+          "CURRENT_PROJECT_VERSION" : "1",
+          "MARKETING_VERSION" : "0.7.4",
+          "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights.widget",
+          "PRODUCT_NAME" : "$(TARGET_NAME)",
+          "SKIP_INSTALL" : "YES",
+          "SWIFT_VERSION" : "5.0",
+          "TARGETED_DEVICE_FAMILY" : "1,2"
+        },
+        "configs" : {
+          "Release" : {
+            "CODE_SIGN_STYLE" : "Automatic"
+          }
+        }
+      },
+      "sources" : [
+        {
+          "path" : "Widget"
+        },
+        {
+          "path" : "WidgetShared"
+        }
+      ],
+      "type" : "app-extension"
     },
     "SureTests" : {
       "dependencies" : [
@@ -244,6 +296,9 @@
         },
         {
           "path": "Shared"
+        },
+        {
+          "path": "WidgetShared"
         },
         {
           "path": "Tests/SureUITestHost"

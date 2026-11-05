@@ -8,6 +8,11 @@ This repository contains the SwiftUI-native Sure client created with Bitrig. It 
 2. From the repository root, run `xcodegen generate --spec Project.json`.
 3. Open `Sure.xcodeproj` and choose the `Sure` or `Sure Watch` scheme.
 
+The iOS app embeds an account balances widget (`Widget/`) for the Home Screen
+and Lock Screen. It shows the accounts and net worth from the app's last
+complete Sure read, shared through the `group.am.sure.insights.widget` App
+Group, and is cleared on logout; it makes no network requests of its own.
+
 Production code is organized by ownership: `App/Application` composes the
 client, `App/Domain` holds UI-independent values, `App/Features` owns screens
 and feature state, `App/Infrastructure` implements external boundaries, and
