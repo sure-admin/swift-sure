@@ -47,6 +47,8 @@ struct SignInView: View {
           }
 
           VStack(spacing: 12) {
+            if subscriptionAccess.hasAccess { serverField }
+
             VStack(spacing: 10) {
               TextField("Email", text: $connection.email,
                 prompt: Text("Email").foregroundStyle(fieldPromptColor))
@@ -161,6 +163,37 @@ struct SignInView: View {
     }
   }
 
+  private var serverField: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text("Server URL").font(.caption.bold())
+      TextField("Server URL", text: $connection.serverURL,
+        prompt: Text("https://sure.example.com").foregroundStyle(fieldPromptColor))
+        .textFieldStyle(.plain)
+        .foregroundStyle(.primary)
+        .textContentType(.URL)
+        .focused($focusedField, equals: .server)
+        .submitLabel(.next)
+        .onSubmit { focusedField = .email }
+        #if os(iOS)
+        .keyboardType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        #endif
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(minHeight: 48)
+        .background(.background.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityLabel("Server URL")
+        .accessibilityHint("The HTTPS address of your Sure server")
+      if !connection.canSignInWithPasskey {
+        Text("Enter your Sure server’s HTTPS URL to enable sign-in.")
+          .font(.caption)
+          .foregroundStyle(.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+  }
+
   private var settingsButton: some View {
     Button("Settings", systemImage: "gearshape") { showConnectionSettings() }
       .labelStyle(.iconOnly)
@@ -262,6 +295,7 @@ struct SignInView: View {
   }
 
   private enum Field: Hashable {
+    case server
     case email
     case password
   }

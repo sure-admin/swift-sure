@@ -30,13 +30,13 @@ struct UITestApp: App {
     factory = TransactionHistoryStoreFactory(client: client, calendar: .current, now: { FixtureClient.date })
     analytics = AnalyticsStore(preferences: FixtureAnalyticsPreferences(), client: FixtureAnalyticsClient())
     subscriptionAccess = SubscriptionAccessStore(
-      service: FixtureSubscriptionService(),
+      service: FixtureSubscriptionService(isEntitled: scenario == "sign-in-no-server"),
       gate: BackendAccessGate(now: { Date(timeIntervalSince1970: 0) }),
-      waitUntil: { _ in }
+      waitUntil: { _ in throw CancellationError() }
     )
     sureConnection = SureConnection(
       initialState: SureConnectionInitialState(
-        serverURL: (scenario.hasPrefix("sign-in-") || scenario == "connection-routing") ? SureDemoServer.baseURL.absoluteString : "",
+        serverURL: ((scenario.hasPrefix("sign-in-") && scenario != "sign-in-no-server") || scenario == "connection-routing") ? SureDemoServer.baseURL.absoluteString : "",
         credentials: StoredCredentialSnapshot(session: nil),
         isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
       ),
@@ -58,6 +58,7 @@ struct UITestApp: App {
           SignInView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
             showConnectionSettings: {})
             .preferredColorScheme(scenario == "sign-in-dark" ? .dark : .light)
+            .task { await subscriptionAccess.refresh() }
         }
       } else if scenario == "analytics-debug" {
         NavigationStack {
@@ -137,11 +138,14 @@ private final class FixtureAnalyticsClient: AnalyticsClient {
 
 @MainActor
 private struct FixtureSubscriptionService: SubscriptionServicing {
+  var isEntitled = false
   func plans() async throws -> [SubscriptionPlan] {
     [SubscriptionPlan(id: "monthly", price: "$0.99", isAnnual: false,
       title: "Monthly", billingPeriod: "1 month")]
   }
-  func entitlement() async -> SubscriptionEntitlement? { nil }
+  func entitlement() async -> SubscriptionEntitlement? {
+    isEntitled ? SubscriptionEntitlement(expiration: Date(timeIntervalSince1970: 86_400), renewalCancelled: false) : nil
+  }
   func purchase(_ id: String) async throws -> SubscriptionPurchaseOutcome { .cancelled }
   func restore() async throws {}
   func observe(_ changed: @escaping @MainActor () async -> Void) async {}
@@ -156,8 +160,9 @@ private final class FixtureDiagnostics: DiagnosticsControlling {
 }
 
 @MainActor
+@Observable
 private final class FixtureAuthentication: ConnectionAuthenticating {
-  var status: ConnectionStatus { .notConnected }
+  private(set) var status: ConnectionStatus = .notConnected
   var pendingOnboarding: MobileSSOOnboardingContext? { nil }
   var isConfigured: Bool { false }
   var isSignedOut: Bool { true }
@@ -168,7 +173,11 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
   var serverURL: URL? { nil }
   var isOAuthConnected: Bool { false }
   func matchesStoredAPIKey(_ key: String) -> Bool { false }
-  func signIn(_ method: AuthenticationMethod, serverURL: String) async {}
+  func signIn(_ method: AuthenticationMethod, serverURL: String) async {
+    if case .provider(.google) = method {
+      status = .failed("Google sign-in started in the test fixture.")
+    }
+  }
   func cancel() {}
   func cancelOnboarding() {}
   func logOut() async {}

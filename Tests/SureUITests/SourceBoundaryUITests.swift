@@ -42,6 +42,34 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testGoogleSignInCanBeEnabledWithoutPasswordWhenServerWasNotConfigured() throws {
+    let app = launch("sign-in-no-server")
+    let server = app.textFields["Server URL"]
+    let google = app.buttons["Continue with Google"]
+    XCTAssertTrue(server.waitForExistence(timeout: 10))
+    XCTAssertFalse(google.isEnabled)
+    XCTAssertTrue(app.staticTexts["Enter your Sure server’s HTTPS URL to enable sign-in."].exists)
+    server.tap()
+    server.typeText("https://sure.example.com")
+    XCTAssertTrue(google.isEnabled)
+    XCTAssertTrue(app.buttons["Continue with Apple"].isEnabled)
+    XCTAssertFalse(app.buttons["Continue"].isEnabled)
+    // SSO needs a server, but never the password form's credentials.
+    XCTAssertEqual(app.textFields["Email"].value as? String, "Email")
+    // Start above the keyboard: a full-height swipe begins inside the keyboard.
+    let scroll = app.scrollViews.firstMatch
+    for _ in 0..<3 where app.keyboards.firstMatch.exists || !google.isHittable {
+      let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+      let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+      start.press(forDuration: 0.1, thenDragTo: end)
+    }
+    XCTAssertTrue(google.isHittable)
+    google.tap()
+    XCTAssertTrue(app.descendants(matching: .any)["Google sign-in started in the test fixture."].firstMatch.waitForExistence(timeout: 10))
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
   func testSignInLightAppearance() throws {
     try checkSignInAppearance("sign-in-light")
   }
@@ -78,6 +106,8 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(email.waitForExistence(timeout: 10))
     XCTAssertTrue(password.isHittable)
     XCTAssertFalse(app.buttons["Continue"].isEnabled)
+    XCTAssertTrue(app.buttons["Continue with Google"].isEnabled)
+    XCTAssertTrue(app.buttons["Continue with Apple"].isEnabled)
     // Inspect gradient contrast in the attached screenshots; audit labels and sizing here.
     try app.performAccessibilityAudit(for: [.sufficientElementDescription, .textClipped])
     let emptyFields = XCTAttachment(screenshot: app.screenshot())
