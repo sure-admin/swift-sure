@@ -23,14 +23,15 @@ actor OAuthHTTPClient {
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     do {
       request.httpBody = try JSONEncoder().encode(OAuthRegistrationRequest(
-        clientName: "Sure for Apple",
+        // Newer Sure servers reserve names containing “Sure” for bundled clients.
+        clientName: "Insights for Apple",
         redirectURIs: [redirectURL.absoluteString]
       ))
     } catch {
       throw PasskeyOAuthError.invalidResponse
     }
 
-    let data = try await responseData(for: request)
+    let data = try await responseData(for: request, operation: .registration)
     let response: OAuthRegistrationResponse
     do {
       response = try JSONDecoder().decode(OAuthRegistrationResponse.self, from: data)
@@ -94,7 +95,7 @@ actor OAuthHTTPClient {
       ]
     )
     request.setValue("application/json", forHTTPHeaderField: "Accept")
-    _ = try await responseData(for: request)
+    _ = try await responseData(for: request, operation: .revocation)
   }
 
   private func token(
@@ -106,7 +107,7 @@ actor OAuthHTTPClient {
       queryItems: queryItems
     )
     request.setValue("application/json", forHTTPHeaderField: "Accept")
-    let data = try await responseData(for: request)
+    let data = try await responseData(for: request, operation: .tokenExchange)
     do {
       return try JSONDecoder().decode(PasskeyOAuthTokens.self, from: data)
     } catch {
@@ -126,11 +127,15 @@ actor OAuthHTTPClient {
       "application/x-www-form-urlencoded",
       forHTTPHeaderField: "Content-Type"
     )
-    request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
+    // Query encoding leaves literal + intact; form decoders interpret it as a space.
+    request.httpBody = components.percentEncodedQuery?
+      .replacingOccurrences(of: "+", with: "%2B").data(using: .utf8)
     return request
   }
 
-  private func responseData(for request: URLRequest) async throws -> Data {
+  private func responseData(
+    for request: URLRequest, operation: OAuthOperation
+  ) async throws -> Data {
     let data: Data
     let response: URLResponse
     do {
@@ -147,7 +152,10 @@ actor OAuthHTTPClient {
       throw PasskeyOAuthError.invalidResponse
     }
     guard 200..<300 ~= response.statusCode else {
-      throw PasskeyOAuthError.server(response.statusCode)
+      let payload = try? JSONDecoder().decode(OAuthFailureResponse.self, from: data)
+      throw PasskeyOAuthError.rejected(
+        operation, payload?.error.flatMap(OAuthFailure.init(rawValue:)), response.statusCode
+      )
     }
     return data
   }
@@ -169,4 +177,9 @@ private struct OAuthRegistrationResponse: Decodable {
   enum CodingKeys: String, CodingKey {
     case clientID = "client_id"
   }
+}
+
+// Decode only a closed protocol vocabulary. Never display server descriptions.
+private struct OAuthFailureResponse: Decodable {
+  var error: String?
 }

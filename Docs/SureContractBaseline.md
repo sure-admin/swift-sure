@@ -46,6 +46,18 @@ is deliberate, not an older-server fallback.
 - Require HTTPS for configured Sure servers. Debug builds may use plain HTTP
   only for loopback development hosts such as `localhost` and `127.0.0.1`.
 
+## Password second-factor authentication
+
+The pinned `Api::V1::AuthController#login` responds with HTTP 401 and
+`mfa_required: true` when an authenticator code is missing or rejected. The client
+keeps the uncommitted login in memory, prompts for the code, and retries the same
+`POST /api/v1/auth/login` with `otp_code` alongside the password and device fields.
+It never commits credentials on the challenge response. Codes are cleared after
+rejection, cancellation, success, or a change of login identity and are never
+persisted or reported to telemetry. Passkey browser authentication remains a
+separate system-managed flow. Inline sanitized fixtures in `MobileSSOTests`
+and the connection state tests cover this contract at the pinned revision.
+
 ## Pinned compatibility extensions
 
 The pinned transaction response template emits `amount_cents` and
@@ -235,3 +247,23 @@ appears negative and overpayments positive, matching the local Wallet convention
 Assets preserve their signed balance (including overdrafts). Older cached cards
 infer liability presentation from their existing account kind until refreshed.
 Net worth still comes exclusively from Sure's balance-sheet endpoint.
+
+### OAuth registration name
+
+Dynamic registration uses `Insights for Apple`. This name is accepted by the
+pinned registration contract and avoids the reserved `Sure` word rejected by
+[upstream registration hardening](https://github.com/we-promise/sure/commit/ba4086fd6be26c28b8c7f618a7d9a0b6c3fc5fde). The registration payload,
+redirect URI, scopes, and PKCE flow remain those of the pinned contract. Cached
+client IDs remain valid and are not discarded. The OAuth HTTP client tests assert
+the registration name and sanitize recognized protocol failures without exposing
+server descriptions.
+
+### Insight acknowledgment extension
+
+The read contracts above remain pinned. User-requested acknowledgment adds
+`PATCH /api/v1/insights/{id}/acknowledge`, documented and implemented in the
+[backend patch](BackendPatches/insight-acknowledgment.patch). This coordinated
+extension requires that backend change to be merged and deployed before swipe
+dismissal works against a live server. See [rollout and validation](InsightAcknowledgment.md).
+A `204` commits the dismissal; rejected or unsupported writes never become local
+successes. Existing `active`/`read` insight-list fixtures remain unchanged.

@@ -59,8 +59,28 @@ struct OAuthHTTPClientTests {
       RegistrationBody.self,
       from: try #require(request.httpBody)
     )
-    #expect(body.clientName == "Sure for Apple")
+    #expect(body.clientName == "Insights for Apple")
     #expect(body.redirectURIs == [redirectURL.absoluteString])
+  }
+
+  @Test("Reports registration errors without leaking server text")
+  func registrationFailure() async throws {
+    for code in ["invalid_client_metadata", "private-unrecognized-value"] {
+      let stub = HTTPDataTransportStub([
+        try .http(json: "{\"error\":\"\(code)\",\"error_description\":\"private-description\"}", status: 400)
+      ])
+      let client = OAuthHTTPClient(dataTransport: stub, clientIDStore: OAuthClientIDStoreFake())
+      do {
+        _ = try await client.clientID(
+          server: OAuthServerURL("https://sure.example"),
+          redirectURL: #require(URL(string: "http://127.0.0.1:53921/oauth/callback"))
+        )
+        Issue.record("Expected registration failure")
+      } catch let error as PasskeyOAuthError {
+        #expect(error == .rejected(.registration, OAuthFailure(rawValue: code), 400))
+        #expect(!error.localizedDescription.contains("private"))
+      }
+    }
   }
 
   @Test("Builds the documented authorization URL")
@@ -105,7 +125,7 @@ struct OAuthHTTPClientTests {
     ))
 
     let tokens = try await client.exchangeAuthorizationCode(
-      "code-123",
+      "code+123/=",
       verifier: "verifier-123",
       clientID: "client-123",
       redirectURL: redirectURL,
@@ -127,7 +147,7 @@ struct OAuthHTTPClientTests {
     )
     #expect(try formValues(request) == [
       "grant_type": "authorization_code",
-      "code": "code-123",
+      "code": "code+123/=",
       "client_id": "client-123",
       "redirect_uri": redirectURL.absoluteString,
       "code_verifier": "verifier-123"
@@ -145,7 +165,7 @@ struct OAuthHTTPClientTests {
     let client = OAuthHTTPClient(dataTransport: stub, clientIDStore: cache)
 
     let tokens = try await client.refresh(
-      refreshToken: "refresh-1",
+      refreshToken: "refresh+1/=",
       server: server
     )
 
@@ -155,7 +175,7 @@ struct OAuthHTTPClientTests {
     #expect(request.url?.absoluteString == "https://sure.example/oauth/token")
     #expect(try formValues(request) == [
       "grant_type": "refresh_token",
-      "refresh_token": "refresh-1",
+      "refresh_token": "refresh+1/=",
       "client_id": "client-123"
     ])
   }
@@ -168,14 +188,14 @@ struct OAuthHTTPClientTests {
     cache.setClientID("client-123", for: server.url)
     let client = OAuthHTTPClient(dataTransport: stub, clientIDStore: cache)
 
-    try await client.revoke(token: "access-private", server: server)
+    try await client.revoke(token: "access+private/=", server: server)
 
     let request = try #require(await stub.requests().first)
     let requestURL = try #require(request.url?.absoluteString)
     #expect(requestURL == "https://sure.example/oauth/revoke")
     #expect(!requestURL.contains("access-private"))
     #expect(try formValues(request) == [
-      "token": "access-private",
+      "token": "access+private/=",
       "client_id": "client-123"
     ])
   }
@@ -190,7 +210,7 @@ struct OAuthHTTPClientTests {
 
     do {
       _ = try await client.refresh(
-        refreshToken: "refresh-1",
+        refreshToken: "refresh+1/=",
         server: OAuthServerURL("https://sure.example")
       )
       #expect(Bool(false))
@@ -265,7 +285,7 @@ struct OAuthHTTPClientTests {
       )
       #expect(Bool(false))
     } catch let error as PasskeyOAuthError {
-      #expect(error == .server(400))
+      #expect(error == .rejected(.tokenExchange, .invalidGrant, 400))
       #expect(!error.localizedDescription.contains("Authorization code expired"))
       #expect(!error.localizedDescription.contains("code-private"))
       #expect(!error.localizedDescription.contains("verifier-private"))
@@ -323,7 +343,9 @@ struct OAuthHTTPClientTests {
       decoding: try #require(request.httpBody),
       as: UTF8.self
     )
-    let url = try #require(URL(string: "https://form.invalid/?\(body)"))
+    // Match a server form parser: literal + means space, %2B means plus.
+    let decodedBody = body.replacingOccurrences(of: "+", with: "%20")
+    let url = try #require(URL(string: "https://form.invalid/?\(decodedBody)"))
     return queryValues(url)
   }
 

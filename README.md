@@ -116,6 +116,17 @@ and performs unsigned simulator builds for every supported platform. Push
 notification delivery requires a paid Apple Developer team and the APNs
 credentials above.
 
+## App versioning
+
+Every build uses its `America/Los_Angeles` calendar date as the app version (`YYYY.M.D`, for example
+`2026.11.6`), consistently across iOS, macOS, and watchOS. The pre-build phase
+creates a derived Info.plist; generated source plists stay unchanged. The build
+number remains separate. CI freezes `SURE_APP_VERSION` before selecting the next
+TestFlight build number and passes it through the archive, including the Watch
+app. Set that build setting explicitly when reproducing a dated release.
+The `MARKETING_VERSION` in Project.json is a fallback; shipped bundles use the
+version computed by `.github/scripts/app_version.rb`.
+
 ## TestFlight deployments
 
 Pushes to `main` run the complete native CI suite without deploying. Pushing a
@@ -326,3 +337,12 @@ remain untracked.
 
 For the experimental foreground Wallet publisher, see the
 [FinanceKit device-test checklist](Docs/FinanceKitDeviceTesting.md).
+
+## Insight dismissal
+
+Swipe an AI Insights row toward the leading edge to dismiss it. A context-menu
+and VoiceOver action are also available, and macOS includes a Dismiss button.
+The app keeps the row while saving and retains it with an error if the request
+fails. Successful acknowledgments update the downloaded feed and Watch snapshot.
+This requires the [backend acknowledgment API patch](Docs/InsightAcknowledgment.md)
+to be merged and deployed; it is not a local-only hide action.

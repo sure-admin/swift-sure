@@ -5,6 +5,111 @@ import Testing
 @MainActor
 @Suite("Sure connection")
 struct SureConnectionTests {
+  @Test("Password MFA prompts for a code and commits only after verification")
+  func passwordSecondFactor() async throws {
+    let mobile = MobileSSOAuthenticationFake(error: MobileSSOError.mfaRequired)
+    let harness = makeHarness(context: nil, mobileSSO: mobile)
+    harness.connection.email = "user@example.com"
+    harness.connection.password = "test-password"
+    await harness.connection.signInWithPassword()
+    #expect(harness.connection.status == .requiresSecondFactor)
+    #expect(harness.connection.requiresSecondFactor)
+    #expect(!harness.connection.canSignInWithPassword)
+    #expect(!harness.connection.isConfigured)
+    #expect(harness.credentials.snapshot.oauthCredentials == nil)
+    #expect(mobile.otpCodes.count == 1 && mobile.otpCodes[0] == nil)
+
+    harness.connection.secondFactorCode = " 123456 "
+    #expect(harness.connection.canSignInWithPassword)
+    mobile.error = nil
+    mobile.result = .authenticated(PasskeyOAuthTokens(accessToken: "access", refreshToken: "refresh"), deviceID: "device")
+    await harness.connection.signInWithPassword()
+    #expect(harness.connection.isConfigured)
+    #expect(mobile.otpCodes.last == "123456")
+    #expect(!harness.connection.requiresSecondFactor)
+    #expect(harness.connection.secondFactorCode.isEmpty)
+    #expect(harness.connection.password.isEmpty)
+  }
+
+  @Test("A rejected code can be retried and verification can be cancelled")
+  func rejectedSecondFactor() async {
+    let mobile = MobileSSOAuthenticationFake(error: MobileSSOError.mfaRequired)
+    let connection = makeHarness(context: nil, mobileSSO: mobile).connection
+    connection.email = "user@example.com"
+    connection.password = "test-password"
+    await connection.signInWithPassword()
+    connection.secondFactorCode = "123456"
+    connection.cancelAuthentication()
+    #expect(connection.secondFactorCode.isEmpty)
+    connection.secondFactorCode = "000000"
+    await connection.signInWithPassword()
+    #expect(connection.requiresSecondFactor)
+    #expect(connection.secondFactorRejected)
+    #expect(connection.secondFactorCode.isEmpty)
+    #expect(!connection.isConfigured)
+    connection.cancelSecondFactor()
+    #expect(connection.status == .notConnected)
+    #expect(!connection.requiresSecondFactor)
+    #expect(connection.password.isEmpty)
+    #expect(connection.secondFactorCode.isEmpty)
+  }
+
+  @Test("Changing login identity clears an outstanding code", arguments: ["server", "email", "password"])
+  func secondFactorIdentityChange(_ field: String) async {
+    let connection = makeHarness(context: nil,
+      mobileSSO: MobileSSOAuthenticationFake(error: MobileSSOError.mfaRequired)).connection
+    connection.email = "user@example.com"
+    connection.password = "test-password"
+    await connection.signInWithPassword()
+    connection.secondFactorCode = "123456"
+    switch field {
+    case "server": connection.serverURL = "https://another.sure.example"
+    case "email": connection.email = "other@example.com"
+    default: connection.password = "another-password"
+    }
+    #expect(!connection.requiresSecondFactor)
+    #expect(connection.secondFactorCode.isEmpty)
+  }
+
+  @Test("A late MFA response cannot reopen a changed or cancelled login", arguments: ["identity", "cancel"])
+  func staleSecondFactorResponse(_ action: String) async {
+    let mobile = MobileSSOAuthenticationFake(error: MobileSSOError.mfaRequired)
+    let connection = makeHarness(context: nil, mobileSSO: mobile).connection
+    connection.email = "user@example.com"
+    connection.password = "test-password"
+    mobile.onPasswordSignIn = { [weak connection] in
+      if action == "cancel" { connection?.cancelAuthentication() }
+      else { connection?.email = "other@example.com" }
+    }
+    await connection.signInWithPassword()
+    #expect(!connection.requiresSecondFactor)
+    #expect(connection.secondFactorCode.isEmpty)
+    #expect(!connection.isConfigured)
+    if action == "cancel" { #expect(connection.status == .notConnected) }
+  }
+
+  @Test("Server attribution never displays an empty or invalid server", arguments: [
+    "", " \n ", "relative/path", "https://", "https://user:password@sure.example"
+  ])
+  func serverAttributionFallback(_ server: String) {
+    let connection = makeHarness(context: nil).connection
+    connection.serverURL = server
+    #expect(connection.serverDisplayName == "Sure")
+    #expect(connection.serverWebsiteURL == nil)
+  }
+
+  @Test("Server attribution displays the validated host and follows draft changes")
+  func serverAttributionHost() {
+    let connection = makeHarness(context: nil).connection
+    connection.serverURL = "  https://demo.sure.am/ \n"
+    #expect(connection.serverDisplayName == "demo.sure.am")
+    #expect(connection.serverWebsiteURL?.host == "demo.sure.am")
+    connection.serverURL = "https://my.sure.example/finance"
+    #expect(connection.serverDisplayName == "my.sure.example")
+    connection.serverURL = ""
+    #expect(connection.serverDisplayName == "Sure")
+  }
+
   @Test("OAuth snapshots are isolated between logins on the same installation")
   func snapshotIdentityIsolation() throws {
     let first = makeHarness(
@@ -780,6 +885,8 @@ private final class MobileSSOAuthenticationFake: MobileSSOAuthenticating {
   private(set) var providers: [SSOProvider] = []
   private(set) var passwordEmails: [String] = []
   private(set) var passwords: [String] = []
+  private(set) var otpCodes: [String?] = []
+  var onPasswordSignIn: (@MainActor () -> Void)?
 
   init(result: MobileSSOResult? = nil, error: Error? = nil) {
     self.result = result
@@ -789,10 +896,13 @@ private final class MobileSSOAuthenticationFake: MobileSSOAuthenticating {
   func signIn(
     email: String,
     password: String,
+    otpCode: String?,
     serverURL: String
   ) async throws -> MobileSSOResult {
     passwordEmails.append(email)
     passwords.append(password)
+    otpCodes.append(otpCode)
+    onPasswordSignIn?()
     if let error { throw error }
     return try #require(result)
   }

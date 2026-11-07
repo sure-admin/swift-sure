@@ -16,6 +16,7 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
   private(set) var metadata: [String: ReadMetadata] = [:]
   private var metadataScope: String?
   private var generation = 0
+  private var resourceRevisions: [String: Int] = [:]
   private var summaryTasks: [SpendingMonth: Task<CashFlow, Error>] = [:]
 
   init(base: any FinanceDataClient, history: any TransactionHistoryClient,
@@ -80,6 +81,27 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
   func fetchBudgetCategories() async throws -> [BudgetCategory] {
     try await resource("budgets", get: { try await base.fetchBudgetCategories() }, put: { $0.budgets = $1 }, take: { $0.budgets })
   }
+  func acknowledgeInsight(id: UUID, requiredServerURL: URL?) async throws {
+    guard let (server, _) = identity(), let scope = currentScope else { throw DataFailure.authentication }
+    guard requiredServerURL == nil || requiredServerURL == server else { throw CancellationError() }
+    let request = generation
+    let permit = try gate.permit(for: server)
+    let lease = await cache.lease()
+    guard scope == currentScope, request == generation else { throw CancellationError() }
+    try await base.acknowledgeInsight(id: id, requiredServerURL: server)
+    try Task.checkCancellation()
+    try gate.validate(permit, for: identity()?.0)
+    guard scope == currentScope, request == generation else { throw CancellationError() }
+    // Fence pre-acknowledgment reads before changing the downloaded feed.
+    resourceRevisions["insights", default: 0] &+= 1
+    try await cache.updatePayload(scope: scope, key: "insights", lease: lease) { payload in
+      var snapshot = try FinanceDataSnapshotCodec().decode(payload)
+      snapshot.insights.removeAll { UUID(uuidString: $0.id) == id }
+      return try FinanceDataSnapshotCodec().encode(snapshot)
+    }
+    guard scope == currentScope, request == generation else { throw CancellationError() }
+  }
+
   func fetchInsights() async throws -> [BackendInsight] {
     try await resource("insights", get: { try await base.fetchInsights() }, put: { $0.insights = $1 }, take: { $0.insights })
   }
@@ -227,14 +249,15 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
     guard let scope = currentScope else { throw DataFailure.authentication }
     prepareMetadata(scope)
     let request = generation
+    let revision = resourceRevisions[key, default: 0]
     let lease = await cache.lease()
-    guard generation == request else { throw CancellationError() }
+    guard generation == request, revision == resourceRevisions[key, default: 0] else { throw CancellationError() }
     do {
       let permit = try gate.permit(for: identity()?.0)
       let value = try await fetch()
       try Task.checkCancellation()
       try gate.validate(permit, for: identity()?.0)
-      guard currentScope == scope, generation == request else { throw CancellationError() }
+      guard currentScope == scope, generation == request, revision == resourceRevisions[key, default: 0] else { throw CancellationError() }
       let fetchedAt = now()
       var storageFailure: DataFailure?
       do {
@@ -243,7 +266,7 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
       catch { storageFailure = .persistence }
       try Task.checkCancellation()
       try gate.validate(permit, for: identity()?.0)
-      guard currentScope == scope, generation == request else { throw CancellationError() }
+      guard currentScope == scope, generation == request, revision == resourceRevisions[key, default: 0] else { throw CancellationError() }
       metadata[key] = ReadMetadata(fetchedAt: fetchedAt, source: .server, failure: storageFailure)
       return value
     } catch {
@@ -252,7 +275,7 @@ final class CachedFinanceRepository: RemoteAssistantClient, FinanceDataClient, T
       guard let entry = try? await cache.read(scope: scope, key: key) else { throw failure }
       let value = try decode(entry.payload)
       try Task.checkCancellation()
-      guard currentScope == scope, generation == request else { throw CancellationError() }
+      guard currentScope == scope, generation == request, revision == resourceRevisions[key, default: 0] else { throw CancellationError() }
       metadata[key] = ReadMetadata(fetchedAt: entry.fetchedAt, source: .cache, failure: failure)
       return value
     }

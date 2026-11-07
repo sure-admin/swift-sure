@@ -32,7 +32,7 @@ struct AccountsView: View {
       #endif
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
-          Button("Connection settings", systemImage: "gearshape") {
+          Button("Settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
           .accessibilityHint("Manage your Sure connection")
@@ -56,7 +56,6 @@ struct AccountsView: View {
         accountLink(account)
       }
       if appleCardConnection.isAvailable { appleCardCard }
-      if data.state == .loaded { addAccountCard }
     }
     switch data.state {
     case .idle, .loading:
@@ -77,7 +76,7 @@ struct AccountsView: View {
           Task { await data.refresh() }
         }
         .buttonStyle(.borderedProminent)
-        Button("Connection settings", systemImage: "gearshape") {
+        Button("Settings", systemImage: "gearshape") {
           showConnectionSettings()
         }
         .buttonStyle(.bordered)
@@ -318,27 +317,5 @@ struct AccountsView: View {
     case .investment: .purple
     case .property: .teal
     }
-  }
-
-  private var addAccountCard: some View {
-    Button {
-      showConnectionSettings()
-    } label: {
-      VStack(spacing: 12) {
-        Image(systemName: "plus")
-          .font(.title2.bold())
-          .frame(width: 48, height: 48)
-          .background(SureTheme.accent, in: Circle())
-          .foregroundStyle(SureTheme.ink)
-        Text("Connection settings")
-          .font(.headline)
-        Text("Manage your Sure connection")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
-      .frame(maxWidth: .infinity, minHeight: 170)
-      .sureCard()
-    }
-    .buttonStyle(.plain)
   }
 }

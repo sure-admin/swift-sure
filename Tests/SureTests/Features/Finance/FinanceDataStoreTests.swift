@@ -158,6 +158,66 @@ struct FinanceDataStoreTests {
     #expect(client.accountCalls == 0)
   }
 
+  @Test("Acknowledgment removes only that insight after backend success and updates Watch")
+  func acknowledgeInsight() async throws {
+    let client = FinanceReadFake()
+    var other = testReadInsight
+    other.id = "00000000-0000-4000-8000-000000000602"
+    client.insights = [testReadInsight, other]
+    let barrier = ReadBarrier<Bool>()
+    client.acknowledgmentOperation = { _ = await barrier.wait() }
+    var watchIDs: [String] = []
+    let store = FinanceDataStore(connection: ReadConnectionFake(), client: client,
+      calendar: testReadCalendar, now: { testReadDate }, syncInsights: { watchIDs = $0.map(\.id) })
+    await store.refresh()
+    let task = Task { await store.acknowledgeInsight(testReadInsight) }
+    await barrier.started()
+    #expect(store.insights.count == 2)
+    #expect(store.acknowledgingInsightIDs == [testReadInsight.id])
+    await store.acknowledgeInsight(testReadInsight)
+    #expect(client.acknowledgedIDs.count == 1)
+    await barrier.finish(true)
+    await task.value
+    #expect(store.insights.map(\.id) == [other.id])
+    #expect(watchIDs == [other.id])
+    #expect(store.acknowledgingInsightIDs.isEmpty)
+  }
+
+  @Test("Failed acknowledgment preserves the insight and permits retry")
+  func failedAcknowledgment() async {
+    let client = FinanceReadFake()
+    client.insights = [testReadInsight]
+    client.acknowledgmentOperation = { throw SureAPIError.forbidden }
+    let store = makeStore(client)
+    await store.refresh()
+    await store.acknowledgeInsight(testReadInsight)
+    #expect(store.insights.count == 1)
+    #expect(store.insightAcknowledgmentError != nil)
+    #expect(store.acknowledgingInsightIDs.isEmpty)
+    client.acknowledgmentOperation = nil
+    await store.acknowledgeInsight(testReadInsight)
+    #expect(store.insights.isEmpty)
+    #expect(store.insightAcknowledgmentError == nil)
+  }
+
+  @Test("Late acknowledgments cannot mutate a disconnected session")
+  func acknowledgeAfterDisconnect() async {
+    let client = FinanceReadFake()
+    client.insights = [testReadInsight]
+    let barrier = ReadBarrier<Bool>()
+    client.acknowledgmentOperation = { _ = await barrier.wait() }
+    let store = makeStore(client)
+    await store.refresh()
+    let task = Task { await store.acknowledgeInsight(testReadInsight) }
+    await barrier.started()
+    store.disconnect()
+    await barrier.finish(true)
+    await task.value
+    #expect(store.insights.isEmpty)
+    #expect(store.acknowledgingInsightIDs.isEmpty)
+    #expect(store.insightAcknowledgmentError == nil)
+  }
+
   private func makeStore(_ client: FinanceReadFake, connection: ReadConnectionFake? = nil,
                          diagnostics: (any DiagnosticsLogging)? = nil) -> FinanceDataStore {
     FinanceDataStore(connection: connection ?? ReadConnectionFake(), client: client,

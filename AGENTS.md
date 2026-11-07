@@ -47,6 +47,9 @@ idiomatic Swift and SwiftUI architecture.
 
 ## Current product scope
 
+- Explicit user acknowledgment of an AI insight is an authorized write exception:
+  use the documented insight acknowledgment API, preserve family/account visibility,
+  and update the downloaded feed only after server success.
 - Financial data is read-only. Do not add transaction, account, budget, or
   valuation mutations without an explicit product decision. Authentication,
   token lifecycle, and push-subscription writes are infrastructure exceptions.
@@ -338,6 +341,11 @@ protocols are for meaningful seams and alternate implementations.
   error recovery before snapshotting simple SwiftUI layout.
 
 ## Build and validation
+
+Production app versions derive from the `America/Los_Angeles` build date (`YYYY.M.D`) via
+`.github/scripts/app_version.rb` and a derived Info.plist for each target.
+Keep the app and Watch versions aligned. CI sets `SURE_APP_VERSION` once for
+build-number lookup and archiving; build numbers remain independent.
 
 Generate the project after changing `Project.json` or source layout:
 

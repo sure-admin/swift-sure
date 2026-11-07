@@ -1,180 +1,530 @@
 {
   "availableInNewTerritories": false,
-  "availableTerritories": [
-    "AFG",
-    "AGO",
-    "AIA",
-    "ALB",
-    "ARE",
-    "ARG",
-    "ARM",
-    "ATG",
-    "AUS",
-    "AUT",
-    "AZE",
-    "BEL",
-    "BEN",
-    "BFA",
-    "BGR",
-    "BHR",
-    "BHS",
-    "BIH",
-    "BLR",
-    "BLZ",
-    "BMU",
-    "BOL",
-    "BRA",
-    "BRB",
-    "BRN",
-    "BTN",
-    "BWA",
-    "CAN",
-    "CHE",
-    "CHL",
-    "CHN",
-    "CIV",
-    "CMR",
-    "COD",
-    "COG",
-    "COL",
-    "CPV",
-    "CRI",
-    "CYM",
-    "CYP",
-    "CZE",
-    "DEU",
-    "DMA",
-    "DNK",
-    "DOM",
-    "DZA",
-    "ECU",
-    "EGY",
-    "ESP",
-    "EST",
-    "FIN",
-    "FJI",
-    "FRA",
-    "FSM",
-    "GAB",
-    "GBR",
-    "GEO",
-    "GHA",
-    "GMB",
-    "GNB",
-    "GRC",
-    "GRD",
-    "GTM",
-    "GUY",
-    "HKG",
-    "HND",
-    "HRV",
-    "HUN",
-    "IDN",
-    "IND",
-    "IRL",
-    "IRQ",
-    "ISL",
-    "ISR",
-    "ITA",
-    "JAM",
-    "JOR",
-    "JPN",
-    "KAZ",
-    "KEN",
-    "KGZ",
-    "KHM",
-    "KNA",
-    "KOR",
-    "KWT",
-    "LAO",
-    "LBN",
-    "LBR",
-    "LBY",
-    "LCA",
-    "LKA",
-    "LTU",
-    "LUX",
-    "LVA",
-    "MAC",
-    "MAR",
-    "MDA",
-    "MDG",
-    "MDV",
-    "MEX",
-    "MKD",
-    "MLI",
-    "MLT",
-    "MMR",
-    "MNE",
-    "MNG",
-    "MOZ",
-    "MRT",
-    "MSR",
-    "MUS",
-    "MWI",
-    "MYS",
-    "NAM",
-    "NER",
-    "NGA",
-    "NIC",
-    "NLD",
-    "NOR",
-    "NPL",
-    "NRU",
-    "NZL",
-    "OMN",
-    "PAK",
-    "PAN",
-    "PER",
-    "PHL",
-    "PLW",
-    "PNG",
-    "POL",
-    "PRT",
-    "PRY",
-    "QAT",
-    "ROU",
-    "RUS",
-    "RWA",
-    "SAU",
-    "SEN",
-    "SGP",
-    "SLB",
-    "SLE",
-    "SLV",
-    "SRB",
-    "STP",
-    "SUR",
-    "SVK",
-    "SVN",
-    "SWE",
-    "SWZ",
-    "SYC",
-    "TCA",
-    "TCD",
-    "THA",
-    "TJK",
-    "TKM",
-    "TON",
-    "TTO",
-    "TUN",
-    "TUR",
-    "TWN",
-    "TZA",
-    "UGA",
-    "UKR",
-    "URY",
-    "USA",
-    "UZB",
-    "VCT",
-    "VEN",
-    "VGB",
-    "VNM",
-    "VUT",
-    "XKS",
-    "YEM",
-    "ZAF",
-    "ZMB",
-    "ZWE"
-  ]
+  "territories": {
+    "AFG": {
+      "available": true
+    },
+    "AGO": {
+      "available": true
+    },
+    "AIA": {
+      "available": true
+    },
+    "ALB": {
+      "available": true
+    },
+    "ARE": {
+      "available": true
+    },
+    "ARG": {
+      "available": true
+    },
+    "ARM": {
+      "available": true
+    },
+    "ATG": {
+      "available": true
+    },
+    "AUS": {
+      "available": true
+    },
+    "AUT": {
+      "available": true
+    },
+    "AZE": {
+      "available": true
+    },
+    "BEL": {
+      "available": true
+    },
+    "BEN": {
+      "available": true
+    },
+    "BFA": {
+      "available": true
+    },
+    "BGR": {
+      "available": true
+    },
+    "BHR": {
+      "available": true
+    },
+    "BHS": {
+      "available": true
+    },
+    "BIH": {
+      "available": true
+    },
+    "BLR": {
+      "available": true
+    },
+    "BLZ": {
+      "available": true
+    },
+    "BMU": {
+      "available": true
+    },
+    "BOL": {
+      "available": true
+    },
+    "BRA": {
+      "available": true
+    },
+    "BRB": {
+      "available": true
+    },
+    "BRN": {
+      "available": true
+    },
+    "BTN": {
+      "available": true
+    },
+    "BWA": {
+      "available": true
+    },
+    "CAN": {
+      "available": true
+    },
+    "CHE": {
+      "available": true
+    },
+    "CHL": {
+      "available": true
+    },
+    "CHN": {
+      "available": true
+    },
+    "CIV": {
+      "available": true
+    },
+    "CMR": {
+      "available": true
+    },
+    "COD": {
+      "available": true
+    },
+    "COG": {
+      "available": true
+    },
+    "COL": {
+      "available": true
+    },
+    "CPV": {
+      "available": true
+    },
+    "CRI": {
+      "available": true
+    },
+    "CYM": {
+      "available": true
+    },
+    "CYP": {
+      "available": true
+    },
+    "CZE": {
+      "available": true
+    },
+    "DEU": {
+      "available": true
+    },
+    "DMA": {
+      "available": true
+    },
+    "DNK": {
+      "available": true
+    },
+    "DOM": {
+      "available": true
+    },
+    "DZA": {
+      "available": true
+    },
+    "ECU": {
+      "available": true
+    },
+    "EGY": {
+      "available": true
+    },
+    "ESP": {
+      "available": true
+    },
+    "EST": {
+      "available": true
+    },
+    "FIN": {
+      "available": true
+    },
+    "FJI": {
+      "available": true
+    },
+    "FRA": {
+      "available": true
+    },
+    "FSM": {
+      "available": true
+    },
+    "GAB": {
+      "available": true
+    },
+    "GBR": {
+      "available": true
+    },
+    "GEO": {
+      "available": true
+    },
+    "GHA": {
+      "available": true
+    },
+    "GMB": {
+      "available": true
+    },
+    "GNB": {
+      "available": true
+    },
+    "GRC": {
+      "available": true
+    },
+    "GRD": {
+      "available": true
+    },
+    "GTM": {
+      "available": true
+    },
+    "GUY": {
+      "available": true
+    },
+    "HKG": {
+      "available": true
+    },
+    "HND": {
+      "available": true
+    },
+    "HRV": {
+      "available": true
+    },
+    "HUN": {
+      "available": true
+    },
+    "IDN": {
+      "available": true
+    },
+    "IND": {
+      "available": true
+    },
+    "IRL": {
+      "available": true
+    },
+    "IRQ": {
+      "available": true
+    },
+    "ISL": {
+      "available": true
+    },
+    "ISR": {
+      "available": true
+    },
+    "ITA": {
+      "available": true
+    },
+    "JAM": {
+      "available": true
+    },
+    "JOR": {
+      "available": true
+    },
+    "JPN": {
+      "available": true
+    },
+    "KAZ": {
+      "available": true
+    },
+    "KEN": {
+      "available": true
+    },
+    "KGZ": {
+      "available": true
+    },
+    "KHM": {
+      "available": true
+    },
+    "KNA": {
+      "available": true
+    },
+    "KOR": {
+      "available": true
+    },
+    "KWT": {
+      "available": true
+    },
+    "LAO": {
+      "available": true
+    },
+    "LBN": {
+      "available": true
+    },
+    "LBR": {
+      "available": true
+    },
+    "LBY": {
+      "available": true
+    },
+    "LCA": {
+      "available": true
+    },
+    "LKA": {
+      "available": true
+    },
+    "LTU": {
+      "available": true
+    },
+    "LUX": {
+      "available": true
+    },
+    "LVA": {
+      "available": true
+    },
+    "MAC": {
+      "available": true
+    },
+    "MAR": {
+      "available": true
+    },
+    "MDA": {
+      "available": true
+    },
+    "MDG": {
+      "available": true
+    },
+    "MDV": {
+      "available": true
+    },
+    "MEX": {
+      "available": true
+    },
+    "MKD": {
+      "available": true
+    },
+    "MLI": {
+      "available": true
+    },
+    "MLT": {
+      "available": true
+    },
+    "MMR": {
+      "available": true
+    },
+    "MNE": {
+      "available": true
+    },
+    "MNG": {
+      "available": true
+    },
+    "MOZ": {
+      "available": true
+    },
+    "MRT": {
+      "available": true
+    },
+    "MSR": {
+      "available": true
+    },
+    "MUS": {
+      "available": true
+    },
+    "MWI": {
+      "available": true
+    },
+    "MYS": {
+      "available": true
+    },
+    "NAM": {
+      "available": true
+    },
+    "NER": {
+      "available": true
+    },
+    "NGA": {
+      "available": true
+    },
+    "NIC": {
+      "available": true
+    },
+    "NLD": {
+      "available": true
+    },
+    "NOR": {
+      "available": true
+    },
+    "NPL": {
+      "available": true
+    },
+    "NRU": {
+      "available": true
+    },
+    "NZL": {
+      "available": true
+    },
+    "OMN": {
+      "available": true
+    },
+    "PAK": {
+      "available": true
+    },
+    "PAN": {
+      "available": true
+    },
+    "PER": {
+      "available": true
+    },
+    "PHL": {
+      "available": true
+    },
+    "PLW": {
+      "available": true
+    },
+    "PNG": {
+      "available": true
+    },
+    "POL": {
+      "available": true
+    },
+    "PRT": {
+      "available": true
+    },
+    "PRY": {
+      "available": true
+    },
+    "QAT": {
+      "available": true
+    },
+    "ROU": {
+      "available": true
+    },
+    "RUS": {
+      "available": true
+    },
+    "RWA": {
+      "available": true
+    },
+    "SAU": {
+      "available": true
+    },
+    "SEN": {
+      "available": true
+    },
+    "SGP": {
+      "available": true
+    },
+    "SLB": {
+      "available": true
+    },
+    "SLE": {
+      "available": true
+    },
+    "SLV": {
+      "available": true
+    },
+    "SRB": {
+      "available": true
+    },
+    "STP": {
+      "available": true
+    },
+    "SUR": {
+      "available": true
+    },
+    "SVK": {
+      "available": true
+    },
+    "SVN": {
+      "available": true
+    },
+    "SWE": {
+      "available": true
+    },
+    "SWZ": {
+      "available": true
+    },
+    "SYC": {
+      "available": true
+    },
+    "TCA": {
+      "available": true
+    },
+    "TCD": {
+      "available": true
+    },
+    "THA": {
+      "available": true
+    },
+    "TJK": {
+      "available": true
+    },
+    "TKM": {
+      "available": true
+    },
+    "TON": {
+      "available": true
+    },
+    "TTO": {
+      "available": true
+    },
+    "TUN": {
+      "available": true
+    },
+    "TUR": {
+      "available": true
+    },
+    "TWN": {
+      "available": true
+    },
+    "TZA": {
+      "available": true
+    },
+    "UGA": {
+      "available": true
+    },
+    "UKR": {
+      "available": true
+    },
+    "URY": {
+      "available": true
+    },
+    "USA": {
+      "available": true
+    },
+    "UZB": {
+      "available": true
+    },
+    "VCT": {
+      "available": true
+    },
+    "VEN": {
+      "available": true
+    },
+    "VGB": {
+      "available": true
+    },
+    "VNM": {
+      "available": true
+    },
+    "VUT": {
+      "available": true
+    },
+    "XKS": {
+      "available": true
+    },
+    "YEM": {
+      "available": true
+    },
+    "ZAF": {
+      "available": true
+    },
+    "ZMB": {
+      "available": true
+    },
+    "ZWE": {
+      "available": true
+    }
+  }
 }

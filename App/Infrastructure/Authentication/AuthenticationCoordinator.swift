@@ -64,7 +64,13 @@ final class AuthenticationCoordinator: ConnectionAuthenticating {
       } catch {
         pendingOnboarding = nil
         if case .oauth(let oauth)? = candidate { await connection.revoke(oauth) }
-        status = Self.isCancellation(error) ? stableStatus : .failed(Self.safeMessage(error))
+        if Self.isCancellation(error) {
+          status = stableStatus
+        } else if case .password = method, error as? MobileSSOError == .mfaRequired {
+          status = .requiresSecondFactor
+        } else {
+          status = .failed(Self.safeMessage(error))
+        }
       }
     }
     attempt = task
@@ -83,7 +89,10 @@ final class AuthenticationCoordinator: ConnectionAuthenticating {
     attempt = nil
   }
 
-  func cancel() { attempt?.cancel() }
+  func cancel() {
+    if status == .requiresSecondFactor { status = stableStatus }
+    attempt?.cancel()
+  }
   func cancelOnboarding() { pendingOnboarding = nil }
 
   func logOut() async {
@@ -103,8 +112,8 @@ final class AuthenticationCoordinator: ConnectionAuthenticating {
     case .passkey:
       return try oauthSession(try await oauth.signIn(serverURL: server.url.absoluteString),
         server: server, source: .dynamicClient)
-    case .password(let email, let password):
-      return try mobileSession(try await mobile.signIn(email: email, password: password,
+    case .password(let email, let password, let otpCode):
+      return try mobileSession(try await mobile.signIn(email: email, password: password, otpCode: otpCode,
         serverURL: server.url.absoluteString), server: server)
     case .provider(let provider):
       return try mobileSession(try await mobile.signIn(provider: provider,

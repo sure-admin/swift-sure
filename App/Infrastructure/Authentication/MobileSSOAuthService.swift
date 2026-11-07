@@ -29,6 +29,7 @@ final class MobileSSOAuthService {
   func signIn(
     email: String,
     password: String,
+    otpCode: String? = nil,
     serverURL: String
   ) async throws -> MobileSSOResult {
     let server = try OAuthServerURL(serverURL)
@@ -37,6 +38,7 @@ final class MobileSSOAuthService {
     let tokens = try await httpClient.login(
       email: email,
       password: password,
+      otpCode: otpCode,
       device: device,
       server: server
     )

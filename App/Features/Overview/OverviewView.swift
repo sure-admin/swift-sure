@@ -38,7 +38,7 @@ struct OverviewView: View {
             Task { await refresh() }
           }
           .disabled(data.state == .loading)
-          Button("Connection settings", systemImage: "gearshape") {
+          Button("Settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
           .accessibilityHint("Manage your Sure connection")
@@ -85,7 +85,7 @@ struct OverviewView: View {
       } description: {
         Text(message)
       } actions: {
-        Button("Connection settings", systemImage: "gearshape") {
+        Button("Settings", systemImage: "gearshape") {
           showConnectionSettings()
         }
         .buttonStyle(.bordered)
@@ -96,7 +96,10 @@ struct OverviewView: View {
         isLoading: data.isLoadingInsights,
         errorMessage: data.insightError,
         notificationManager: notificationManager,
-        statusColumnWidth: Self.statusColumnWidth
+        statusColumnWidth: Self.statusColumnWidth,
+        acknowledgingIDs: data.acknowledgingInsightIDs,
+        acknowledgmentError: data.insightAcknowledgmentError,
+        acknowledge: { insight in Task { await data.acknowledgeInsight(insight) } }
       )
       SpendingComparisonCard(store: spendingComparison)
       if (data.accountsError != nil && !data.accounts.isEmpty)

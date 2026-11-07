@@ -49,6 +49,7 @@ jobs:
       - name: Test CI scripts
         run: |
           ruby .github/scripts/next_testflight_build_number_test.rb
+          ruby .github/scripts/app_version_test.rb
           sh .github/scripts/upload_local_sentry_symbols_test.sh
 
       - name: Install XcodeGen and SwiftLint
@@ -275,7 +276,8 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
           BUILD_NUMBER_OFFSET: ${{ github.run_number }}
         run: |
-          marketing_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' App/Info.plist)"
+          marketing_version="$(ruby .github/scripts/app_version.rb)"
+          echo "SURE_APP_VERSION=$marketing_version" >> "$GITHUB_ENV"
           build_number="$(APP_MARKETING_VERSION="$marketing_version" ruby .github/scripts/next_testflight_build_number.rb)"
           echo "BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
           echo "Using TestFlight build number $build_number for version $marketing_version."
@@ -315,6 +317,7 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            SURE_APP_VERSION="$SURE_APP_VERSION" \
             SURE_SENTRY_DSN="$SURE_SENTRY_DSN" \
             SURE_POSTHOG_PROJECT_TOKEN="$SURE_POSTHOG_PROJECT_TOKEN" \
             clean archive

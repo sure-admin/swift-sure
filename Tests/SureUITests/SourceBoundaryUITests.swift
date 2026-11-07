@@ -3,6 +3,316 @@ import XCTest
 final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
+  @MainActor
+  func testSwipeDismissesOnlyTheSelectedInsight() throws {
+    for scenario in ["insight-dismissal", "insight-dismissal-dark"] {
+      let app = launch(scenario)
+      let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+      XCTAssertTrue(row.waitForExistence(timeout: 10))
+      row.swipeLeft()
+      XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+      XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testFailedSwipeKeepsTheInsightVisible() throws {
+    let app = launch("insight-dismissal-failure")
+    let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    row.swipeLeft()
+    XCTAssertTrue(app.staticTexts["insight-dismissal-error"].waitForExistence(timeout: 5))
+    XCTAssertTrue(row.exists)
+    XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+  }
+
+  @MainActor
+  func testConnectOpensLoginAndCogOpensSettings() throws {
+    let app = launch("connection-routing")
+    XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))
+    app.buttons["Connect to Sure"].tap()
+    XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.secureTextFields["Password"].exists)
+    XCTAssertTrue(app.buttons["Continue with Apple"].exists)
+    XCTAssertTrue(app.buttons["Continue with Google"].exists)
+    XCTAssertFalse(app.navigationBars["Settings"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    try tapVisibleSettings(in: app)
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.textFields["settings-server-url"].exists)
+    app.buttons["Done"].tap()
+    XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))
+    app.buttons["Settings"].tap()
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = "settings-from-cog"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
+  @MainActor
+  func testConnectPreservesSubscriptionGate() throws {
+    let app = launch("connection-routing-locked")
+    XCTAssertTrue(app.buttons["View subscription plans"].waitForExistence(timeout: 10))
+    app.buttons["View subscription plans"].tap()
+    XCTAssertTrue(app.buttons["Subscribe"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.textFields["Email"].exists)
+    XCTAssertFalse(app.secureTextFields["Password"].exists)
+    try tapVisibleSettings(in: app)
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.textFields["Email"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  private func tapVisibleSettings(in app: XCUIApplication) throws {
+    // A sheet can leave the presenting view's cog in the accessibility tree.
+    let button = try XCTUnwrap(app.buttons.matching(identifier: "Settings")
+      .allElementsBoundByIndex.first(where: \.isHittable), "Expected a tappable Settings button")
+    button.tap()
+  }
+
+  @MainActor
+  func testSettingsRemainAvailableWithoutSubscription() throws {
+    let app = launch("settings-locked")
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.buttons["Subscribe"].exists)
+    XCTAssertTrue(app.buttons["View subscription plans"].exists)
+    XCTAssertTrue(app.buttons["Usage analytics"].exists)
+    XCTAssertTrue(app.buttons["Diagnostics"].exists)
+    XCTAssertFalse(app.buttons["Continue with Passkey"].exists)
+    XCTAssertFalse(app.buttons["Password or provider sign-in"].exists)
+    app.buttons["Usage analytics"].tap()
+    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
+    app.navigationBars.buttons.firstMatch.tap()
+    app.buttons["API key access"].firstMatch.tap()
+    XCTAssertFalse(app.secureTextFields["settings-api-key"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let logout = app.buttons["Log Out"]
+    for _ in 0..<3 where !logout.isHittable { app.swipeUp() }
+    logout.tap()
+    XCTAssertTrue(logout.waitForNonExistence(timeout: 10))
+  }
+
+  @MainActor
+  func testSettingsAdvancedAPIKeyDraftInBothAppearances() throws {
+    for scenario in ["settings-paid-light", "settings-paid-dark"] {
+      let app = launch(scenario)
+      XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+      XCTAssertTrue(app.buttons["Manage subscription"].waitForExistence(timeout: 10))
+      XCTAssertFalse(app.secureTextFields["settings-api-key"].exists)
+      XCTAssertFalse(app.buttons["Continue with Passkey"].exists)
+      app.buttons["API key access"].firstMatch.tap()
+      let key = app.secureTextFields["settings-api-key"]
+      XCTAssertTrue(key.waitForExistence(timeout: 10))
+      if !key.isHittable { app.swipeUp() }
+      key.tap()
+      key.typeText("unsaved-fixture-key")
+      XCTAssertFalse(app.staticTexts["This key couldn’t be saved"].exists)
+      XCTAssertFalse(app.staticTexts["Saved in Keychain"].exists)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testGoogleSignInCanBeEnabledWithoutPasswordWhenServerWasNotConfigured() throws {
+    try checkSignInWithoutConfiguredServer("Google")
+  }
+
+  @MainActor
+  func testAppleSignInCanBeEnabledWithoutPasswordWhenServerWasNotConfigured() throws {
+    try checkSignInWithoutConfiguredServer("Apple")
+  }
+
+  @MainActor
+  func testPasskeySignInCanBeEnabledWithoutPasswordWhenServerWasNotConfigured() throws {
+    try checkSignInWithoutConfiguredServer("Passkey")
+  }
+
+  @MainActor
+  private func checkSignInWithoutConfiguredServer(_ method: String) throws {
+    let app = launch("sign-in-no-server")
+    let server = app.textFields["Server URL"]
+    let button = app.buttons["Continue with \(method)"]
+    XCTAssertTrue(server.waitForExistence(timeout: 10))
+    for name in ["Google", "Apple", "Passkey"] {
+      XCTAssertFalse(app.buttons["Continue with \(name)"].isEnabled)
+    }
+    XCTAssertTrue(app.staticTexts["Enter your Sure server’s HTTPS URL to enable sign-in."].exists)
+    server.tap()
+    server.typeText("https://sure.example.com")
+    for name in ["Google", "Apple", "Passkey"] {
+      XCTAssertTrue(app.buttons["Continue with \(name)"].isEnabled)
+    }
+    XCTAssertFalse(app.buttons["Continue"].isEnabled)
+    // SSO needs a server, but never the password form's credentials.
+    XCTAssertEqual(app.textFields["Email"].value as? String, "Email")
+    // Start above the keyboard: a full-height swipe begins inside the keyboard.
+    let scroll = app.scrollViews.firstMatch
+    for _ in 0..<3 where app.keyboards.firstMatch.exists || !button.isHittable {
+      let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+      let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+      start.press(forDuration: 0.1, thenDragTo: end)
+    }
+    XCTAssertTrue(button.isHittable)
+    button.tap()
+    XCTAssertTrue(app.descendants(matching: .any)["\(method) sign-in started in the test fixture."].firstMatch.waitForExistence(timeout: 10))
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  func testPasswordSecondFactorRetryInBothAppearances() throws {
+    for scenario in ["sign-in-mfa-light", "sign-in-mfa-dark"] {
+      let app = launch(scenario)
+      let button = app.buttons["Continue"]
+      XCTAssertTrue(button.waitForExistence(timeout: 10))
+      button.tap()
+      let code = app.textFields["Authentication code"]
+      XCTAssertTrue(code.waitForExistence(timeout: 10))
+      XCTAssertFalse(button.isEnabled)
+      code.tap()
+      code.typeText("000000")
+      revealSignInAction(button, in: app)
+      button.tap()
+      XCTAssertTrue(app.staticTexts["That code wasn’t accepted. Enter a new code."].waitForExistence(timeout: 10))
+      XCTAssertFalse(button.isEnabled)
+      if !code.isHittable { app.scrollViews.firstMatch.swipeDown() }
+      code.tap()
+      code.typeText("123456")
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      revealSignInAction(button, in: app)
+      button.tap()
+      XCTAssertTrue(code.waitForNonExistence(timeout: 10))
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testPasswordSecondFactorCanBeCancelled() {
+    let app = launch("sign-in-mfa-light")
+    let button = app.buttons["Continue"]
+    XCTAssertTrue(button.waitForExistence(timeout: 10))
+    button.tap()
+    let code = app.textFields["Authentication code"]
+    XCTAssertTrue(code.waitForExistence(timeout: 10))
+    let cancel = app.buttons["Cancel verification"]
+    revealSignInAction(cancel, in: app)
+    cancel.tap()
+    XCTAssertTrue(code.waitForNonExistence(timeout: 10))
+    XCTAssertFalse(button.isEnabled)
+    XCTAssertEqual(app.secureTextFields["Password"].value as? String, "Password")
+  }
+
+  @MainActor
+  private func revealSignInAction(_ action: XCUIElement, in app: XCUIApplication) {
+    let scroll = app.scrollViews.firstMatch
+    for _ in 0..<4 where app.keyboards.firstMatch.exists || !action.isHittable {
+      let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+      let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+      start.press(forDuration: 0.1, thenDragTo: end)
+    }
+  }
+
+  @MainActor
+  func testDemoContinueShowsProgressInBothAppearances() throws {
+    for scenario in ["sign-in-progress-light", "sign-in-progress-dark"] {
+      let app = launch(scenario)
+      let button = app.buttons["Continue"]
+      XCTAssertTrue(button.waitForExistence(timeout: 10))
+      XCTAssertTrue(button.isEnabled)
+      let originalFrame = button.frame
+      button.tap()
+      let busy = NSPredicate(format: "value == %@ AND enabled == NO", "Signing in")
+      expectation(for: busy, evaluatedWith: button)
+      waitForExpectations(timeout: 10)
+      XCTAssertEqual(button.frame, originalFrame)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      let cancel = app.buttons["Cancel"]
+      for _ in 0..<3 where !cancel.isHittable { app.scrollViews.firstMatch.swipeUp() }
+      cancel.tap()
+      let idle = NSPredicate(format: "value != %@ AND enabled == YES", "Signing in")
+      expectation(for: idle, evaluatedWith: button)
+      waitForExpectations(timeout: 10)
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testSignInLightAppearance() throws {
+    try checkSignInAppearance("sign-in-light")
+  }
+
+  @MainActor
+  func testSignInDarkAppearance() throws {
+    try checkSignInAppearance("sign-in-dark")
+  }
+
+  @MainActor
+  func testSignInServerAttributionInBothAppearances() throws {
+    for scenario in ["sign-in-light", "sign-in-dark"] {
+      let app = launch(scenario)
+      let attribution = app.descendants(matching: .any)["sign-in-server-attribution"].firstMatch
+      XCTAssertTrue(attribution.waitForExistence(timeout: 10))
+      for _ in 0..<3 where !attribution.isHittable {
+        app.scrollViews.firstMatch.swipeUp()
+      }
+      XCTAssertEqual(attribution.label, "Sure server: demo.sure.am")
+      XCTAssertTrue(attribution.isHittable)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = "\(scenario)-server-attribution"
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    }
+  }
+
+  @MainActor
+  private func checkSignInAppearance(_ scenario: String) throws {
+    let app = launch(scenario)
+    let email = app.textFields["Email"]
+    let password = app.secureTextFields["Password"]
+    XCTAssertTrue(email.waitForExistence(timeout: 10))
+    XCTAssertTrue(password.isHittable)
+    XCTAssertFalse(app.buttons["Continue"].isEnabled)
+    XCTAssertTrue(app.buttons["Continue with Google"].isEnabled)
+    XCTAssertTrue(app.buttons["Continue with Apple"].isEnabled)
+    // Inspect gradient contrast in the attached screenshots; audit labels and sizing here.
+    try app.performAccessibilityAudit(for: [.sufficientElementDescription, .textClipped])
+    let emptyFields = XCTAttachment(screenshot: app.screenshot())
+    emptyFields.name = "\(scenario)-empty-fields"
+    emptyFields.lifetime = .keepAlways
+    add(emptyFields)
+    email.tap()
+    email.typeText("user@example.com")
+    XCTAssertEqual(email.value as? String, "user@example.com")
+    email.typeText("\n")
+    XCTAssertTrue(password.isHittable)
+    password.typeText("Password1!")
+    XCTAssertTrue(app.buttons["Continue"].isEnabled)
+    if !app.buttons["Continue"].isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(app.buttons["Continue"].isHittable)
+    // Entered single-line fields may scroll their text; audit sizing before editing.
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   #if DEBUG
   @MainActor
   func testDebugUsageAnalyticsShowsConfiguredDestinations() throws {
@@ -17,16 +327,23 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
-  func testUsageAnalyticsRemainsAvailableWithoutSubscription() throws {
-    let app = launch("analytics-gated")
-    let analytics = app.buttons["Usage analytics"]
-    XCTAssertTrue(analytics.waitForExistence(timeout: 10))
-    analytics.tap()
-    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
-    let consent = app.switches["Share usage analytics"]
-    XCTAssertTrue(consent.waitForExistence(timeout: 10))
-    XCTAssertTrue(consent.isEnabled)
+  func testSubscriptionSheetKeepsPurchaseBarAtBottomWithoutTelemetryLinks() throws {
+    let app = launch("subscription-sheet")
+    let subscribe = app.buttons["Subscribe"]
+    XCTAssertTrue(subscribe.waitForExistence(timeout: 10))
+    XCTAssertTrue(subscribe.isHittable)
+    XCTAssertFalse(app.buttons["Usage analytics"].exists)
+    XCTAssertFalse(app.buttons["Diagnostics"].exists)
+    XCTAssertFalse(app.staticTexts["Renews automatically unless cancelled."].exists)
+    XCTAssertFalse(app.staticTexts["$0.99 every 1 month. Cancel any time."].exists)
+    XCTAssertGreaterThan(subscribe.frame.maxY, app.frame.maxY - 80)
+    let purchasePosition = subscribe.frame.minY
+    app.scrollViews.firstMatch.swipeUp()
+    XCTAssertEqual(subscribe.frame.minY, purchasePosition, accuracy: 1)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
   }
   #endif
 

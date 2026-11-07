@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AssistantView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.showSignIn) private var showSignIn
   @Environment(\.showConnectionSettings) private var showConnectionSettings
   var connection: SureConnection
   @State private var store: AssistantStore
@@ -72,7 +73,7 @@ struct AssistantView: View {
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           conversationMenu
-          Button("Connection settings", systemImage: "gearshape") {
+          Button("Settings", systemImage: "gearshape") {
             showConnectionSettings()
           }
         }
@@ -270,7 +271,7 @@ struct AssistantView: View {
 
   private func submit(to destination: AssistantDestination) {
     if destination == .sureServer && !connection.isConfigured {
-      showConnectionSettings()
+      showSignIn()
       return
     }
     Task { await store.send(to: destination) }

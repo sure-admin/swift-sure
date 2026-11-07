@@ -1,0 +1,429 @@
+From 69266fe685eb7055979bca0bc68846570f2b28e3 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Juan=20Jos=C3=A9=20Mata?= <juanjo.mata@gmail.com>
+Date: Fri, 6 Nov 2026 20:01:13 -0800
+Subject: [PATCH 1/2] Expose insight acknowledgment through the public API
+
+---
+ app/controllers/api/v1/insights_controller.rb | 18 +++-
+ config/routes.rb                              |  4 +-
+ docs/api/insights.md                          | 30 +++++++
+ docs/api/openapi.yaml                         | 38 +++++++++
+ docs/clients.md                               |  5 ++
+ spec/requests/api/v1/insights_spec.rb         | 26 ++++++
+ .../api/v1/insights_controller_test.rb        | 83 +++++++++++++++++++
+ 7 files changed, 202 insertions(+), 2 deletions(-)
+ create mode 100644 docs/api/insights.md
+
+diff --git a/app/controllers/api/v1/insights_controller.rb b/app/controllers/api/v1/insights_controller.rb
+index e7099f9a3..8b305eb11 100644
+--- a/app/controllers/api/v1/insights_controller.rb
++++ b/app/controllers/api/v1/insights_controller.rb
+@@ -1,7 +1,9 @@
+ # frozen_string_literal: true
+ 
+ class Api::V1::InsightsController < Api::V1::BaseController
+-  before_action :ensure_read_scope
++  before_action :ensure_read_scope, only: :index
++  before_action -> { authorize_scope!(:write) }, only: :acknowledge
++  before_action :reject_guest_writes!, only: :acknowledge
+   before_action :require_preview_features_for_api
+ 
+   def index
+@@ -12,6 +14,20 @@ class Api::V1::InsightsController < Api::V1::BaseController
+     }
+   end
+ 
++  def acknowledge
++    raise ActiveRecord::RecordNotFound unless valid_uuid?(params[:id])
++
++    insight = current_resource_owner.family.insights.about_shared_accounts.find(params[:id])
++    insight.with_lock do
++      # Replays must not overwrite timestamps or revive expired insights.
++      if insight.active? || insight.read?
++        insight.mark_read!
++        insight.acknowledge!
++      end
++    end
++    head :no_content
++  end
++
+   private
+     def ensure_read_scope
+       authorize_scope!(:read)
+diff --git a/config/routes.rb b/config/routes.rb
+index ea446b404..000f894da 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -844,7 +844,9 @@ Rails.application.routes.draw do
+       resource :cash_flow, only: [ :show ], controller: :cash_flows
+       resource :spending_vs_normal, only: [ :show ], controller: :spending_vs_normal
+       resource :balance_sheet, only: [ :show ], controller: :balance_sheet
+-      resources :insights, only: [ :index ]
++      resources :insights, only: [ :index ] do
++        patch :acknowledge, on: :member
++      end
+       resources :push_subscriptions, only: [ :create, :destroy ]
+       resource :family_settings, only: [ :show ], controller: :family_settings
+       post :sync, to: "sync#create", as: :sync_job
+diff --git a/docs/api/insights.md b/docs/api/insights.md
+new file mode 100644
+index 000000000..8ce7df127
+--- /dev/null
++++ b/docs/api/insights.md
+@@ -0,0 +1,30 @@
++# Proactive insights API
++
++`GET /api/v1/insights` returns the visible family feed. Reading this endpoint does
++not change insight status. It requires `read` or `read_write` credentials and
++preview features enabled for the authenticated user.
++
++## Acknowledge an insight
++
++`PATCH /api/v1/insights/{id}/acknowledge` takes the insight UUID in the path and no
++request body. Authenticate with an OAuth bearer token or `X-Api-Key` carrying
++`read_write` scope. Guests cannot modify the shared feed. Preview features must
++be enabled for the authenticated user.
++
++The action applies the same family and shared-account visibility rules as the
++feed. It marks an active insight read, then acknowledges it, preserving an
++existing read timestamp. Acknowledged insights disappear from the visible feed.
++The stored acknowledgment state is `dismissed`; the model calls it acknowledged.
++
++- `204 No Content`: acknowledged, already acknowledged, or already expired.
++  Replays do not overwrite timestamps or revive an expired insight.
++- `401`: missing or invalid credentials.
++- `403`: insufficient write scope, guest access, or disabled preview features.
++- `404`: unknown/malformed UUID, another family's insight, or an insight naming an
++  account that is no longer visible to every active family member.
++
++Acknowledgment covers the observation the user saw. The normal insight generator
++may surface it again when its financial signal changes materially or in a new
++reporting period. Clients should remove a row only after a successful response
++and preserve a retry path on failure. See the generated OpenAPI document for the
++wire contract.
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index 50d427056..e8d0370e8 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -8366,6 +8366,44 @@ paths:
+             application/json:
+               schema:
+                 "$ref": "#/components/schemas/ErrorResponse"
++  "/api/v1/insights/{id}/acknowledge":
++    patch:
++      summary: Acknowledge a proactive insight
++      tags:
++      - Insights
++      description: Marks a visible family insight read and acknowledged, removing
++        it from the feed. Requires read_write scope and preview access. Repeated requests
++        are idempotent.
++      security:
++      - apiKeyAuth: []
++      parameters:
++      - name: id
++        in: path
++        format: uuid
++        required: true
++        schema:
++          type: string
++      responses:
++        '204':
++          description: insight acknowledged
++        '401':
++          description: authentication required
++          content:
++            application/json:
++              schema:
++                "$ref": "#/components/schemas/ErrorResponse"
++        '403':
++          description: write scope, member access or preview features required
++          content:
++            application/json:
++              schema:
++                "$ref": "#/components/schemas/ErrorResponse"
++        '404':
++          description: insight not found or not visible to the family
++          content:
++            application/json:
++              schema:
++                "$ref": "#/components/schemas/ErrorResponse"
+   "/api/v1/merchants":
+     get:
+       summary: List merchants
+diff --git a/docs/clients.md b/docs/clients.md
+index 0951af73e..8df996e0d 100644
+--- a/docs/clients.md
++++ b/docs/clients.md
+@@ -95,6 +95,11 @@ app clients.
+ Start with the OpenAPI spec at [docs/api/openapi.yaml](api/openapi.yaml) and
+ endpoint guides such as [docs/api/transactions.md](api/transactions.md).
+ 
++Native clients can acknowledge a proactive insight with
++[`PATCH /api/v1/insights/:id/acknowledge`](api/insights.md). This requires
++`read_write` credentials and preview-feature access; a successful response is
++`204 No Content`.
++
+ ## Choosing a client
+ 
+ - Start with the web app when a person needs the complete Sure experience.
+diff --git a/spec/requests/api/v1/insights_spec.rb b/spec/requests/api/v1/insights_spec.rb
+index ff7cb2235..98f473048 100644
+--- a/spec/requests/api/v1/insights_spec.rb
++++ b/spec/requests/api/v1/insights_spec.rb
+@@ -45,4 +45,30 @@ RSpec.describe "API V1 Insights", type: :request do
+       end
+     end
+   end
++  path "/api/v1/insights/{id}/acknowledge" do
++    patch "Acknowledge a proactive insight" do
++      tags "Insights"
++      description "Marks a visible family insight read and acknowledged, removing it from the feed. Requires read_write scope and preview access. Repeated requests are idempotent."
++      security [ { apiKeyAuth: [] } ]
++      produces "application/json"
++      parameter name: :id, in: :path, type: :string, format: :uuid, required: true
++      let(:id) { SecureRandom.uuid }
++
++      response "204", "insight acknowledged" do
++        run_test!
++      end
++      response "401", "authentication required" do
++        schema "$ref" => "#/components/schemas/ErrorResponse"
++        run_test!
++      end
++      response "403", "write scope, member access or preview features required" do
++        schema "$ref" => "#/components/schemas/ErrorResponse"
++        run_test!
++      end
++      response "404", "insight not found or not visible to the family" do
++        schema "$ref" => "#/components/schemas/ErrorResponse"
++        run_test!
++      end
++    end
++  end
+ end
+diff --git a/test/controllers/api/v1/insights_controller_test.rb b/test/controllers/api/v1/insights_controller_test.rb
+index b665e9f87..d6cfe03c0 100644
+--- a/test/controllers/api/v1/insights_controller_test.rb
++++ b/test/controllers/api/v1/insights_controller_test.rb
+@@ -47,4 +47,87 @@ class Api::V1::InsightsControllerTest < ActionDispatch::IntegrationTest
+     assert_response :forbidden
+     assert_equal "feature_disabled", response.parsed_body.fetch("error")
+   end
++  test "acknowledges an insight as read and removes it from the feed" do
++    @api_key.update!(scopes: [ "read_write" ])
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++
++    assert_response :no_content
++    assert @insight.reload.acknowledged?
++    assert_not_nil @insight.read_at
++    assert_not_nil @insight.dismissed_at
++    get api_v1_insights_url, headers: api_headers(@api_key)
++    assert_response :success
++    assert_not_includes response.parsed_body.fetch("insights").pluck("id"), @insight.id
++  end
++
++  test "acknowledgment is idempotent and does not revive expired insights" do
++    @api_key.update!(scopes: [ "read_write" ])
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    dismissed_at = @insight.reload.dismissed_at
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :no_content
++    assert_equal dismissed_at, @insight.reload.dismissed_at
++
++    @insight.update!(status: :expired)
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :no_content
++    assert @insight.reload.expired?
++  end
++
++  test "acknowledging a read insight preserves its original read timestamp" do
++    @api_key.update!(scopes: [ "read_write" ])
++    read_at = 1.hour.ago.change(usec: 0)
++    @insight.update!(status: :read, read_at: read_at)
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :no_content
++    assert @insight.reload.acknowledged?
++    assert_equal read_at, @insight.read_at
++  end
++
++  test "read-only keys cannot acknowledge insights" do
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :forbidden
++    assert_equal "insufficient_scope", response.parsed_body.fetch("error")
++    assert @insight.reload.active?
++  end
++
++  test "acknowledgment requires authentication and preview access" do
++    patch acknowledge_api_v1_insight_url(@insight)
++    assert_response :unauthorized
++    @api_key.update!(scopes: [ "read_write" ])
++    @user.update!(preferences: @user.preferences.merge("preview_features_enabled" => false))
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :forbidden
++    assert_equal "feature_disabled", response.parsed_body.fetch("error")
++    assert @insight.reload.active?
++  end
++
++  test "cannot acknowledge another family's or a hidden account's insight" do
++    @api_key.update!(scopes: [ "read_write" ])
++    @insight.update!(family: families(:empty))
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :not_found
++    assert @insight.reload.active?
++
++    @insight.update!(family: @user.family, metadata: { account_id: SecureRandom.uuid })
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :not_found
++    assert @insight.reload.active?
++  end
++
++  test "rejects missing and malformed insight IDs" do
++    @api_key.update!(scopes: [ "read_write" ])
++    [ SecureRandom.uuid, "invalid" ].each do |id|
++      patch acknowledge_api_v1_insight_url(id), headers: api_headers(@api_key)
++      assert_response :not_found
++    end
++  end
++
++  test "guests cannot change the shared insight feed" do
++    @api_key.update!(scopes: [ "read_write" ])
++    @user.update!(role: :guest)
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++    assert_response :forbidden
++    assert @insight.reload.active?
++  end
+ end
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 40bac49be001fa9633ed2fb31741b5f678320a35 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Juan=20Jos=C3=A9=20Mata?= <juanjo.mata@gmail.com>
+Date: Fri, 6 Nov 2026 21:20:06 -0800
+Subject: [PATCH 2/2] Recheck insight visibility and correct acknowledgment API
+ docs
+
+---
+ app/controllers/api/v1/insights_controller.rb |  3 +++
+ docs/api/openapi.yaml                         |  6 +++--
+ spec/requests/api/v1/insights_spec.rb         | 19 ++++++++++++---
+ .../api/v1/insights_controller_test.rb        | 23 +++++++++++++++++++
+ 4 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/app/controllers/api/v1/insights_controller.rb b/app/controllers/api/v1/insights_controller.rb
+index 8b305eb11..ac66a3b6d 100644
+--- a/app/controllers/api/v1/insights_controller.rb
++++ b/app/controllers/api/v1/insights_controller.rb
+@@ -19,6 +19,9 @@ class Api::V1::InsightsController < Api::V1::BaseController
+ 
+     insight = current_resource_owner.family.insights.about_shared_accounts.find(params[:id])
+     insight.with_lock do
++      # Account access can change while this request waits for the row lock.
++      raise ActiveRecord::RecordNotFound unless current_resource_owner.family.insights.about_shared_accounts.exists?(id: insight.id)
++
+       # Replays must not overwrite timestamps or revive expired insights.
+       if insight.active? || insight.read?
+         insight.mark_read!
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index e8d0370e8..39ebc23fe 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -8376,13 +8376,15 @@ paths:
+         are idempotent.
+       security:
+       - apiKeyAuth: []
++      - oauth2:
++        - read_write
+       parameters:
+       - name: id
+         in: path
+-        format: uuid
+-        required: true
+         schema:
+           type: string
++          format: uuid
++        required: true
+       responses:
+         '204':
+           description: insight acknowledged
+diff --git a/spec/requests/api/v1/insights_spec.rb b/spec/requests/api/v1/insights_spec.rb
+index 98f473048..d818aa5d2 100644
+--- a/spec/requests/api/v1/insights_spec.rb
++++ b/spec/requests/api/v1/insights_spec.rb
+@@ -49,23 +49,36 @@ RSpec.describe "API V1 Insights", type: :request do
+     patch "Acknowledge a proactive insight" do
+       tags "Insights"
+       description "Marks a visible family insight read and acknowledged, removing it from the feed. Requires read_write scope and preview access. Repeated requests are idempotent."
+-      security [ { apiKeyAuth: [] } ]
++      security [ { apiKeyAuth: [] }, { oauth2: %w[read_write] } ]
+       produces "application/json"
+-      parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+-      let(:id) { SecureRandom.uuid }
++      parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true
++      let(:insight) do
++        family.insights.create!(
++          insight_type: "idle_cash", priority: "medium", status: "active",
++          title: "Idle cash", body: "Review available cash.",
++          generated_at: Time.current, dedup_key: "api-docs-acknowledgment"
++        )
++      end
++      let(:id) { insight.id }
+ 
+       response "204", "insight acknowledged" do
+         run_test!
+       end
+       response "401", "authentication required" do
++        let(:"X-Api-Key") { "invalid-api-key" }
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+       response "403", "write scope, member access or preview features required" do
++        let(:api_key) do
++          key = ApiKey.generate_secure_key
++          ApiKey.create!(user: user, name: "API Docs Read Key", key: key, scopes: %w[read], source: "web")
++        end
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+       response "404", "insight not found or not visible to the family" do
++        let(:id) { SecureRandom.uuid }
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+diff --git a/test/controllers/api/v1/insights_controller_test.rb b/test/controllers/api/v1/insights_controller_test.rb
+index d6cfe03c0..83e179ec5 100644
+--- a/test/controllers/api/v1/insights_controller_test.rb
++++ b/test/controllers/api/v1/insights_controller_test.rb
+@@ -115,6 +115,29 @@ class Api::V1::InsightsControllerTest < ActionDispatch::IntegrationTest
+     assert @insight.reload.active?
+   end
+ 
++  test "rechecks account visibility after acquiring the insight lock" do
++    @api_key.update!(scopes: [ "read_write" ])
++    account = accounts(:depository)
++    account.family.users.where(active: true).where.not(id: account.owner_id).find_each do |member|
++      account.account_shares.find_or_create_by!(user: member) { |share| share.permission = "read_only" }
++    end
++    @insight.update!(metadata: { account_id: account.id })
++    assert @user.family.insights.about_shared_accounts.exists?(@insight.id)
++
++    # Simulate visibility changing after the scoped lookup, at lock acquisition.
++    Insight.any_instance.expects(:lock!).with do |lock|
++      account.update!(status: :disabled)
++      lock == true
++    end
++
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++
++    assert_response :not_found
++    assert @insight.reload.active?
++    assert_nil @insight.read_at
++    assert_nil @insight.dismissed_at
++  end
++
+   test "rejects missing and malformed insight IDs" do
+     @api_key.update!(scopes: [ "read_write" ])
+     [ SecureRandom.uuid, "invalid" ].each do |id|
+-- 
+2.50.1 (Apple Git-155)
+

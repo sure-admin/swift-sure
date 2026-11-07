@@ -41,6 +41,16 @@ actor ServerReadCache {
     try prune()
   }
 
+  /// Read-modify-write stays on this actor so simultaneous acknowledgments cannot
+  /// restore each other's removed insights in the downloaded feed.
+  func updatePayload(scope: String, key: String, lease: Int,
+                     transform: @Sendable (Data) throws -> Data) throws {
+    guard lease == epoch else { throw CancellationError() }
+    guard var entry = try read(scope: scope, key: key) else { return }
+    entry.payload = try transform(entry.payload)
+    try write(entry, scope: scope, key: key, lease: lease)
+  }
+
   func removeAll() throws {
     // In-flight reads hold the previous lease and cannot recreate erased data.
     epoch &+= 1
