@@ -174,8 +174,11 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
   var isOAuthConnected: Bool { false }
   func matchesStoredAPIKey(_ key: String) -> Bool { false }
   func signIn(_ method: AuthenticationMethod, serverURL: String) async {
-    if case .provider(.google) = method {
-      status = .failed("Google sign-in started in the test fixture.")
+    switch method {
+    case .provider(.google): status = .failed("Google sign-in started in the test fixture.")
+    case .provider(.apple): status = .failed("Apple sign-in started in the test fixture.")
+    case .passkey: status = .failed("Passkey sign-in started in the test fixture.")
+    default: break
     }
   }
   func cancel() {}

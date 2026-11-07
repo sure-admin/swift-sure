@@ -114,6 +114,7 @@ struct SignInView: View {
                 .stroke(.primary.opacity(0.2))
                 .allowsHitTesting(false)
             }
+            .disabled(!connection.canSignInWithPasskey || connection.status == .connecting)
             .accessibilityHint("Opens Apple’s secure sign-in page")
 
             googleSSOButton
