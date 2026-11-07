@@ -85,7 +85,21 @@ struct SignInView: View {
               Button {
                 Task { await connection.signInWithPassword() }
               } label: {
-                Label("Continue", systemImage: "arrow.right")
+                Label {
+                  Text("Continue")
+                } icon: {
+                  ZStack {
+                    Image(systemName: "arrow.right")
+                      .opacity(connection.status == .connecting ? 0 : 1)
+                    if connection.status == .connecting {
+                      ProgressView()
+                        .controlSize(.small)
+                        .tint(colorScheme == .dark ? Color.black : Color.white)
+                        .accessibilityHidden(true)
+                    }
+                  }
+                  .frame(width: 20, height: 20)
+                }
                   .font(.headline)
                   .frame(maxWidth: .infinity, minHeight: 48)
                   .foregroundStyle(.background)
@@ -93,6 +107,8 @@ struct SignInView: View {
               }
               .buttonStyle(.plain)
               .disabled(!connection.canSignInWithPassword || connection.status == .connecting)
+              .accessibilityLabel("Continue")
+              .accessibilityValue(connection.status == .connecting ? Text("Signing in") : Text(""))
             }
 
             HStack {
@@ -271,8 +287,7 @@ struct SignInView: View {
     switch connection.status {
     case .connecting:
       HStack(spacing: 10) {
-        ProgressView()
-        Text("Opening secure sign-in…")
+        Text("Signing in…")
         Button("Cancel", action: connection.cancelAuthentication)
       }
       .foregroundStyle(.primary)

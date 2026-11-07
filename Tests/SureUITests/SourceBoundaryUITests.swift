@@ -135,6 +135,34 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testDemoContinueShowsProgressInBothAppearances() throws {
+    for scenario in ["sign-in-progress-light", "sign-in-progress-dark"] {
+      let app = launch(scenario)
+      let button = app.buttons["Continue"]
+      XCTAssertTrue(button.waitForExistence(timeout: 10))
+      XCTAssertTrue(button.isEnabled)
+      let originalFrame = button.frame
+      button.tap()
+      let busy = NSPredicate(format: "value == %@ AND enabled == NO", "Signing in")
+      expectation(for: busy, evaluatedWith: button)
+      waitForExpectations(timeout: 10)
+      XCTAssertEqual(button.frame, originalFrame)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      let cancel = app.buttons["Cancel"]
+      for _ in 0..<3 where !cancel.isHittable { app.scrollViews.firstMatch.swipeUp() }
+      cancel.tap()
+      let idle = NSPredicate(format: "value != %@ AND enabled == YES", "Signing in")
+      expectation(for: idle, evaluatedWith: button)
+      waitForExpectations(timeout: 10)
+      app.terminate()
+    }
+  }
+
+  @MainActor
   func testSignInLightAppearance() throws {
     try checkSignInAppearance("sign-in-light")
   }

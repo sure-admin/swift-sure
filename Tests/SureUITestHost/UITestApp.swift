@@ -46,6 +46,7 @@ struct UITestApp: App {
       postHogProjectToken: "phc_ui_fixture",
       sentryDSN: URL(string: "https://publickey@o1.ingest.example/42")
     )
+    if scenario.hasPrefix("sign-in-progress") { sureConnection.prepareDemoSignIn() }
   }
 
   var body: some Scene {
@@ -57,7 +58,7 @@ struct UITestApp: App {
         Color.clear.sheet(isPresented: .constant(true)) {
           SignInView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
             showConnectionSettings: {})
-            .preferredColorScheme(scenario == "sign-in-dark" ? .dark : .light)
+            .preferredColorScheme(scenario.hasSuffix("dark") ? .dark : .light)
             .task { await subscriptionAccess.refresh() }
         }
       } else if scenario == "analytics-debug" {
@@ -185,10 +186,11 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
     case .provider(.google): status = .failed("Google sign-in started in the test fixture.")
     case .provider(.apple): status = .failed("Apple sign-in started in the test fixture.")
     case .passkey: status = .failed("Passkey sign-in started in the test fixture.")
+    case .password: status = .connecting
     default: break
     }
   }
-  func cancel() {}
+  func cancel() { status = .notConnected }
   func cancelOnboarding() {}
   func logOut() async { canLogOut = false; status = .notConnected }
 }
