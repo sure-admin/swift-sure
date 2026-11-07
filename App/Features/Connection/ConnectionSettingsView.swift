@@ -26,7 +26,6 @@ struct ConnectionSettingsView: View {
         }
 
         walletSection
-        privacySection
 
         Section("Advanced") {
           DisclosureGroup("API key access") {
@@ -38,6 +37,8 @@ struct ConnectionSettingsView: View {
             }
           }
         }
+
+        privacySection
 
         if connection.canLogOut {
           Section {
