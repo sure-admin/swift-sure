@@ -247,3 +247,13 @@ appears negative and overpayments positive, matching the local Wallet convention
 Assets preserve their signed balance (including overdrafts). Older cached cards
 infer liability presentation from their existing account kind until refreshed.
 Net worth still comes exclusively from Sure's balance-sheet endpoint.
+
+### OAuth registration name
+
+Dynamic registration uses `Insights for Apple`. This name is accepted by the
+pinned registration contract and avoids the reserved `Sure` word rejected by
+[upstream registration hardening](https://github.com/we-promise/sure/commit/ba4086fd6be26c28b8c7f618a7d9a0b6c3fc5fde). The registration payload,
+redirect URI, scopes, and PKCE flow remain those of the pinned contract. Cached
+client IDs remain valid and are not discarded. The OAuth HTTP client tests assert
+the registration name and sanitize recognized protocol failures without exposing
+server descriptions.
