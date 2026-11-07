@@ -311,6 +311,7 @@
       "settings": {
         "base": {
           "TEST_TARGET_NAME": "Sure UI Host",
+          "PRODUCT_BUNDLE_IDENTIFIER": "am.sure.uitest-host.UITests",
           "SWIFT_VERSION": "5.0",
           "GENERATE_INFOPLIST_FILE": "YES"
         }
