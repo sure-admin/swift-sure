@@ -22,6 +22,8 @@ final class FinanceDataStore {
   private var hasRequestedSessionRefresh = false
   private var disconnected = false
   private var generation = 0
+  private(set) var acknowledgingInsightIDs: Set<String> = []
+  private(set) var insightAcknowledgmentError: String?
 
   init(connection: any ConnectionStateProviding, client: any FinanceDataClient,
        calendar: Calendar, now: @escaping () -> Date,
@@ -74,6 +76,35 @@ final class FinanceDataStore {
     if let failure = [balanceSheetResource.failure, accountsResource.failure, transactionsResource.failure,
                       budgetsResource.failure, insightsResource.failure].compactMap({ $0 }).first { return .failed(failure.localizedDescription) }
     return .idle
+  }
+
+  func acknowledgeInsight(_ insight: BackendInsight) async {
+    guard connection.isConfigured, !disconnected,
+          !acknowledgingInsightIDs.contains(insight.id),
+          insights.contains(where: { $0.id == insight.id }),
+          let id = UUID(uuidString: insight.id) else { return }
+    let request = generation
+    acknowledgingInsightIDs.insert(insight.id)
+    insightAcknowledgmentError = nil
+    defer { if request == generation { acknowledgingInsightIDs.remove(insight.id) } }
+    do {
+      try await client.acknowledgeInsight(id: id)
+      try Task.checkCancellation()
+      guard request == generation, connection.isConfigured, !disconnected else { return }
+      insightsResource.suspend()
+      insights.removeAll { $0.id == insight.id }
+      syncInsights(insights)
+    } catch {
+      guard request == generation, connection.isConfigured, !disconnected,
+            DataFailure(error) != .cancelled else { return }
+      insightAcknowledgmentError = switch DataFailure(error) {
+      case .unavailable: "Your Sure server doesn’t support dismissing this insight."
+      case .authentication: "Sign in again to dismiss the insight."
+      case .authorization: "Your credentials don’t have permission to dismiss insights."
+      case .subscription: "An active subscription is required to dismiss insights on this Sure server."
+      default: "Couldn’t dismiss the insight. Check your connection and try again."
+      }
+    }
   }
 
   func refreshIfNeeded() async { if !hasRequestedSessionRefresh { await refresh() } }
@@ -163,6 +194,7 @@ final class FinanceDataStore {
 
   func suspendSync() {
     generation &+= 1; sync.cancel(); hasRequestedSessionRefresh = false
+    acknowledgingInsightIDs.removeAll(); insightAcknowledgmentError = nil
     balanceSheetResource.suspend(); accountsResource.suspend(); transactionsResource.suspend()
     budgetsResource.suspend(); insightsResource.suspend(); summaryResource.suspend()
   }

@@ -337,3 +337,12 @@ remain untracked.
 
 For the experimental foreground Wallet publisher, see the
 [FinanceKit device-test checklist](Docs/FinanceKitDeviceTesting.md).
+
+## Insight dismissal
+
+Swipe an AI Insights row toward the leading edge to dismiss it. A context-menu
+and VoiceOver action are also available, and macOS includes a Dismiss button.
+The app keeps the row while saving and retains it with an error if the request
+fails. Successful acknowledgments update the downloaded feed and Watch snapshot.
+This requires the [backend acknowledgment API patch](Docs/InsightAcknowledgment.md)
+to be merged and deployed; it is not a local-only hide action.

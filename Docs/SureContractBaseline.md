@@ -257,3 +257,13 @@ redirect URI, scopes, and PKCE flow remain those of the pinned contract. Cached
 client IDs remain valid and are not discarded. The OAuth HTTP client tests assert
 the registration name and sanitize recognized protocol failures without exposing
 server descriptions.
+
+### Insight acknowledgment extension
+
+The read contracts above remain pinned. User-requested acknowledgment adds
+`PATCH /api/v1/insights/{id}/acknowledge`, documented and implemented in the
+[backend patch](BackendPatches/insight-acknowledgment.patch). This coordinated
+extension requires that backend change to be merged and deployed before swipe
+dismissal works against a live server. See [rollout and validation](InsightAcknowledgment.md).
+A `204` commits the dismissal; rejected or unsupported writes never become local
+successes. Existing `active`/`read` insight-list fixtures remain unchanged.

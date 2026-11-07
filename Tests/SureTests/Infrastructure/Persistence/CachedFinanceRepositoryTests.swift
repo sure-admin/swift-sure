@@ -5,6 +5,51 @@ import Testing
 @Suite("Scoped server read cache")
 @MainActor
 struct CachedFinanceRepositoryTests {
+  @Test("Acknowledgments remain dismissed after relaunch and concurrent requests")
+  func acknowledgedCache() async throws {
+    let harness = Harness(); defer { harness.cleanup() }
+    var other = testReadInsight
+    other.id = "00000000-0000-4000-8000-000000000602"
+    harness.client.insights = [testReadInsight, other]
+    _ = try await harness.repository.fetchInsights()
+    async let first: Void = harness.repository.acknowledgeInsight(id: UUID(uuidString: testReadInsight.id)!)
+    async let second: Void = harness.repository.acknowledgeInsight(id: UUID(uuidString: other.id)!)
+    _ = try await (first, second)
+    let relaunched = harness.makeRepository()
+    #expect(await relaunched.cachedSnapshot()?.insights.isEmpty == true)
+    harness.gate.update(expiration: nil)
+    #expect(try await relaunched.fetchInsights().isEmpty)
+    #expect(await relaunched.readMetadata(for: "insights")?.fetchedAt == testReadDate)
+  }
+
+  @Test("Suspended access never acknowledges locally or sends a backend write")
+  func acknowledgmentRequiresAccess() async throws {
+    let harness = Harness(); defer { harness.cleanup() }
+    harness.client.insights = [testReadInsight]
+    _ = try await harness.repository.fetchInsights()
+    harness.gate.update(expiration: nil)
+    await #expect(throws: BackendAccessError.self) {
+      try await harness.repository.acknowledgeInsight(id: UUID(uuidString: testReadInsight.id)!)
+    }
+    #expect(harness.client.acknowledgedIDs.isEmpty)
+    #expect(await harness.makeRepository().cachedSnapshot()?.insights.count == 1)
+  }
+
+  @Test("A pre-acknowledgment read cannot put dismissed insights back")
+  func acknowledgmentReadRace() async throws {
+    let harness = Harness(); defer { harness.cleanup() }
+    harness.client.insights = [testReadInsight]
+    _ = try await harness.repository.fetchInsights()
+    let barrier = ReadBarrier<[BackendInsight]>()
+    harness.client.insightsOperation = { await barrier.wait() }
+    let task = Task { try await harness.repository.fetchInsights() }
+    await barrier.started()
+    try await harness.repository.acknowledgeInsight(id: UUID(uuidString: testReadInsight.id)!)
+    await barrier.finish([testReadInsight])
+    await #expect(throws: DataFailure.cancelled) { _ = try await task.value }
+    #expect(await harness.makeRepository().cachedSnapshot()?.insights.isEmpty == true)
+  }
+
   @Test("Wallet identity and signed presentation survive relaunch, offline reads and stopping uploads")
   func walletProvenance() async throws {
     let harness = Harness(); defer { harness.cleanup() }

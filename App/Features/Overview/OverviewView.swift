@@ -96,7 +96,10 @@ struct OverviewView: View {
         isLoading: data.isLoadingInsights,
         errorMessage: data.insightError,
         notificationManager: notificationManager,
-        statusColumnWidth: Self.statusColumnWidth
+        statusColumnWidth: Self.statusColumnWidth,
+        acknowledgingIDs: data.acknowledgingInsightIDs,
+        acknowledgmentError: data.insightAcknowledgmentError,
+        acknowledge: { insight in Task { await data.acknowledgeInsight(insight) } }
       )
       SpendingComparisonCard(store: spendingComparison)
       if (data.accountsError != nil && !data.accounts.isEmpty)

@@ -47,6 +47,9 @@ idiomatic Swift and SwiftUI architecture.
 
 ## Current product scope
 
+- Explicit user acknowledgment of an AI insight is an authorized write exception:
+  use the documented insight acknowledgment API, preserve family/account visibility,
+  and update the downloaded feed only after server success.
 - Financial data is read-only. Do not add transaction, account, budget, or
   valuation mutations without an explicit product decision. Authentication,
   token lifecycle, and push-subscription writes are infrastructure exceptions.

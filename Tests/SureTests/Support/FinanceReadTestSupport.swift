@@ -25,6 +25,11 @@ final class ReadConnectionFake: ConnectionStateProviding {
 
 @MainActor
 final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, CashFlowProviding {
+  var insights: [BackendInsight] = []
+  var insightsFailure: Error?
+  var insightsOperation: (() async -> [BackendInsight])?
+  var acknowledgedIDs: [UUID] = []
+  var acknowledgmentOperation: (() async throws -> Void)?
   var accountsFailure: Error?
   var accountsOperation: (() async -> [FinanceAccount])?
   var budgetOperation: (() async -> [BudgetCategory])?
@@ -56,7 +61,14 @@ final class FinanceReadFake: FinanceDataClient, TransactionHistoryClient, CashFl
     if let budgetFailure { throw budgetFailure }
     return await budgetOperation?() ?? []
   }
-  func fetchInsights() async throws -> [BackendInsight] { [] }
+  func fetchInsights() async throws -> [BackendInsight] {
+    if let insightsFailure { throw insightsFailure }
+    return await insightsOperation?() ?? insights
+  }
+  func acknowledgeInsight(id: UUID, requiredServerURL: URL?) async throws {
+    acknowledgedIDs.append(id)
+    try await acknowledgmentOperation?()
+  }
   func fetchSummary(for month: SpendingMonth) async throws -> CashFlow {
     summaryMonths.append(month)
     guard let summary, summary.month == month else { throw SureAPIError.notFound }
@@ -89,3 +101,7 @@ actor ReadBarrier<Value: Sendable> {
 func summaryFixture() throws -> CashFlow {
   try JSONDecoder().decode(CashFlowDTO.self, from: APIFixture.data(named: "cash-flow-success")).record()
 }
+
+let testReadInsight = BackendInsight(id: "00000000-0000-4000-8000-000000000601",
+  type: "idle_cash", title: "Idle cash", body: "An insight from Sure.", priority: "medium",
+  status: "active", generatedAt: testReadDate)

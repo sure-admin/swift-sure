@@ -22,6 +22,8 @@ struct UITestApp: App {
     let connection = FixtureConnection(preview: scenario == "onboarding")
     let client = FixtureClient(failFirst: scenario == "failure", syncedWallet: scenario == "wallet-synced")
     let wallet = AppleCardConnectionStore(connector: FixtureWallet())
+    client.insightDismissalFailure = scenario.contains("failure")
+    client.showInsights = scenario.hasPrefix("insight-dismissal")
     self.connection = connection; self.client = client; self.wallet = wallet
     finance = FinanceDataStore(connection: connection, client: client, calendar: .current,
       now: { FixtureClient.date }, syncInsights: { _ in })
@@ -51,7 +53,18 @@ struct UITestApp: App {
 
   var body: some Scene {
     WindowGroup {
-      if scenario.hasPrefix("connection-routing") {
+      if scenario.hasPrefix("insight-dismissal") {
+        ScrollView {
+          InsightCard(insights: finance.insights, isLoading: finance.isLoadingInsights,
+            errorMessage: finance.insightError, notificationManager: FixtureInsightNotifications(),
+            statusColumnWidth: 56, acknowledgingIDs: finance.acknowledgingInsightIDs,
+            acknowledgmentError: finance.insightAcknowledgmentError,
+            acknowledge: { insight in Task { await finance.acknowledgeInsight(insight) } })
+            .padding()
+        }
+        .preferredColorScheme(scenario.hasSuffix("dark") ? .dark : .light)
+        .task { await finance.refresh() }
+      } else if scenario.hasPrefix("connection-routing") {
         FixtureConnectionRouting(subscriptionAccess: subscriptionAccess, connection: sureConnection,
           hasSyncAccess: scenario == "connection-routing")
       } else if scenario.hasPrefix("sign-in-") {
@@ -240,7 +253,22 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
   func fetchTransactions(in dateWindow: TransactionDateWindow) async throws -> [FinanceTransaction] { [] }
   func fetchTransactions(_ request: TransactionHistoryRequest) async throws -> [FinanceTransaction] { [] }
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
-  func fetchInsights() async throws -> [BackendInsight] { [] }
+  var showInsights = false
+  var insightDismissalFailure = false
+  var acknowledgedInsights: Set<UUID> = []
+  func fetchInsights() async throws -> [BackendInsight] {
+    guard showInsights else { return [] }
+    return [
+      BackendInsight(id: "00000000-0000-4000-8000-000000000601", type: "idle_cash",
+        title: "Put idle cash to work", body: "Review your cash allocation.", priority: "medium", status: "active"),
+      BackendInsight(id: "00000000-0000-4000-8000-000000000602", type: "budget_on_track",
+        title: "Your budget is on track", body: "Spending is within your plan.", priority: "low", status: "active")
+    ].filter { !acknowledgedInsights.contains(UUID(uuidString: $0.id)!) }
+  }
+  func acknowledgeInsight(id: UUID, requiredServerURL: URL?) async throws {
+    if insightDismissalFailure { throw SureAPIError.server(500) }
+    acknowledgedInsights.insert(id)
+  }
   func fetchComparison(for month: SpendingMonth, access: WalletSpendingAccess) async throws -> SpendingComparison {
     try await fetchComparison(for: month)
   }
@@ -252,4 +280,9 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
       current: (1...(month == SpendingMonth(containing: asOf) ? 15 : month.dayCount)).map { .init(date: try month.date(day: $0), amount: Decimal($0 * 10)) },
       previous: (1...previous.dayCount).map { .init(date: try previous.date(day: $0), amount: Decimal($0 * 12)) })
   }
+}
+
+private struct FixtureInsightNotifications: InsightNotificationControlling {
+  func enableInsightNotifications() async -> Bool { false }
+  func disableInsightNotifications() async {}
 }

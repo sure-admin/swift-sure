@@ -4,6 +4,31 @@ final class SourceBoundaryUITests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
 
   @MainActor
+  func testSwipeDismissesOnlyTheSelectedInsight() throws {
+    for scenario in ["insight-dismissal", "insight-dismissal-dark"] {
+      let app = launch(scenario)
+      let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+      XCTAssertTrue(row.waitForExistence(timeout: 10))
+      row.swipeLeft()
+      XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+      XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testFailedSwipeKeepsTheInsightVisible() throws {
+    let app = launch("insight-dismissal-failure")
+    let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    row.swipeLeft()
+    XCTAssertTrue(app.staticTexts["insight-dismissal-error"].waitForExistence(timeout: 5))
+    XCTAssertTrue(row.exists)
+    XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+  }
+
+  @MainActor
   func testConnectOpensLoginAndCogOpensSettings() throws {
     let app = launch("connection-routing")
     XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))

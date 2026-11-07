@@ -117,6 +117,10 @@ struct SureAPIClient {
       .map(BudgetPresentationMapping.category)
   }
 
+  func acknowledgeInsight(id: UUID, requiredServerURL: URL?) async throws {
+    try await InsightsAPIClient(transport: transport).acknowledgeInsight(id: id, requiredServerURL: requiredServerURL)
+  }
+
   func fetchInsights() async throws -> [BackendInsight] {
     try await InsightsAPIClient(transport: transport).fetchInsights()
   }
