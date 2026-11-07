@@ -98,11 +98,11 @@ final class FinanceDataStore {
       guard request == generation, connection.isConfigured, !disconnected,
             DataFailure(error) != .cancelled else { return }
       insightAcknowledgmentError = switch DataFailure(error) {
-      case .unavailable: "Your Sure server doesn’t support dismissing this insight."
-      case .authentication: "Sign in again to dismiss the insight."
-      case .authorization: "Your credentials don’t have permission to dismiss insights."
-      case .subscription: "An active subscription is required to dismiss insights on this Sure server."
-      default: "Couldn’t dismiss the insight. Check your connection and try again."
+      case .unavailable: String(localized: "Your Sure server doesn’t support dismissing this insight.")
+      case .authentication: String(localized: "Sign in again to dismiss the insight.")
+      case .authorization: String(localized: "Your credentials don’t have permission to dismiss insights.")
+      case .subscription: String(localized: "An active subscription is required to dismiss insights on this Sure server.")
+      default: String(localized: "Couldn’t dismiss the insight. Check your connection and try again.")
       }
     }
   }
