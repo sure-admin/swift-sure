@@ -46,6 +46,18 @@ is deliberate, not an older-server fallback.
 - Require HTTPS for configured Sure servers. Debug builds may use plain HTTP
   only for loopback development hosts such as `localhost` and `127.0.0.1`.
 
+## Password second-factor authentication
+
+The pinned `Api::V1::AuthController#login` responds with HTTP 401 and
+`mfa_required: true` when an authenticator code is missing or rejected. The client
+keeps the uncommitted login in memory, prompts for the code, and retries the same
+`POST /api/v1/auth/login` with `otp_code` alongside the password and device fields.
+It never commits credentials on the challenge response. Codes are cleared after
+rejection, cancellation, success, or a change of login identity and are never
+persisted or reported to telemetry. Passkey browser authentication remains a
+separate system-managed flow. Inline sanitized fixtures in `MobileSSOTests`
+and the connection state tests cover this contract at the pinned revision.
+
 ## Pinned compatibility extensions
 
 The pinned transaction response template emits `amount_cents` and

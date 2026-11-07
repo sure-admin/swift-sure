@@ -82,6 +82,7 @@ struct SignInView: View {
                 .padding(.vertical, 12)
                 .frame(minHeight: 48)
                 .background(.background.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+              if connection.requiresSecondFactor { secondFactorFields }
               Button {
                 Task { await connection.signInWithPassword() }
               } label: {
@@ -109,6 +110,11 @@ struct SignInView: View {
               .disabled(!connection.canSignInWithPassword || connection.status == .connecting)
               .accessibilityLabel("Continue")
               .accessibilityValue(connection.status == .connecting ? Text("Signing in") : Text(""))
+              if connection.requiresSecondFactor {
+                Button("Cancel verification", action: connection.cancelSecondFactor)
+                  .buttonStyle(.bordered)
+                  .disabled(connection.status == .connecting)
+              }
             }
 
             HStack {
@@ -171,12 +177,48 @@ struct SignInView: View {
         .padding(.bottom, 20)
       }
       .scrollDismissesKeyboard(.interactively)
+      .onChange(of: connection.requiresSecondFactor) { _, required in
+        focusedField = required ? .authenticationCode : nil
+      }
       .background(greenGradientBackground)
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
           settingsButton
         }
       }
+    }
+  }
+
+  private var secondFactorFields: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text("Two-factor authentication").font(.headline)
+      TextField("Authentication code", text: $connection.secondFactorCode,
+        prompt: Text("Authentication code").foregroundStyle(fieldPromptColor))
+        .textFieldStyle(.plain)
+        .foregroundStyle(.primary)
+        .textContentType(.oneTimeCode)
+        .focused($focusedField, equals: .authenticationCode)
+        .submitLabel(.go)
+        .onSubmit {
+          guard connection.canSignInWithPassword, connection.status != .connecting else { return }
+          Task { await connection.signInWithPassword() }
+        }
+        #if os(iOS)
+        .keyboardType(.numberPad)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        #endif
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(minHeight: 48)
+        .background(.background.opacity(0.94), in: RoundedRectangle(cornerRadius: 14))
+        .privacySensitive()
+      Text(connection.secondFactorRejected
+        ? "That code wasn’t accepted. Enter a new code."
+        : "Enter the code from your authenticator app.")
+        .font(.callout)
+        .foregroundStyle(connection.secondFactorRejected ? Color.red : Color.primary)
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 
@@ -314,6 +356,7 @@ struct SignInView: View {
     case server
     case email
     case password
+    case authenticationCode
   }
 
   private var greenGradientBackground: some View {

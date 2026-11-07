@@ -135,6 +135,63 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testPasswordSecondFactorRetryInBothAppearances() throws {
+    for scenario in ["sign-in-mfa-light", "sign-in-mfa-dark"] {
+      let app = launch(scenario)
+      let button = app.buttons["Continue"]
+      XCTAssertTrue(button.waitForExistence(timeout: 10))
+      button.tap()
+      let code = app.textFields["Authentication code"]
+      XCTAssertTrue(code.waitForExistence(timeout: 10))
+      XCTAssertFalse(button.isEnabled)
+      code.tap()
+      code.typeText("000000")
+      revealSignInAction(button, in: app)
+      button.tap()
+      XCTAssertTrue(app.staticTexts["That code wasn’t accepted. Enter a new code."].waitForExistence(timeout: 10))
+      XCTAssertFalse(button.isEnabled)
+      if !code.isHittable { app.scrollViews.firstMatch.swipeDown() }
+      code.tap()
+      code.typeText("123456")
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      revealSignInAction(button, in: app)
+      button.tap()
+      XCTAssertTrue(code.waitForNonExistence(timeout: 10))
+      app.terminate()
+    }
+  }
+
+  @MainActor
+  func testPasswordSecondFactorCanBeCancelled() {
+    let app = launch("sign-in-mfa-light")
+    let button = app.buttons["Continue"]
+    XCTAssertTrue(button.waitForExistence(timeout: 10))
+    button.tap()
+    let code = app.textFields["Authentication code"]
+    XCTAssertTrue(code.waitForExistence(timeout: 10))
+    let cancel = app.buttons["Cancel verification"]
+    revealSignInAction(cancel, in: app)
+    cancel.tap()
+    XCTAssertTrue(code.waitForNonExistence(timeout: 10))
+    XCTAssertFalse(button.isEnabled)
+    XCTAssertEqual(app.secureTextFields["Password"].value as? String, "Password")
+  }
+
+  @MainActor
+  private func revealSignInAction(_ action: XCUIElement, in app: XCUIApplication) {
+    let scroll = app.scrollViews.firstMatch
+    for _ in 0..<4 where app.keyboards.firstMatch.exists || !action.isHittable {
+      let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+      let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+      start.press(forDuration: 0.1, thenDragTo: end)
+    }
+  }
+
+  @MainActor
   func testDemoContinueShowsProgressInBothAppearances() throws {
     for scenario in ["sign-in-progress-light", "sign-in-progress-dark"] {
       let app = launch(scenario)

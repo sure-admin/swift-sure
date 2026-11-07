@@ -40,13 +40,13 @@ struct UITestApp: App {
         credentials: StoredCredentialSnapshot(session: nil),
         isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
       ),
-      authentication: FixtureAuthentication(canLogOut: scenario == "settings-locked")
+      authentication: FixtureAuthentication(canLogOut: scenario == "settings-locked", requiresSecondFactor: scenario.hasPrefix("sign-in-mfa"))
     )
     telemetryBuildDetails = TelemetryBuildDetails(
       postHogProjectToken: "phc_ui_fixture",
       sentryDSN: URL(string: "https://publickey@o1.ingest.example/42")
     )
-    if scenario.hasPrefix("sign-in-progress") { sureConnection.prepareDemoSignIn() }
+    if scenario.hasPrefix("sign-in-progress") || scenario.hasPrefix("sign-in-mfa") { sureConnection.prepareDemoSignIn() }
   }
 
   var body: some Scene {
@@ -175,7 +175,11 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
   var isSignedOut: Bool { true }
   var generation: Int { 0 }
   private(set) var canLogOut: Bool
-  init(canLogOut: Bool = false) { self.canLogOut = canLogOut }
+  var requiresSecondFactor: Bool
+  init(canLogOut: Bool = false, requiresSecondFactor: Bool = false) {
+    self.canLogOut = canLogOut
+    self.requiresSecondFactor = requiresSecondFactor
+  }
   var allowsWalletPreview: Bool { false }
   var connectionID: String? { nil }
   var serverURL: URL? { nil }
@@ -186,7 +190,8 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
     case .provider(.google): status = .failed("Google sign-in started in the test fixture.")
     case .provider(.apple): status = .failed("Apple sign-in started in the test fixture.")
     case .passkey: status = .failed("Passkey sign-in started in the test fixture.")
-    case .password: status = .connecting
+    case .password(_, _, let code):
+      status = requiresSecondFactor ? (code == "123456" ? .connected : .requiresSecondFactor) : .connecting
     default: break
     }
   }

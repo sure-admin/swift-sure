@@ -5,10 +5,21 @@ import Observation
 @MainActor
 @Observable
 final class SureConnection {
-  var serverURL: String
+  var serverURL: String {
+    didSet { if oldValue != serverURL { resetSecondFactor() } }
+  }
   var apiKey: String
-  var email = ""
-  var password = ""
+  var email = "" {
+    didSet { if oldValue != email { resetSecondFactor() } }
+  }
+  var password = "" {
+    didSet { if oldValue != password { resetSecondFactor() } }
+  }
+  var secondFactorCode = "" {
+    didSet { if !secondFactorCode.isEmpty { secondFactorRejected = false } }
+  }
+  private(set) var requiresSecondFactor = false
+  private(set) var secondFactorRejected = false
   let authentication: any ConnectionAuthenticating
 
   init(initialState: SureConnectionInitialState, authentication: any ConnectionAuthenticating) {
@@ -46,10 +57,12 @@ final class SureConnection {
   }
   var canSignInWithPassword: Bool {
     !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty && canSignInWithPasskey
+      && (!requiresSecondFactor || !secondFactorCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
   }
 
   func signInWithPasskey() async { await signIn(.passkey) }
   func prepareDemoSignIn() {
+    resetSecondFactor()
     authentication.cancelOnboarding()
     serverURL = SureDemoServer.baseURL.absoluteString
     apiKey = ""
@@ -58,14 +71,41 @@ final class SureConnection {
   }
 
   func signInWithPassword() async {
-    await signIn(.password(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password))
+    let submittedServer = serverURL
+    let submittedEmail = email
+    let submittedPassword = password
+    let code = requiresSecondFactor ? secondFactorCode.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+    await signIn(.password(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password, otpCode: code))
+    if status == .requiresSecondFactor,
+       serverURL == submittedServer, email == submittedEmail, password == submittedPassword {
+      requiresSecondFactor = true
+      secondFactorRejected = code != nil
+      secondFactorCode = ""
+    }
   }
   func signIn(with provider: SSOProvider) async { await signIn(.provider(provider)) }
   func connectWithAPIKey() async { await signIn(.apiKey(normalizedAPIKey)) }
-  func cancelAuthentication() { authentication.cancel() }
+  func cancelAuthentication() {
+    authentication.cancel()
+    secondFactorCode = ""
+    secondFactorRejected = false
+  }
+  func cancelSecondFactor() {
+    authentication.cancel()
+    resetSecondFactor()
+    password = ""
+  }
+
+  private func resetSecondFactor() {
+    requiresSecondFactor = false
+    secondFactorRejected = false
+    secondFactorCode = ""
+  }
+
   func cancelSSOOnboarding() { authentication.cancelOnboarding() }
 
   func suspendAuthentication() {
+    resetSecondFactor()
     authentication.cancel()
     apiKey = ""
     email = ""
@@ -74,6 +114,7 @@ final class SureConnection {
   }
 
   func logOut() async {
+    resetSecondFactor()
     apiKey = ""
     email = ""
     password = ""
@@ -82,6 +123,10 @@ final class SureConnection {
   }
 
   private func signIn(_ method: AuthenticationMethod) async {
+    switch method {
+    case .password: break
+    default: resetSecondFactor()
+    }
     await authentication.signIn(method, serverURL: serverURL)
     if status == .connected {
       serverURL = connectedServerURL?.absoluteString ?? serverURL

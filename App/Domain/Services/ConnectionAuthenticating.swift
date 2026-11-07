@@ -20,5 +20,5 @@ protocol ConnectionAuthenticating: AnyObject {
 }
 
 enum AuthenticationMethod {
-  case apiKey(String), passkey, password(email: String, password: String), provider(SSOProvider)
+  case apiKey(String), passkey, password(email: String, password: String, otpCode: String? = nil), provider(SSOProvider)
 }

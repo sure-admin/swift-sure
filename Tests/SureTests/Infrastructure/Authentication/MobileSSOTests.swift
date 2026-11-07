@@ -177,9 +177,26 @@ struct MobileSSOTests {
     let body = try jsonObject(request)
     #expect(body["email"] as? String == "user@example.com")
     #expect(body["password"] as? String == "Password1!")
+    #expect(body["otp_code"] == nil)
     let device = try #require(body["device"] as? [String: Any])
     #expect(device["device_id"] as? String == "device-123")
     #expect(device["device_type"] as? String == "ios")
+  }
+
+  @Test("Retries password login with the documented otp_code field")
+  func passwordLoginWithSecondFactor() async throws {
+    // Sure baseline d4d97b8: POST /api/v1/auth/login accepts otp_code after mfa_required.
+    let stub = HTTPDataTransportStub([
+      try .http(json: #"{"access_token":"access-1","refresh_token":"refresh-1"}"#)
+    ])
+    let client = MobileSSOHTTPClient(dataTransport: stub)
+    _ = try await client.login(email: "user@example.com", password: "Password1!", otpCode: "123456",
+      device: MobileDeviceInformation(deviceID: "device-123", deviceName: "Test iPhone", deviceType: "ios",
+        osVersion: "26.2", appVersion: "1.0"), server: OAuthServerURL("https://sure.example"))
+    let request = try #require(await stub.requests().first)
+    #expect(request.url?.path == "/api/v1/auth/login")
+    #expect(request.url?.query == nil)
+    #expect(try jsonObject(request)["otp_code"] as? String == "123456")
   }
 
   @Test("Recognizes a password login MFA challenge")

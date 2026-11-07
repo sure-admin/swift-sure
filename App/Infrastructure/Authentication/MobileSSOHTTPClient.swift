@@ -10,13 +10,14 @@ actor MobileSSOHTTPClient {
   func login(
     email: String,
     password: String,
+    otpCode: String? = nil,
     device: MobileDeviceInformation,
     server: OAuthServerURL
   ) async throws -> PasskeyOAuthTokens {
     try await tokens(
       request: jsonRequest(
         url: server.appending(path: "api/v1/auth/login"),
-        body: MobileLoginRequest(email: email, password: password, device: device)
+        body: MobileLoginRequest(email: email, password: password, otpCode: otpCode, device: device)
       )
     )
   }
@@ -90,7 +91,13 @@ actor MobileSSOHTTPClient {
 private struct MobileLoginRequest: Encodable {
   var email: String
   var password: String
+  var otpCode: String?
   var device: MobileDeviceInformation
+
+  enum CodingKeys: String, CodingKey {
+    case email, password, device
+    case otpCode = "otp_code"
+  }
 }
 
 private struct MobileAuthenticationErrorResponse: Decodable {

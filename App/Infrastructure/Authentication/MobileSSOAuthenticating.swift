@@ -10,6 +10,7 @@ protocol MobileSSOAuthenticating {
   func signIn(
     email: String,
     password: String,
+    otpCode: String?,
     serverURL: String
   ) async throws -> MobileSSOResult
 
@@ -23,6 +24,7 @@ extension MobileSSOAuthenticating {
   func signIn(
     email: String,
     password: String,
+    otpCode: String? = nil,
     serverURL: String
   ) async throws -> MobileSSOResult {
     throw MobileSSOError.couldNotStart
