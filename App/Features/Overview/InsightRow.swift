@@ -35,6 +35,7 @@ struct InsightRow: View {
     }
     .clipped()
     .contentShape(Rectangle())
+    .excludingTabSwipes()
     .simultaneousGesture(
       DragGesture(minimumDistance: 24)
         .onChanged { value in

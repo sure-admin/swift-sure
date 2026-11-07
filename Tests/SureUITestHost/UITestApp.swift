@@ -54,14 +54,7 @@ struct UITestApp: App {
   var body: some Scene {
     WindowGroup {
       if scenario.hasPrefix("insight-dismissal") {
-        ScrollView {
-          InsightCard(insights: finance.insights, isLoading: finance.isLoadingInsights,
-            errorMessage: finance.insightError, notificationManager: FixtureInsightNotifications(),
-            statusColumnWidth: 56, acknowledgingIDs: finance.acknowledgingInsightIDs,
-            acknowledgmentError: finance.insightAcknowledgmentError,
-            acknowledge: { insight in Task { await finance.acknowledgeInsight(insight) } })
-            .padding()
-        }
+        FixtureInsightTabs(finance: finance)
         .preferredColorScheme(scenario.hasSuffix("dark") ? .dark : .light)
         .task { await finance.refresh() }
       } else if scenario.hasPrefix("connection-routing") {
@@ -109,6 +102,39 @@ struct UITestApp: App {
         }
       }
     }
+  }
+}
+
+private struct FixtureInsightTabs: View {
+  var finance: FinanceDataStore
+  @State private var selection: AppSection = .overview
+
+  var body: some View {
+    TabView(selection: $selection) {
+      Tab("Overview", systemImage: "rectangle.grid.2x2.fill", value: .overview) {
+        ScrollView {
+          VStack {
+            Text("Overview swipe area")
+              .frame(maxWidth: .infinity, minHeight: 100)
+              .contentShape(Rectangle())
+              .accessibilityIdentifier("tab-swipe-area")
+            InsightCard(insights: finance.insights, isLoading: finance.isLoadingInsights,
+              errorMessage: finance.insightError, notificationManager: FixtureInsightNotifications(),
+              statusColumnWidth: 56, acknowledgingIDs: finance.acknowledgingInsightIDs,
+              acknowledgmentError: finance.insightAcknowledgmentError,
+              acknowledge: { insight in Task { await finance.acknowledgeInsight(insight) } })
+            Color.clear.frame(height: 700)
+            Text("End of overview")
+          }
+          .padding()
+        }
+      }
+      Tab("Assistant", systemImage: "sparkles", value: .assistant) {
+        Text("Assistant fixture").frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
+      }
+    }
+    .tabViewStyle(.sidebarAdaptable)
+    .modifier(TabSwipeNavigationModifier { selection = selection.moving(by: $0) })
   }
 }
 

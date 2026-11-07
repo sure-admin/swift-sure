@@ -11,6 +11,7 @@ final class SourceBoundaryUITests: XCTestCase {
       XCTAssertTrue(row.waitForExistence(timeout: 10))
       row.swipeLeft()
       XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+      XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
       XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
       try app.performAccessibilityAudit(for: .sufficientElementDescription)
       app.terminate()
@@ -25,7 +26,26 @@ final class SourceBoundaryUITests: XCTestCase {
     row.swipeLeft()
     XCTAssertTrue(app.staticTexts["insight-dismissal-error"].waitForExistence(timeout: 5))
     XCTAssertTrue(row.exists)
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
     XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+  }
+
+  @MainActor
+  func testInsightSwipesKeepOverviewAndOtherSwipesChangeTabs() throws {
+    let app = launch("insight-dismissal")
+    let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    row.swipeRight()
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+    XCTAssertTrue(row.exists)
+    app.staticTexts["tab-swipe-area"].swipeLeft()
+    XCTAssertTrue(app.staticTexts["Assistant fixture"].waitForExistence(timeout: 5))
+    app.staticTexts["Assistant fixture"].swipeRight()
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+    row.swipeUp()
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+    XCTAssertTrue(app.staticTexts["End of overview"].isHittable)
   }
 
   @MainActor
