@@ -30,7 +30,7 @@ struct UITestApp: App {
     factory = TransactionHistoryStoreFactory(client: client, calendar: .current, now: { FixtureClient.date })
     analytics = AnalyticsStore(preferences: FixtureAnalyticsPreferences(), client: FixtureAnalyticsClient())
     subscriptionAccess = SubscriptionAccessStore(
-      service: FixtureSubscriptionService(isEntitled: scenario == "sign-in-no-server"),
+      service: FixtureSubscriptionService(isEntitled: (scenario == "sign-in-no-server" || scenario.hasPrefix("settings-paid"))),
       gate: BackendAccessGate(now: { Date(timeIntervalSince1970: 0) }),
       waitUntil: { _ in throw CancellationError() }
     )
@@ -40,7 +40,7 @@ struct UITestApp: App {
         credentials: StoredCredentialSnapshot(session: nil),
         isExplicitlySignedOut: true, requestContext: nil, initializationError: nil
       ),
-      authentication: FixtureAuthentication()
+      authentication: FixtureAuthentication(canLogOut: scenario == "settings-locked")
     )
     telemetryBuildDetails = TelemetryBuildDetails(
       postHogProjectToken: "phc_ui_fixture",
@@ -65,10 +65,16 @@ struct UITestApp: App {
           AnalyticsSettingsView(analytics: analytics, buildDetails: telemetryBuildDetails)
         }
       } else if scenario == "subscription-sheet" {
+        NavigationStack {
+          SubscriptionAccessView(access: subscriptionAccess)
+        }
+        .task { await subscriptionAccess.refresh() }
+      } else if scenario.hasPrefix("settings-") {
         ConnectionSettingsView(subscriptionAccess: subscriptionAccess, connection: sureConnection,
           analytics: analytics, telemetryBuildDetails: telemetryBuildDetails,
           diagnostics: FixtureDiagnostics())
           .task { await subscriptionAccess.refresh() }
+          .preferredColorScheme(scenario == "settings-paid-dark" ? .dark : .light)
       } else if scenario == "wallet-consent" {
         FixtureFinanceKitSyncScreen(persistConsent: true)
       } else if scenario == "wallet-rejection" {
@@ -167,7 +173,8 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
   var isConfigured: Bool { false }
   var isSignedOut: Bool { true }
   var generation: Int { 0 }
-  var canLogOut: Bool { false }
+  private(set) var canLogOut: Bool
+  init(canLogOut: Bool = false) { self.canLogOut = canLogOut }
   var allowsWalletPreview: Bool { false }
   var connectionID: String? { nil }
   var serverURL: URL? { nil }
@@ -183,7 +190,7 @@ private final class FixtureAuthentication: ConnectionAuthenticating {
   }
   func cancel() {}
   func cancelOnboarding() {}
-  func logOut() async {}
+  func logOut() async { canLogOut = false; status = .notConnected }
 }
 
 @MainActor

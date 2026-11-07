@@ -16,7 +16,7 @@ final class SourceBoundaryUITests: XCTestCase {
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
     app.buttons["Settings"].firstMatch.tap()
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.textFields["https://demo.sure.am"].exists)
+    XCTAssertTrue(app.textFields["settings-server-url"].exists)
     app.buttons["Done"].tap()
     XCTAssertTrue(app.buttons["Connect to Sure"].waitForExistence(timeout: 10))
     app.buttons["Settings"].tap()
@@ -39,6 +39,53 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.textFields["Email"].exists)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  func testSettingsRemainAvailableWithoutSubscription() throws {
+    let app = launch("settings-locked")
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.buttons["Subscribe"].exists)
+    XCTAssertTrue(app.buttons["View subscription plans"].exists)
+    XCTAssertTrue(app.buttons["Usage analytics"].exists)
+    XCTAssertTrue(app.buttons["Diagnostics"].exists)
+    XCTAssertFalse(app.buttons["Continue with Passkey"].exists)
+    XCTAssertFalse(app.buttons["Password or provider sign-in"].exists)
+    app.buttons["Usage analytics"].tap()
+    XCTAssertTrue(app.navigationBars["Usage analytics"].waitForExistence(timeout: 10))
+    app.navigationBars.buttons.firstMatch.tap()
+    app.buttons["API key access"].firstMatch.tap()
+    XCTAssertFalse(app.secureTextFields["settings-api-key"].exists)
+    try app.performAccessibilityAudit(for: .sufficientElementDescription)
+    let logout = app.buttons["Log Out"]
+    for _ in 0..<3 where !logout.isHittable { app.swipeUp() }
+    logout.tap()
+    XCTAssertTrue(logout.waitForNonExistence(timeout: 10))
+  }
+
+  @MainActor
+  func testSettingsAdvancedAPIKeyDraftInBothAppearances() throws {
+    for scenario in ["settings-paid-light", "settings-paid-dark"] {
+      let app = launch(scenario)
+      XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+      XCTAssertTrue(app.buttons["Manage subscription"].waitForExistence(timeout: 10))
+      XCTAssertFalse(app.secureTextFields["settings-api-key"].exists)
+      XCTAssertFalse(app.buttons["Continue with Passkey"].exists)
+      app.buttons["API key access"].firstMatch.tap()
+      let key = app.secureTextFields["settings-api-key"]
+      XCTAssertTrue(key.waitForExistence(timeout: 10))
+      if !key.isHittable { app.swipeUp() }
+      key.tap()
+      key.typeText("unsaved-fixture-key")
+      XCTAssertFalse(app.staticTexts["This key couldn’t be saved"].exists)
+      XCTAssertFalse(app.staticTexts["Saved in Keychain"].exists)
+      try app.performAccessibilityAudit(for: .sufficientElementDescription)
+      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      screenshot.name = scenario
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      app.terminate()
+    }
   }
 
   @MainActor

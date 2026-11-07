@@ -20,8 +20,7 @@ struct ConnectionPresentationModifier: ViewModifier {
           ConnectionSettingsView(
             subscriptionAccess: subscriptionAccess, connection: connection, analytics: analytics,
             telemetryBuildDetails: telemetryBuildDetails, diagnostics: diagnostics,
-            financeKitSync: financeKitSync, wallet: wallet,
-            showSignIn: { presentation = .signIn }
+            financeKitSync: financeKitSync, wallet: wallet
           )
         case .signIn:
           SignInView(subscriptionAccess: subscriptionAccess, connection: connection,
