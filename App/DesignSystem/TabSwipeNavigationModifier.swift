@@ -5,17 +5,26 @@ struct TabSwipeNavigationModifier: ViewModifier {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var excludedFrames: [UUID: CGRect] = [:]
   @State private var startedInExcludedRegion = false
+  @State private var hasCapturedStart = false
+  @GestureState private var dragIsActive = false
 
   func body(content: Content) -> some View {
     content
       .environment(\.registerTabSwipeExclusion) { id, frame in excludedFrames[id] = frame }
+      .onChange(of: dragIsActive) { _, active in
+        if !active { hasCapturedStart = false }
+      }
       .simultaneousGesture(
         DragGesture(minimumDistance: 24, coordinateSpace: .global)
+          .updating($dragIsActive) { _, active, _ in active = true }
           .onChanged { value in
-            // Capture before a successful dismissal can remove the originating row.
+            guard !hasCapturedStart else { return }
+            hasCapturedStart = true
+            // Keep the origin even when the row disappears before the drag ends.
             startedInExcludedRegion = excludedFrames.values.contains { $0.contains(value.startLocation) }
           }
           .onEnded { value in
+            defer { hasCapturedStart = false }
             guard !startedInExcludedRegion else { return }
             let horizontal = value.predictedEndTranslation.width
             let vertical = value.predictedEndTranslation.height

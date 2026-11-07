@@ -1,9 +1,10 @@
 # Insight acknowledgment rollout
 
 The Apple client now calls `PATCH /api/v1/insights/{uuid}/acknowledge` through the
-existing authenticated, subscription-gated transport. It requires `204 No Content`
-before removing that row. There is no offline write fallback or queued credential-
-independent mutation. Failure leaves the row available for retry.
+existing authenticated, subscription-gated transport. A swipe past one third of a cell's width immediately hides it while the request
+runs; a failed request restores it with an error. Only `204 No Content` removes it
+from the downloaded feed and Watch snapshot. There is no offline write fallback
+or queued credential-independent mutation.
 
 The backend implementation is committed on `acknowledge-insights-api` in the
 isolated checkout `/tmp/sure-insight-api-20261106`:

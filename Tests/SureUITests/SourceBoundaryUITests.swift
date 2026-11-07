@@ -31,6 +31,42 @@ final class SourceBoundaryUITests: XCTestCase {
   }
 
   @MainActor
+  func testOneThirdSwipeHidesPendingInsightAndFailureRestoresIt() throws {
+    let app = launch("insight-dismissal-pending-failure")
+    let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+    start.press(forDuration: 0.1, thenDragTo: row.coordinate(withNormalizedOffset: CGVector(dx: 0.60, dy: 0.5)))
+    XCTAssertTrue(row.exists)
+    XCTAssertFalse(app.buttons["Finish insight dismissal"].exists)
+    start.press(forDuration: 0.1, thenDragTo: row.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.5)))
+    let finish = app.buttons["Finish insight dismissal"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 5))
+    XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000602"].firstMatch.exists)
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+    finish.tap()
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["insight-dismissal-error"].exists)
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+  }
+
+  @MainActor
+  func testSuccessfulDismissalKeepsPendingInsightHidden() throws {
+    let app = launch("insight-dismissal-pending")
+    let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    row.swipeLeft()
+    let finish = app.buttons["Finish insight dismissal"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 5))
+    XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+    finish.tap()
+    XCTAssertTrue(finish.waitForNonExistence(timeout: 5))
+    XCTAssertFalse(row.exists)
+    XCTAssertTrue(app.tabBars.buttons["Overview"].isSelected)
+  }
+
+  @MainActor
   func testInsightSwipesKeepOverviewAndOtherSwipesChangeTabs() throws {
     let app = launch("insight-dismissal")
     let row = app.descendants(matching: .any)["insight-00000000-0000-4000-8000-000000000601"].firstMatch

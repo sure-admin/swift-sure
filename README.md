@@ -342,7 +342,8 @@ For the experimental foreground Wallet publisher, see the
 
 Swipe an AI Insights row toward the leading edge to dismiss it. A context-menu
 and VoiceOver action are also available, and macOS includes a Dismiss button.
-The app keeps the row while saving and retains it with an error if the request
-fails. Successful acknowledgments update the downloaded feed and Watch snapshot.
+Crossing one third of the row's width hides it immediately without a tap. If the
+request fails, the row returns with an error for retry. Successful acknowledgments
+update the downloaded feed and Watch snapshot.
 This requires the [backend acknowledgment API patch](Docs/InsightAcknowledgment.md)
 to be merged and deployed; it is not a local-only hide action.

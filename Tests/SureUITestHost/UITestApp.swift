@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 
 /// This separate executable uses production views with memory-only fixtures.
 /// It has no production composition root, entitlements, SDK startup, or services.
@@ -23,6 +24,7 @@ struct UITestApp: App {
     let client = FixtureClient(failFirst: scenario == "failure", syncedWallet: scenario == "wallet-synced")
     let wallet = AppleCardConnectionStore(connector: FixtureWallet())
     client.insightDismissalFailure = scenario.contains("failure")
+    client.holdsInsightDismissal = scenario.contains("pending")
     client.showInsights = scenario.hasPrefix("insight-dismissal")
     self.connection = connection; self.client = client; self.wallet = wallet
     finance = FinanceDataStore(connection: connection, client: client, calendar: .current,
@@ -54,7 +56,7 @@ struct UITestApp: App {
   var body: some Scene {
     WindowGroup {
       if scenario.hasPrefix("insight-dismissal") {
-        FixtureInsightTabs(finance: finance)
+        FixtureInsightTabs(finance: finance, client: client)
         .preferredColorScheme(scenario.hasSuffix("dark") ? .dark : .light)
         .task { await finance.refresh() }
       } else if scenario.hasPrefix("connection-routing") {
@@ -107,6 +109,7 @@ struct UITestApp: App {
 
 private struct FixtureInsightTabs: View {
   var finance: FinanceDataStore
+  var client: FixtureClient
   @State private var selection: AppSection = .overview
 
   var body: some View {
@@ -123,6 +126,9 @@ private struct FixtureInsightTabs: View {
               statusColumnWidth: 56, acknowledgingIDs: finance.acknowledgingInsightIDs,
               acknowledgmentError: finance.insightAcknowledgmentError,
               acknowledge: { insight in Task { await finance.acknowledgeInsight(insight) } })
+            if client.insightDismissalPending {
+              Button("Finish insight dismissal") { client.finishInsightDismissal() }
+            }
             Color.clear.frame(height: 700)
             Text("End of overview")
           }
@@ -258,6 +264,7 @@ private struct FixtureWallet: AppleCardConnecting {
 }
 
 @MainActor
+@Observable
 private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, SpendingComparisonClient, WalletSpendingComparisonProviding {
   static let date = ISO8601DateFormatter().date(from: "2024-02-15T12:00:00Z")!
   private var failFirst: Bool
@@ -281,6 +288,16 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
   func fetchBudgetCategories() async throws -> [BudgetCategory] { [] }
   var showInsights = false
   var insightDismissalFailure = false
+  var holdsInsightDismissal = false
+  var insightDismissalPending = false
+  @ObservationIgnored private var insightDismissalContinuation: CheckedContinuation<Void, Never>?
+
+  func finishInsightDismissal() {
+    insightDismissalPending = false
+    let continuation = insightDismissalContinuation
+    insightDismissalContinuation = nil
+    continuation?.resume()
+  }
   var acknowledgedInsights: Set<UUID> = []
   func fetchInsights() async throws -> [BackendInsight] {
     guard showInsights else { return [] }
@@ -292,6 +309,12 @@ private final class FixtureClient: FinanceDataClient, TransactionHistoryClient, 
     ].filter { !acknowledgedInsights.contains(UUID(uuidString: $0.id)!) }
   }
   func acknowledgeInsight(id: UUID, requiredServerURL: URL?) async throws {
+    if holdsInsightDismissal {
+      await withCheckedContinuation { continuation in
+        insightDismissalContinuation = continuation
+        insightDismissalPending = true
+      }
+    }
     if insightDismissalFailure { throw SureAPIError.server(500) }
     acknowledgedInsights.insert(id)
   }

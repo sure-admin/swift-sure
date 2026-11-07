@@ -8,6 +8,8 @@ struct InsightRow: View {
   @Environment(\.layoutDirection) private var layoutDirection
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var dragOffset: CGFloat = 0
+  @State private var cellWidth: CGFloat = 0
+  @State private var hasTriggeredDismissal = false
 
   var body: some View {
     ZStack(alignment: .trailing) {
@@ -36,20 +38,23 @@ struct InsightRow: View {
     .clipped()
     .contentShape(Rectangle())
     .excludingTabSwipes()
+    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { cellWidth = $0 }
     .simultaneousGesture(
       DragGesture(minimumDistance: 24)
         .onChanged { value in
-          guard !isAcknowledging,
+          guard !isAcknowledging, !hasTriggeredDismissal, cellWidth > 0,
                 abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
           let direction: CGFloat = layoutDirection == .rightToLeft ? 1 : -1
-          dragOffset = direction * min(120, max(0, value.translation.width * direction))
+          let distance = max(0, value.translation.width * direction)
+          dragOffset = direction * min(cellWidth, distance)
+          if distance >= cellWidth / 3 {
+            hasTriggeredDismissal = true
+            acknowledge()
+          }
         }
-        .onEnded { value in
-          let direction: CGFloat = layoutDirection == .rightToLeft ? 1 : -1
-          let shouldDismiss = !isAcknowledging && value.translation.width * direction >= 88
-            && abs(value.translation.width) > abs(value.translation.height) * 1.5
+        .onEnded { _ in
           withAnimation(reduceMotion ? nil : .snappy) { dragOffset = 0 }
-          if shouldDismiss { acknowledge() }
+          hasTriggeredDismissal = false
         }
     )
     .contextMenu {
