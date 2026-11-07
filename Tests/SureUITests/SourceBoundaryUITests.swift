@@ -39,7 +39,7 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(app.buttons["Continue with Google"].exists)
     XCTAssertFalse(app.navigationBars["Settings"].exists)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
-    app.buttons["Settings"].firstMatch.tap()
+    try tapVisibleSettings(in: app)
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.textFields["settings-server-url"].exists)
     app.buttons["Done"].tap()
@@ -60,10 +60,18 @@ final class SourceBoundaryUITests: XCTestCase {
     XCTAssertTrue(app.buttons["Subscribe"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.textFields["Email"].exists)
     XCTAssertFalse(app.secureTextFields["Password"].exists)
-    app.buttons["Settings"].firstMatch.tap()
+    try tapVisibleSettings(in: app)
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.textFields["Email"].exists)
     try app.performAccessibilityAudit(for: .sufficientElementDescription)
+  }
+
+  @MainActor
+  private func tapVisibleSettings(in app: XCUIApplication) throws {
+    // A sheet can leave the presenting view's cog in the accessibility tree.
+    let button = try XCTUnwrap(app.buttons.matching(identifier: "Settings")
+      .allElementsBoundByIndex.first(where: \.isHittable), "Expected a tappable Settings button")
+    button.tap()
   }
 
   @MainActor
