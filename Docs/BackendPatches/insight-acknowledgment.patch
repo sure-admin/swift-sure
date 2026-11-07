@@ -1,7 +1,7 @@
 From 69266fe685eb7055979bca0bc68846570f2b28e3 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Juan=20Jos=C3=A9=20Mata?= <juanjo.mata@gmail.com>
 Date: Fri, 6 Nov 2026 20:01:13 -0800
-Subject: [PATCH] Expose insight acknowledgment through the public API
+Subject: [PATCH 1/2] Expose insight acknowledgment through the public API
 
 ---
  app/controllers/api/v1/insights_controller.rb | 18 +++-
@@ -293,6 +293,137 @@ index b665e9f87..d6cfe03c0 100644
 +    assert @insight.reload.active?
 +  end
  end
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 40bac49be001fa9633ed2fb31741b5f678320a35 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Juan=20Jos=C3=A9=20Mata?= <juanjo.mata@gmail.com>
+Date: Fri, 6 Nov 2026 21:20:06 -0800
+Subject: [PATCH 2/2] Recheck insight visibility and correct acknowledgment API
+ docs
+
+---
+ app/controllers/api/v1/insights_controller.rb |  3 +++
+ docs/api/openapi.yaml                         |  6 +++--
+ spec/requests/api/v1/insights_spec.rb         | 19 ++++++++++++---
+ .../api/v1/insights_controller_test.rb        | 23 +++++++++++++++++++
+ 4 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/app/controllers/api/v1/insights_controller.rb b/app/controllers/api/v1/insights_controller.rb
+index 8b305eb11..ac66a3b6d 100644
+--- a/app/controllers/api/v1/insights_controller.rb
++++ b/app/controllers/api/v1/insights_controller.rb
+@@ -19,6 +19,9 @@ class Api::V1::InsightsController < Api::V1::BaseController
+ 
+     insight = current_resource_owner.family.insights.about_shared_accounts.find(params[:id])
+     insight.with_lock do
++      # Account access can change while this request waits for the row lock.
++      raise ActiveRecord::RecordNotFound unless current_resource_owner.family.insights.about_shared_accounts.exists?(id: insight.id)
++
+       # Replays must not overwrite timestamps or revive expired insights.
+       if insight.active? || insight.read?
+         insight.mark_read!
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index e8d0370e8..39ebc23fe 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -8376,13 +8376,15 @@ paths:
+         are idempotent.
+       security:
+       - apiKeyAuth: []
++      - oauth2:
++        - read_write
+       parameters:
+       - name: id
+         in: path
+-        format: uuid
+-        required: true
+         schema:
+           type: string
++          format: uuid
++        required: true
+       responses:
+         '204':
+           description: insight acknowledged
+diff --git a/spec/requests/api/v1/insights_spec.rb b/spec/requests/api/v1/insights_spec.rb
+index 98f473048..d818aa5d2 100644
+--- a/spec/requests/api/v1/insights_spec.rb
++++ b/spec/requests/api/v1/insights_spec.rb
+@@ -49,23 +49,36 @@ RSpec.describe "API V1 Insights", type: :request do
+     patch "Acknowledge a proactive insight" do
+       tags "Insights"
+       description "Marks a visible family insight read and acknowledged, removing it from the feed. Requires read_write scope and preview access. Repeated requests are idempotent."
+-      security [ { apiKeyAuth: [] } ]
++      security [ { apiKeyAuth: [] }, { oauth2: %w[read_write] } ]
+       produces "application/json"
+-      parameter name: :id, in: :path, type: :string, format: :uuid, required: true
+-      let(:id) { SecureRandom.uuid }
++      parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true
++      let(:insight) do
++        family.insights.create!(
++          insight_type: "idle_cash", priority: "medium", status: "active",
++          title: "Idle cash", body: "Review available cash.",
++          generated_at: Time.current, dedup_key: "api-docs-acknowledgment"
++        )
++      end
++      let(:id) { insight.id }
+ 
+       response "204", "insight acknowledged" do
+         run_test!
+       end
+       response "401", "authentication required" do
++        let(:"X-Api-Key") { "invalid-api-key" }
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+       response "403", "write scope, member access or preview features required" do
++        let(:api_key) do
++          key = ApiKey.generate_secure_key
++          ApiKey.create!(user: user, name: "API Docs Read Key", key: key, scopes: %w[read], source: "web")
++        end
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+       response "404", "insight not found or not visible to the family" do
++        let(:id) { SecureRandom.uuid }
+         schema "$ref" => "#/components/schemas/ErrorResponse"
+         run_test!
+       end
+diff --git a/test/controllers/api/v1/insights_controller_test.rb b/test/controllers/api/v1/insights_controller_test.rb
+index d6cfe03c0..83e179ec5 100644
+--- a/test/controllers/api/v1/insights_controller_test.rb
++++ b/test/controllers/api/v1/insights_controller_test.rb
+@@ -115,6 +115,29 @@ class Api::V1::InsightsControllerTest < ActionDispatch::IntegrationTest
+     assert @insight.reload.active?
+   end
+ 
++  test "rechecks account visibility after acquiring the insight lock" do
++    @api_key.update!(scopes: [ "read_write" ])
++    account = accounts(:depository)
++    account.family.users.where(active: true).where.not(id: account.owner_id).find_each do |member|
++      account.account_shares.find_or_create_by!(user: member) { |share| share.permission = "read_only" }
++    end
++    @insight.update!(metadata: { account_id: account.id })
++    assert @user.family.insights.about_shared_accounts.exists?(@insight.id)
++
++    # Simulate visibility changing after the scoped lookup, at lock acquisition.
++    Insight.any_instance.expects(:lock!).with do |lock|
++      account.update!(status: :disabled)
++      lock == true
++    end
++
++    patch acknowledge_api_v1_insight_url(@insight), headers: api_headers(@api_key)
++
++    assert_response :not_found
++    assert @insight.reload.active?
++    assert_nil @insight.read_at
++    assert_nil @insight.dismissed_at
++  end
++
+   test "rejects missing and malformed insight IDs" do
+     @api_key.update!(scopes: [ "read_write" ])
+     [ SecureRandom.uuid, "invalid" ].each do |id|
 -- 
 2.50.1 (Apple Git-155)
 
