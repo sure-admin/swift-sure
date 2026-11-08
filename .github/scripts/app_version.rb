@@ -3,15 +3,16 @@
 require "fileutils"
 
 module AppVersion
-  def self.for_build(time: Time.now, override: nil)
+  def self.for_build(time: Time.now, override: nil, platform: nil)
     version = if override.to_s.empty?
       # Use one release calendar across developer machines and CI runners.
-      IO.popen([{ "TZ" => "America/Los_Angeles" }, "/bin/date", "-r", time.to_i.to_s, "+%Y.%-m.%-d"], &:read).strip
+      format = platform == "macosx" ? "+%Y.%-m.%-d" : "+%Y.%-m"
+      IO.popen([{ "TZ" => "America/Los_Angeles" }, "/bin/date", "-r", time.to_i.to_s, format], &:read).strip
     else
       override
     end
-    unless /\A[1-9][0-9]*\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z/.match?(version)
-      raise ArgumentError, "App version must contain three dot-separated integers"
+    unless /\A[1-9][0-9]*\.(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?\z/.match?(version)
+      raise ArgumentError, "App version must contain two or three dot-separated integers"
     end
     version
   end
@@ -27,7 +28,7 @@ module AppVersion
 end
 
 if $PROGRAM_NAME == __FILE__
-  version = AppVersion.for_build(override: ENV["SURE_APP_VERSION"])
+  version = AppVersion.for_build(override: ENV["SURE_APP_VERSION"], platform: ENV["PLATFORM_NAME"])
   case ARGV.length
   when 0 then puts version
   when 2 then AppVersion.prepare_plist(*ARGV, version: version)

@@ -343,9 +343,10 @@ protocols are for meaningful seams and alternate implementations.
 
 ## Build and validation
 
-Production app versions derive from the `America/Los_Angeles` build date (`YYYY.M.D`) via
+iOS and Watch release versions derive from the `America/Los_Angeles` build month
+(`YYYY.M`); macOS retains daily versions (`YYYY.M.D`). Both use
 `.github/scripts/app_version.rb` and a derived Info.plist for each target.
-Keep the app and Watch versions aligned. CI sets `SURE_APP_VERSION` once for
+Keep the iOS app and Watch versions aligned. CI sets `SURE_APP_VERSION` once for
 build-number lookup and archiving; build numbers remain independent.
 
 Generate the project after changing `Project.json` or source layout:
