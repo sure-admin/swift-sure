@@ -276,7 +276,7 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
           BUILD_NUMBER_OFFSET: ${{ github.run_number }}
         run: |
-          marketing_version="$(PLATFORM_NAME=iphoneos ruby .github/scripts/app_version.rb)"
+          marketing_version="$(ruby .github/scripts/app_version.rb)"
           echo "SURE_APP_VERSION=$marketing_version" >> "$GITHUB_ENV"
           build_number="$(APP_MARKETING_VERSION="$marketing_version" ruby .github/scripts/next_testflight_build_number.rb)"
           echo "BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"

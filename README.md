@@ -118,15 +118,15 @@ credentials above.
 
 ## App versioning
 
-iOS and its Watch companion use the `America/Los_Angeles` build month as the
-release version (`YYYY.M`, for example `2026.11`). macOS keeps date-based versions
-(`YYYY.M.D`, for example `2026.11.7`). The pre-build phase
-creates a derived Info.plist; generated source plists stay unchanged. The build
-number remains separate. CI freezes `SURE_APP_VERSION` before selecting the next
-TestFlight build number and passes it through the archive, including the Watch
-app. Set that build setting explicitly when reproducing a release.
-The `MARKETING_VERSION` in Project.json is a fallback; shipped bundles use the
-version computed by `.github/scripts/app_version.rb`.
+The app and Watch use the monthly release version in `Project.json`
+(`MARKETING_VERSION`, currently `2026.11`). Update both targets together when
+starting a new month's release. Build numbers remain separate and CI increments
+them for additional uploads within that release.
+
+Generated Info.plists, Bitrig upload metadata, and CI use the same configured
+version. Do not rewrite `CFBundleShortVersionString` in a build phase: the upload
+request and bundle must agree. `.github/scripts/app_version.rb` validates app/Watch
+alignment and supplies the configured version to CI; `SURE_APP_VERSION` must match.
 
 ## TestFlight deployments
 

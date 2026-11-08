@@ -25,15 +25,6 @@
   },
   "targets" : {
     "Sure" : {
-      "preBuildScripts" : [
-        {
-          "name" : "Set date app version",
-          "script" : "ruby \"${SRCROOT}/.github/scripts/app_version.rb\" \"${SRCROOT}/App/Info.plist\" \"${INFOPLIST_FILE}\"",
-          "inputFiles" : ["$(SRCROOT)/App/Info.plist", "$(SRCROOT)/.github/scripts/app_version.rb"],
-          "outputFiles" : ["$(INFOPLIST_FILE)"],
-          "basedOnDependencyAnalysis" : false
-        }
-      ],
       "configFiles" : {
         "Debug" : "Config/Debug.xcconfig",
         "Release" : "Config/Release.xcconfig"
@@ -117,8 +108,7 @@
           "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*]" : "$(inherited) FINANCEKIT_ENABLED",
           "CURRENT_PROJECT_VERSION" : "1",
           "DEBUG_INFORMATION_FORMAT[sdk=iphoneos*]" : "dwarf-with-dsym",
-          "MARKETING_VERSION" : "2026.11.6",
-          "INFOPLIST_FILE" : "$(DERIVED_FILE_DIR)/Sure-Versioned-Info.plist",
+          "MARKETING_VERSION" : "2026.11",
           "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights",
           "PRODUCT_NAME" : "$(TARGET_NAME)",
           "SWIFT_VERSION" : "5.0",
@@ -173,15 +163,6 @@
       "type" : "bundle.unit-test"
     },
     "Sure Watch" : {
-      "preBuildScripts" : [
-        {
-          "name" : "Set date app version",
-          "script" : "ruby \"${SRCROOT}/.github/scripts/app_version.rb\" \"${SRCROOT}/Watch/Info.plist\" \"${INFOPLIST_FILE}\"",
-          "inputFiles" : ["$(SRCROOT)/Watch/Info.plist", "$(SRCROOT)/.github/scripts/app_version.rb"],
-          "outputFiles" : ["$(INFOPLIST_FILE)"],
-          "basedOnDependencyAnalysis" : false
-        }
-      ],
       "info" : {
         "path" : "Watch\/Info.plist",
         "properties" : {
@@ -208,8 +189,7 @@
           "ASSETCATALOG_COMPILER_APPICON_NAME" : "AppIcon",
           "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME" : "AccentColor",
           "CURRENT_PROJECT_VERSION" : "1",
-          "MARKETING_VERSION" : "2026.11.6",
-          "INFOPLIST_FILE" : "$(DERIVED_FILE_DIR)/Sure-Versioned-Info.plist",
+          "MARKETING_VERSION" : "2026.11",
           "PRODUCT_BUNDLE_IDENTIFIER" : "am.sure.insights.watchkitapp",
           "PRODUCT_NAME" : "$(TARGET_NAME)",
           "SWIFT_VERSION" : "5.0"
