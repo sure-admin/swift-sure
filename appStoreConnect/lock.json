@@ -11,12 +11,14 @@
         "fileName": "SOURCE",
         "fileSize": 355898,
         "id": "50415e15-4533-4742-b927-a16560e9a136",
+        "renditionChecksum": "93abbde54e6bc4218dec52f84f259ea3",
         "sourceFileChecksum": "4f7bfb859afc2a488e8625c1151c2215"
       },
       "am.sure.insights.sync.yearly": {
         "fileName": "SOURCE",
         "fileSize": 355898,
         "id": "5e69304c-3daf-489c-8c24-aa1b6c353204",
+        "renditionChecksum": "e1601afeeb216eecb783caf2947cabae",
         "sourceFileChecksum": "c80d83414f3d6a9b03b498d8aa3ca34f"
       }
     }
