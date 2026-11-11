@@ -118,14 +118,15 @@ credentials above.
 
 ## App versioning
 
-Every build uses its `America/Los_Angeles` calendar date as the app version (`YYYY.M.D`, for example
-`2026.11.6`), consistently across iOS, macOS, and watchOS. The pre-build phase
-creates a derived Info.plist; generated source plists stay unchanged. The build
-number remains separate. CI freezes `SURE_APP_VERSION` before selecting the next
-TestFlight build number and passes it through the archive, including the Watch
-app. Set that build setting explicitly when reproducing a dated release.
-The `MARKETING_VERSION` in Project.json is a fallback; shipped bundles use the
-version computed by `.github/scripts/app_version.rb`.
+The app and Watch use the monthly release version in `Project.json`
+(`MARKETING_VERSION`, currently `2026.11`). Update both targets together when
+starting a new month's release. Build numbers remain separate and CI increments
+them for additional uploads within that release.
+
+Generated Info.plists, Bitrig upload metadata, and CI use the same configured
+version. Do not rewrite `CFBundleShortVersionString` in a build phase: the upload
+request and bundle must agree. `.github/scripts/app_version.rb` validates app/Watch
+alignment and supplies the configured version to CI; `SURE_APP_VERSION` must match.
 
 ## TestFlight deployments
 
@@ -342,7 +343,8 @@ For the experimental foreground Wallet publisher, see the
 
 Swipe an AI Insights row toward the leading edge to dismiss it. A context-menu
 and VoiceOver action are also available, and macOS includes a Dismiss button.
-The app keeps the row while saving and retains it with an error if the request
-fails. Successful acknowledgments update the downloaded feed and Watch snapshot.
+Crossing one third of the row's width hides it immediately without a tap. If the
+request fails, the row returns with an error for retry. Successful acknowledgments
+update the downloaded feed and Watch snapshot.
 This requires the [backend acknowledgment API patch](Docs/InsightAcknowledgment.md)
 to be merged and deployed; it is not a local-only hide action.

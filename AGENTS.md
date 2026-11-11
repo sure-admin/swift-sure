@@ -49,7 +49,8 @@ idiomatic Swift and SwiftUI architecture.
 
 - Explicit user acknowledgment of an AI insight is an authorized write exception:
   use the documented insight acknowledgment API, preserve family/account visibility,
-  and update the downloaded feed only after server success.
+  and update the downloaded feed only after server success. The UI may hide a
+  pending dismissal immediately, restoring the row when the request fails.
 - Financial data is read-only. Do not add transaction, account, budget, or
   valuation mutations without an explicit product decision. Authentication,
   token lifecycle, and push-subscription writes are infrastructure exceptions.
@@ -342,10 +343,12 @@ protocols are for meaningful seams and alternate implementations.
 
 ## Build and validation
 
-Production app versions derive from the `America/Los_Angeles` build date (`YYYY.M.D`) via
-`.github/scripts/app_version.rb` and a derived Info.plist for each target.
-Keep the app and Watch versions aligned. CI sets `SURE_APP_VERSION` once for
-build-number lookup and archiving; build numbers remain independent.
+Release versions come from `MARKETING_VERSION` in `Project.json` (`YYYY.M`).
+Keep the app and Watch aligned and update both when starting a new month's release.
+Generated Info.plists, upload metadata, and CI must use that same configured value;
+never rewrite `CFBundleShortVersionString` during a build. CI validates the version
+with `.github/scripts/app_version.rb` and freezes matching `SURE_APP_VERSION` for
+build-number lookup and archiving. Build numbers remain independent.
 
 Generate the project after changing `Project.json` or source layout:
 

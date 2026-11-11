@@ -10,6 +10,12 @@ struct InsightCard: View {
   var acknowledgmentError: String?
   var acknowledge: (BackendInsight) -> Void
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  private var visibleInsights: [BackendInsight] {
+    insights.filter { !acknowledgingIDs.contains($0.id) }
+  }
+
   @AppStorage("insightNotificationsEnabled") private var notificationsEnabled = false
   @State private var showingNotificationFailure = false
 
@@ -19,14 +25,17 @@ struct InsightCard: View {
         Label("AI Insights", systemImage: "sparkles")
           .font(.title3.bold())
         Spacer()
-        if !insights.isEmpty {
-          Text("\(insights.count) NEW")
+        if !visibleInsights.isEmpty {
+          Text("\(visibleInsights.count) NEW")
             .font(.caption2.bold())
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(SureTheme.highlight, in: Capsule())
             .foregroundStyle(SureTheme.ink)
             .frame(width: statusColumnWidth)
+        }
+        if !acknowledgingIDs.isEmpty {
+          ProgressView().accessibilityLabel("Dismissing insight")
         }
       }
 
@@ -58,11 +67,13 @@ struct InsightCard: View {
             )
           }
         } else {
-          ForEach(Array(insights.enumerated()), id: \.element.id) { index, insight in
+          ForEach(Array(visibleInsights.enumerated()), id: \.element.id) { index, insight in
             if index > 0 { Divider() }
             InsightRow(insight: insight, isAcknowledging: acknowledgingIDs.contains(insight.id)) {
               acknowledge(insight)
             }
+            .transition(reduceMotion ? .opacity : .asymmetric(insertion: .opacity,
+              removal: .move(edge: .leading).combined(with: .opacity)))
           }
         }
       }
@@ -93,6 +104,7 @@ struct InsightCard: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .sureCard()
+    .animation(reduceMotion ? nil : .snappy, value: visibleInsights.map(\.id))
     #if os(iOS)
     .alert("Notifications are off", isPresented: $showingNotificationFailure) {
       Button("OK", role: .cancel) { }
